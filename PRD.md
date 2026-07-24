@@ -3,7 +3,7 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.1
+- Version: 1.3
 - Last updated: 25 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui
@@ -579,6 +579,7 @@ Acceptance criteria:
 - Public same-origin service worker.
 - Uses service-worker-specific security and cache headers.
 - Does not expose environment secrets or cache authenticated application data.
+- Is excluded from the root proxy matcher so service-worker installation and updates never depend on an Auth request.
 
 ## 5. Job state model
 
@@ -761,7 +762,14 @@ Requirements:
 - Use Server Components for initial reads and role-specific page composition.
 - Use Server Actions for authenticated mutations.
 - Use client components only where browser state or interaction is required, including drag/drop, calendar manipulation, upload progress, and optimistic updates.
-- Use `proxy.ts` for optimistic route redirection and Supabase cookie refresh only.
+- Use the required root-level `proxy.ts` as the single Next.js Proxy entrypoint.
+- Keep the root entrypoint thin: it imports and returns a project-native Supabase session helper from `lib/supabase/proxy.ts`.
+- Port the cookie propagation and route-gating pattern from `components/ref-files/supabase/proxy.ts` and `components/ref-files/supabase/root-proxy.ts`; do not import the reference files or their `@eva/*` dependencies.
+- Use Proxy for Supabase Auth cookie refresh and optimistic signed-in/signed-out redirects only.
+- The Proxy matcher excludes Next.js static/image assets, favicon and image files, `/sw.js`, and `/manifest.webmanifest`.
+- Public Auth routes remain reachable for invitation confirmation and password setup.
+- Signed-out access to `/dashboard/:path*` redirects to `/login`; signed-in access to `/` or `/login` redirects to `/dashboard`.
+- Proxy failure or route gating never replaces authoritative membership, role, status, organisation, or resource checks.
 - Perform authoritative authentication and authorisation inside the data-access layer and every Server Action.
 - Validate untrusted input with Zod.
 - Revalidate affected paths or tags after successful mutations.
@@ -794,9 +802,22 @@ Requirements:
 - Treat install guidance as progressive enhancement; the web application remains fully usable without PWA support.
 - Keep push subscriptions, VAPID keys, background sync, and offline application data outside the V1 implementation.
 
-### 8.5 Reference code
+### 8.5 Environment configuration
 
-`components/ref-files` is incomplete extracted code and must not be imported directly into production features.
+- `.env.example` is the committed source of truth for every environment variable required by the application.
+- `.env.example` contains variable names and safe empty/example placeholders only; it must never contain usable secret values.
+- Local development values live in the ignored root `.env.local` file.
+- Whenever implementation adds, renames, or removes an environment variable, the same branch must update `.env.example`, environment validation, relevant tests, and setup documentation.
+- The implementing Codex task must explicitly tell the user which `.env.example` entries changed and instruct them to add the corresponding real values to `.env.local`; it must not assume that local values were updated.
+- Variables prefixed with `NEXT_PUBLIC_` are treated as browser-visible, build-time configuration and must never contain secrets.
+- Server-only Supabase, email, scheduler, or signing credentials must not use the `NEXT_PUBLIC_` prefix.
+- Missing required configuration fails with a clear, non-secret error at the earliest appropriate server boundary.
+
+### 8.6 Reference code
+
+`components/ref-files` is reusable prototype and implementation source material. It contains working styling, interaction patterns, assets, Supabase helpers, and domain logic that should accelerate feature delivery.
+
+Feature branches should inspect the relevant reference implementation before rebuilding equivalent behaviour. Where it matches this PRD, preserve its useful visual treatment, interaction behaviour, and available assets rather than recreating them without reason.
 
 Implementation may port:
 
@@ -804,9 +825,19 @@ Implementation may port:
 - Calendar slot positioning and drag interactions.
 - Timezone conversion helpers.
 - Supabase server/browser/admin client patterns.
+- Supabase Auth cookie propagation and the thin root Proxy composition pattern.
 - Resend sender abstractions.
 
-Ported code must use this repository's imports, types, design system, authorisation rules, and tests. Untouched reference files should be excluded from TypeScript and ESLint production scope until they are removed.
+Feature owners may clean, edit, split, move, rename, or remove reference files as they are absorbed into the application. The expected workflow is:
+
+1. Identify the styling, assets, interactions, and logic that satisfy the relevant PRD stories.
+2. Port or move those pieces into the appropriate production feature, `lib`, `app`, or shared component location.
+3. Replace `@eva/*`, missing project imports, old domain names, incomplete actions, and obsolete types with this repository's contracts.
+4. Simplify or remove unrelated legacy behaviour.
+5. Add tests for the preserved behaviour and any cleaned-up logic.
+6. Remove obsolete duplicates once the production implementation is verified.
+
+Finished production modules must not depend on unresolved reference-only imports or require `components/ref-files` to remain in the runtime dependency graph. Reference files not yet consumed should remain excluded from TypeScript and ESLint production scope. Any reference file changed by more than one feature must be recorded in the integration ledger.
 
 ## 9. Error, loading, and empty states
 
@@ -847,6 +878,7 @@ Use Vitest and React Testing Library for:
 - Daily and weekly occurrence calculation.
 - Schedule idempotency helpers.
 - Form validation and core component interaction.
+- Root Proxy cookie propagation, redirect, public-route, and matcher behaviour.
 - PWA standalone-mode detection and installation-guidance visibility.
 - Service-worker registration feature detection and failure handling.
 
@@ -880,6 +912,7 @@ Use Playwright for:
 11. A template schedule produces exactly one job per occurrence.
 12. Manifest, icons, and service worker are available with the required metadata and response headers.
 13. The application remains usable when service workers are unavailable.
+14. Signed-out dashboard requests redirect to login, signed-in login/root requests redirect to the dashboard, and public Auth/PWA resources remain reachable.
 
 Outbound email is mocked while the invitation request, recipient, and callback URL are asserted.
 

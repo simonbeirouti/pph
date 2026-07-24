@@ -62,14 +62,16 @@ The **feature integration branch** is a temporary branch created from F01 after 
 | `PRD.md` | F00/integration owner | Product decisions and acceptance criteria only |
 | `FEATURES.md` | Every active feature | Update only the relevant feature row and integration ledger |
 | `AGENTS.md` | F01/integration owner | Durable repository workflow rules |
+| `.env.example` | Feature introducing configuration | Keep names/placeholders canonical and explicitly notify the user to mirror real values into `.env.local` |
 | `package.json`, `pnpm-lock.yaml` | F01 initially; then feature adding dependency | Record dependency overlap in the ledger |
 | `app/layout.tsx`, dashboard shell, navigation | F01 | Feature branches expose route/nav requirements; integration owner combines them |
+| Root `proxy.ts`, `lib/supabase/proxy.ts` | F01 | Single thin entrypoint plus Supabase cookie/session helper; matcher changes require integration review |
 | `next.config.ts` | F05 | Other security or runtime changes must be logged for integration |
 | `app/globals.css` | F01/integration owner | Prefer component-local utility classes; log global token changes |
 | Supabase migrations | Creating feature | Add new immutable migrations; never edit another merged migration |
 | Generated Supabase types | F01 during foundation; F08 for final generation | Feature branches may regenerate locally but integration owns the final combined file |
 | Shared Playwright fixtures | F01/F08 | Features may extend without changing another role's semantics |
-| `components/ref-files/**` | Nobody | Read-only reference; never import directly into production |
+| `components/ref-files/**` | Feature consuming the relevant code | Inspect before rebuilding; preserve useful styling/functionality/assets, then clean and move production code into repository-native locations |
 
 ### Branch completion rules
 
@@ -81,6 +83,9 @@ Every feature branch must:
 - include database/RLS tests when it changes Supabase;
 - include at least one critical Playwright path for user-visible behaviour;
 - document environment variables and setup changes;
+- update `.env.example` for every configuration change and explicitly tell the user which real values must be added to `.env.local`;
+- identify which reference files were reused, cleaned, moved, left for later, or removed;
+- ensure finished production code has no unresolved `@eva/*` or reference-only runtime imports;
 - avoid real email, push, or other external side effects in automated tests;
 - update the integration ledger for every known overlap;
 - leave unrelated user changes untouched.
@@ -123,7 +128,11 @@ Maintain a clean, committed starting point containing the starter application, P
 - `organisations`, `memberships`, and minimal `employee_profiles` schema contracts.
 - Supabase browser, server, and admin clients.
 - Session loading, active membership, role, and organisation permission helpers.
-- Next.js 16 `proxy.ts` for cookie refresh and optimistic redirects.
+- Thin root-level Next.js 16 `proxy.ts` delegating to `lib/supabase/proxy.ts`.
+- Supabase Auth cookie refresh that propagates refreshed cookies through the request and returned response.
+- Optimistic signed-out dashboard and signed-in login/root redirects.
+- A matcher that excludes framework assets, image assets, and public PWA assets while preserving public Auth callbacks.
+- Environment validation based on the committed `.env.example` contract.
 - Role-aware application shell and protected-route boundaries.
 - Shared action-result, validation, date/time, and test-fixture conventions.
 - Seeded owner and representative invited/active/inactive employee memberships.
@@ -137,6 +146,7 @@ Maintain a clean, committed starting point containing the starter application, P
 ### Tests
 
 - Session and permission unit tests.
+- Proxy cookie propagation, redirect, public-route, and matcher tests.
 - Organisation-isolation and membership-state RLS tests.
 - Signed-out, owner, employee, and inactive-user route tests.
 - Clean lint, type-check, build, and baseline test commands.
@@ -144,19 +154,21 @@ Maintain a clean, committed starting point containing the starter application, P
 ### Shared overlap to record
 
 - Final application navigation items.
+- PWA `/sw.js` and `/manifest.webmanifest` matcher exclusions.
 - Generated database types after feature migrations.
 - Package-lock changes from later test or UI dependencies.
+- Environment variables introduced by feature branches.
 
 ### Codex task prompt
 
 ```text
 Implement feature F01 Platform Foundation from FEATURES.md against PRD.md.
 
-Deliver only the foundation scope: clean quality baselines, test tooling, Supabase local setup, organisations/memberships/minimal employee profile contracts, typed clients, session and permission helpers, proxy-based cookie refresh and optimistic redirects, role-aware app shell, seeds, RLS, and foundation tests.
+Deliver only the foundation scope: clean quality baselines, test tooling, Supabase local setup, organisations/memberships/minimal employee profile contracts, typed clients, session and permission helpers, a thin root proxy delegating to a project-native Supabase proxy helper, correct request/response cookie refresh, optimistic redirects, matcher exclusions, role-aware app shell, environment validation, seeds, RLS, and foundation tests.
 
-Read the relevant Next.js 16 guides in node_modules/next/dist/docs before using framework APIs. Treat components/ref-files as read-only reference and exclude untouched files from production checks. Do not implement employee invitations, jobs, roster, PWA, templates, schedules, or dashboards.
+Read the relevant Next.js 16 Proxy and environment guides in node_modules/next/dist/docs before using framework APIs. Clean and port the working patterns from components/ref-files/supabase/proxy.ts and root-proxy.ts into root proxy.ts and lib/supabase/proxy.ts, replacing @eva imports with repository-native contracts. You may edit or remove superseded reference copies after the production implementation is verified. Exclude untouched reference files from production checks. Do not implement employee invitations, jobs, roster, PWA, templates, schedules, or dashboards.
 
-Update the F01 registry status and record every shared-file or future-feature overlap in the integration ledger. Done means lint, type-check, unit tests, database tests, Playwright foundation tests, and production build pass.
+Treat .env.example as the canonical variable list. If you add, rename, or remove an entry, update validation/tests and explicitly tell the user which real value they must add to .env.local. Update the F01 registry status and record every shared-file or future-feature overlap in the integration ledger. Done means lint, type-check, proxy tests, unit tests, database tests, Playwright foundation tests, and production build pass.
 ```
 
 ## F02 — Authentication and employees
@@ -259,7 +271,7 @@ Deliver the complete working manual lifecycle: schema, RLS, transition rules, ow
 
 Base authorisation on F01 membership contracts. Use an adapter or fixture for employee display data until F02 is integrated; do not duplicate employee administration. Do not implement templates, recurring schedules, push notifications, or operational dashboard UI.
 
-Treat components/ref-files as reference only. Update F03 status and record F02, navigation, generated-type, upload, and dashboard overlaps in the integration ledger. Done means all branch quality gates and critical Playwright journeys pass.
+Inspect the reference Kanban, actions, query helpers, and styling before implementation. Preserve useful board interactions and visual treatment, while cleaning and moving the code into the jobs feature with repository-native types, imports, permissions, and tests. Record which reference files were consumed or remain. Update F03 status and record F02, navigation, generated-type, upload, and dashboard overlaps in the integration ledger. Done means all branch quality gates and critical Playwright journeys pass.
 ```
 
 ## F04 — Roster and calendar
@@ -307,7 +319,7 @@ Deliver roster schema and RLS, overlap protection, selected-employee week view, 
 
 Use F01 membership contracts and an adapter or fixture for employee display data until F02 integration. Do not implement availability, leave, timesheets, payroll, job scheduling, or dashboards.
 
-Port concepts from components/ref-files only into repository-native code. Update F04 status and integration TODOs. Done means all branch quality gates and the roster Playwright journey pass.
+Inspect the reference calendar, roster time helpers, interactions, and styling before implementation. Preserve useful behaviour and visual treatment, while cleaning and moving the code into repository-native roster modules with current types, permissions, and tests. Record which reference files were consumed or remain. Update F04 status and integration TODOs. Done means all branch quality gates and the roster Playwright journey pass.
 ```
 
 ## F05 — PWA application shell
@@ -350,6 +362,7 @@ Port concepts from components/ref-files only into repository-native code. Update
 
 - Mount registration and install guidance in the F01 application shell.
 - Reconcile `next.config.ts` with any security headers introduced elsewhere.
+- Confirm F01's root Proxy matcher excludes `/sw.js` and `/manifest.webmanifest`.
 - Ensure auth redirects and `/dashboard` start URL behave correctly when launched standalone.
 
 ### Codex task prompt
@@ -496,6 +509,9 @@ Do not silently change product scope to make integration easier. Update PRD.md f
 | INT-008 | F03, F04 | Shared UI | Reconcile optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | F08 | `planned` | — |
 | INT-009 | F05 | Auth | Verify standalone `/dashboard` launch respects signed-out redirects and invite/password routes remain browser-accessible. | F08 | `planned` | — |
 | INT-010 | F03, F06 | Jobs | Confirm generated jobs use the same transition, audit, assignment, and evidence contracts as manual jobs. | F06 | `planned` | — |
+| INT-011 | F01, F05 | Proxy/PWA | Exclude `/sw.js` and `/manifest.webmanifest` from the root Proxy matcher and verify Auth redirects when the installed app starts at `/dashboard`. | F08 | `planned` | — |
+| INT-012 | F01–F06 | Environment | Reconcile `.env.example`, runtime validation, deployment configuration, and explicit `.env.local` setup instructions for every feature-added variable. | F08 | `planned` | — |
+| INT-013 | F01, F03, F04 | Reference code | Reconcile reference files touched by multiple features, remove superseded duplicates, and verify all production imports use repository-native modules. | F08 | `planned` | — |
 
 ### New integration TODO template
 
