@@ -3,10 +3,19 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.0
-- Last updated: 23 July 2026
+- Version: 1.1
+- Last updated: 25 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui
+
+### Development control
+
+This PRD is the central source of truth for product scope, behaviour, acceptance criteria, architecture, and delivery readiness.
+
+- [`FEATURES.md`](FEATURES.md) converts this PRD into independently deliverable feature branches, task prompts, dependencies, test requirements, and integration TODOs.
+- Every feature branch must link its work to PRD story identifiers and update its entry in `FEATURES.md`.
+- Product decisions are changed here first. Branch status, implementation ownership, and cross-branch merge work are changed in `FEATURES.md`.
+- When implementation exposes a missing or conflicting requirement, record the integration TODO immediately and update this PRD before resolving it in code.
 
 ## 1. Product overview
 
@@ -41,6 +50,7 @@ The product should provide a single, simple workflow from employee invitation th
 - Give owners a review queue containing the complete job history and evidence.
 - Let owners build and maintain a seven-day roster.
 - Provide reusable job templates and daily or weekly job schedules.
+- Make the application installable as a Progressive Web App on supported desktop and mobile browsers.
 - Establish automated tests that support fast progression from development to prototype and production.
 
 ### 1.3 Success criteria
@@ -54,6 +64,7 @@ V1 is successful when:
 - An owner can review, comment on, reopen, reassign, and archive submitted work.
 - The jobs board correctly prioritises employees who are working or rostered today.
 - The roster accurately represents shifts in both week and day views.
+- The application exposes a valid manifest, install icons, and a securely served service worker so supported browsers can install it.
 - Organisation and role boundaries are enforced by application checks and Supabase Row Level Security.
 - Critical owner and employee journeys pass in automated tests.
 
@@ -467,6 +478,54 @@ Acceptance criteria:
 - It updates at least once per minute while the page is open.
 - It is hidden outside the visible hour range.
 
+### 3.8 Progressive Web App
+
+V1 provides an installable application shell. Offline data access, offline mutations, background sync, and push notifications remain outside V1 because they require additional data consistency, subscription, and notification product decisions.
+
+The implementation follows the [Next.js Progressive Web App guide](https://nextjs.org/docs/app/guides/progressive-web-apps).
+
+#### PWA-01: Installable application
+
+As an owner or employee, I want to install the dashboard on my device so that it launches like an application.
+
+Acceptance criteria:
+
+- `app/manifest.ts` returns a valid typed web app manifest.
+- The manifest defines the product name, short name, description, `/dashboard` start URL, standalone display mode, portrait-primary orientation, theme colour, background colour, and relevant application categories.
+- The application includes valid 192×192 and 512×512 PNG icons, including a maskable icon, plus an Apple touch icon.
+- Production and staging serve the application over HTTPS.
+- Supported browsers recognise the deployed application as installable.
+- The employee dashboard provides non-blocking installation guidance when the application is not already running in standalone mode.
+- iOS guidance explains the Share → Add to Home Screen flow.
+- The UI does not depend exclusively on the non-standard `beforeinstallprompt` event.
+
+#### PWA-02: Service worker lifecycle
+
+As a user, I want installed application resources to update safely so that I do not remain on an obsolete application shell.
+
+Acceptance criteria:
+
+- A same-origin service worker is served from `/sw.js` and registered with scope `/`.
+- Registration uses `updateViaCache: "none"`.
+- The service worker has explicit install and activate lifecycle handling.
+- The service worker does not cache authenticated API responses, Supabase requests, uploaded evidence, signed asset URLs, or mutation responses.
+- V1 does not claim that jobs, rosters, evidence, or mutations work offline.
+- Service-worker registration failure does not block normal browser use.
+- A new application version can activate without requiring users to clear browser storage manually.
+
+#### PWA-03: PWA security and graceful degradation
+
+As a user, I want PWA capabilities to fail safely so that unsupported browsers can still use the product.
+
+Acceptance criteria:
+
+- `/sw.js` is served as JavaScript with `no-cache, no-store, must-revalidate`.
+- The service-worker response has a same-origin Content Security Policy.
+- Global responses include `X-Content-Type-Options`, frame protection, and a strict-origin referrer policy.
+- Installation guidance is hidden when running in standalone mode.
+- Unsupported browsers receive the standard responsive web application without errors or blocked workflows.
+- Push permission is never requested in V1.
+
 ## 4. Navigation and route acceptance
 
 ### `/login`
@@ -509,6 +568,17 @@ Acceptance criteria:
 
 - Owner-only route.
 - Contains directory, creation/invitation, profile detail, edit, reinvite, and deactivation.
+
+### `/manifest.webmanifest`
+
+- Public metadata route generated by `app/manifest.ts`.
+- Contains valid install metadata and references existing application icons.
+
+### `/sw.js`
+
+- Public same-origin service worker.
+- Uses service-worker-specific security and cache headers.
+- Does not expose environment secrets or cache authenticated application data.
 
 ## 5. Job state model
 
@@ -714,7 +784,17 @@ Requirements:
 - Assignment, feedback, roster, and completion notification emails are post-V1 work.
 - Tests must not send real email.
 
-### 8.4 Reference code
+### 8.4 Progressive Web App
+
+- Use the App Router `app/manifest.ts` metadata convention.
+- Register the service worker from a small client-only component mounted by the application shell.
+- Keep service-worker behaviour deliberately minimal in V1: lifecycle and update handling only, with no authenticated data caching.
+- Serve production and staging over HTTPS.
+- Configure global and `/sw.js` security headers through `next.config.ts`.
+- Treat install guidance as progressive enhancement; the web application remains fully usable without PWA support.
+- Keep push subscriptions, VAPID keys, background sync, and offline application data outside the V1 implementation.
+
+### 8.5 Reference code
 
 `components/ref-files` is incomplete extracted code and must not be imported directly into production features.
 
@@ -767,6 +847,8 @@ Use Vitest and React Testing Library for:
 - Daily and weekly occurrence calculation.
 - Schedule idempotency helpers.
 - Form validation and core component interaction.
+- PWA standalone-mode detection and installation-guidance visibility.
+- Service-worker registration feature detection and failure handling.
 
 ### 11.2 Database tests
 
@@ -796,6 +878,8 @@ Use Playwright for:
 9. Owner archives the job.
 10. Owner creates, moves, resizes, copies, and deletes roster shifts.
 11. A template schedule produces exactly one job per occurrence.
+12. Manifest, icons, and service worker are available with the required metadata and response headers.
+13. The application remains usable when service workers are unavailable.
 
 Outbound email is mocked while the invitation request, recipient, and callback URL are asserted.
 
@@ -824,17 +908,24 @@ Every change must pass:
 - Implement login, Auth callback, password setup, and role-aware application shell.
 - Implement employee directory, profile, invitation, reinvitation, deactivation, and avatar upload.
 
-### Phase 3: Jobs
+### Phase 3: Progressive Web App shell
+
+- Add the typed manifest, application icons, Apple touch icon, and install guidance.
+- Add minimal service-worker lifecycle and registration.
+- Add service-worker and global security headers.
+- Verify installability over HTTPS without enabling offline data or push notifications.
+
+### Phase 4: Jobs
 
 - Implement job schema, owner board, job creation, assignment, and drag/drop.
 - Implement employee job flow, notes, evidence upload, submission, comments, review, reopen, and archive.
 
-### Phase 4: Roster
+### Phase 5: Roster
 
 - Implement employee week view and organisation day view.
 - Implement shift creation, editing, drag, resize, copy, overlap validation, deletion, and current-time indicator.
 
-### Phase 5: Templates, schedules, and hardening
+### Phase 6: Templates, schedules, and hardening
 
 - Implement templates and idempotent daily/weekly job generation.
 - Complete end-to-end coverage, responsive QA, accessibility checks, and staging verification.
@@ -848,6 +939,7 @@ Every change must pass:
 - Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
 - RLS tests demonstrate role and organisation isolation.
 - No real email is sent by automated tests.
+- The deployed application passes manifest, icon, service-worker, and installability checks.
 - Lint, type-check, unit tests, and production build pass.
 
 ### Production readiness
@@ -858,6 +950,7 @@ Every change must pass:
 - Database backup and recovery procedures are documented.
 - Error monitoring and server-side mutation logging are configured.
 - Schedule processing has failure visibility and a safe retry path.
+- HTTPS, PWA security headers, service-worker update behaviour, and installability are verified in staging.
 - A staging smoke test passes before deployment.
 
 ## 14. Deferred work
@@ -869,7 +962,7 @@ The following are explicitly outside V1:
 - Payroll and timesheets.
 - Clock-in and clock-out.
 - Leave requests and availability management.
-- Offline mode.
+- Offline job, roster, evidence, and mutation support.
 - Push notifications.
 - Job and roster email notifications beyond Auth invitations.
 - Non-image job attachments.
