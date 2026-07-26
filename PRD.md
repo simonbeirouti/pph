@@ -3,19 +3,21 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.3
-- Last updated: 25 July 2026
+- Version: 1.5
+- Last updated: 26 July 2026
 - Product timezone default: Australia/Melbourne
-- Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui
+- Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui, Playwright
 
 ### Development control
 
 This PRD is the central source of truth for product scope, behaviour, acceptance criteria, architecture, and delivery readiness.
 
-- [`FEATURES.md`](FEATURES.md) converts this PRD into independently deliverable feature branches, task prompts, dependencies, test requirements, and integration TODOs.
-- Every feature branch must link its work to PRD story identifiers and update its entry in `FEATURES.md`.
-- Product decisions are changed here first. Branch status, implementation ownership, and cross-branch merge work are changed in `FEATURES.md`.
-- When implementation exposes a missing or conflicting requirement, record the integration TODO immediately and update this PRD before resolving it in code.
+- [`FEATURES.md`](FEATURES.md) converts this PRD into one ordered implementation sequence with step status, task prompts, tests, completion criteria, and deferred integration TODOs.
+- Only one implementation step is active at a time. A step must be implemented, tested, documented, and checkpointed before the next step begins.
+- Every step links its work to PRD story identifiers and updates its entry in `FEATURES.md`.
+- Installed project skills under `.agents/skills` are part of the implementation standard and must be used for matching Playwright, Supabase, Postgres, React, and Next.js work.
+- Product decisions are changed here first. Implementation progress and cross-step TODOs are tracked in `FEATURES.md`.
+- When implementation exposes a missing or conflicting requirement, record the TODO immediately and update this PRD before resolving it in code.
 
 ## 1. Product overview
 
@@ -817,7 +819,7 @@ Requirements:
 
 `components/ref-files` is reusable prototype and implementation source material. It contains working styling, interaction patterns, assets, Supabase helpers, and domain logic that should accelerate feature delivery.
 
-Feature branches should inspect the relevant reference implementation before rebuilding equivalent behaviour. Where it matches this PRD, preserve its useful visual treatment, interaction behaviour, and available assets rather than recreating them without reason.
+Each implementation step should inspect the relevant reference implementation before rebuilding equivalent behaviour. Where it matches this PRD, preserve its useful visual treatment, interaction behaviour, and available assets rather than recreating them without reason.
 
 Implementation may port:
 
@@ -838,6 +840,17 @@ Feature owners may clean, edit, split, move, rename, or remove reference files a
 6. Remove obsolete duplicates once the production implementation is verified.
 
 Finished production modules must not depend on unresolved reference-only imports or require `components/ref-files` to remain in the runtime dependency graph. Reference files not yet consumed should remain excluded from TypeScript and ESLint production scope. Any reference file changed by more than one feature must be recorded in the integration ledger.
+
+### 8.7 Project implementation skills
+
+The repository includes versioned implementation guidance under `.agents/skills`, tracked by `skills-lock.json`.
+
+- Use `playwright-best-practices` whenever configuring, writing, running, debugging, or maintaining Playwright tests.
+- Use `supabase` for every Supabase Auth, SSR, Database, Storage, RLS, Cron, CLI, migration, or client task. Verify current Supabase documentation and changelog before implementation.
+- Use `supabase-postgres-best-practices` for schema design, constraints, indexes, RLS performance, queries, locking, and database review.
+- Use `vercel-react-best-practices` whenever writing or refactoring React components, Next.js pages, data fetching, rendering, or bundle-sensitive UI.
+- Read each applicable `SKILL.md` before acting and follow its routing instructions to the relevant reference files.
+- Skill guidance influences implementation quality but does not override this PRD's product behaviour.
 
 ## 9. Error, loading, and empty states
 
@@ -897,7 +910,7 @@ Use Supabase local development and database tests for:
 
 ### 11.3 End-to-end tests
 
-Use Playwright for:
+Use the installed `@playwright/test` package and the project `playwright-best-practices` skill for:
 
 1. Owner signs in.
 2. Owner creates and invites an employee.
@@ -916,6 +929,17 @@ Use Playwright for:
 
 Outbound email is mocked while the invitation request, recipient, and callback URL are asserted.
 
+Playwright architecture requirements:
+
+- Use API/database-level tests for CRUD permutations, permissions, and data integrity; component tests for form states, accessibility, and isolated interactions; and E2E tests for critical cross-page journeys.
+- Use custom fixtures for authenticated owner/employee sessions, Supabase-backed test data, and deterministic cleanup.
+- Add page objects only for interaction-heavy pages reused by multiple test files.
+- Prefer role, label, and visible-text locators with web-first assertions.
+- Do not use arbitrary sleeps or fixed timing as synchronisation.
+- Capture traces on retry and retain screenshots or video on failure.
+- Start with Chromium for fast development feedback; add mobile projects for employee workflows and cross-browser projects for final readiness.
+- Mock email delivery and other external side effects while exercising the real application and local Supabase boundaries.
+
 ### 11.4 CI quality gates
 
 Every change must pass:
@@ -927,41 +951,54 @@ Every change must pass:
 - Playwright critical journeys
 - Next.js production build
 
-## 12. Delivery phases
+## 12. Sequential implementation plan
 
-### Phase 1: Foundation
+Development proceeds through the following verified steps. Detailed tasks, status, prompts, and test gates live in `FEATURES.md`.
 
-- Establish clean lint and type-check baselines.
-- Add Supabase local configuration, migrations, seed data, and generated types.
-- Add Supabase clients, session handling, data-access authorisation, RLS, and storage policies.
-- Add the test runners and CI commands.
+### Step 1: Platform foundation
 
-### Phase 2: Authentication and employees
+- Establish clean lint, type-check, build, and test baselines.
+- Configure the installed Playwright package, deterministic fixtures, test scripts, reports, and local web-server lifecycle using the project Playwright skill.
+- Add Supabase local configuration, organisations, memberships, seeds, clients, session handling, root Proxy, data-access authorisation, and initial RLS.
 
-- Implement login, Auth callback, password setup, and role-aware application shell.
+### Step 2: Authentication and employees
+
+- Implement login, invitation confirmation, password setup, and role-aware access.
 - Implement employee directory, profile, invitation, reinvitation, deactivation, and avatar upload.
 
-### Phase 3: Progressive Web App shell
+### Step 3: Progressive Web App shell
 
-- Add the typed manifest, application icons, Apple touch icon, and install guidance.
-- Add minimal service-worker lifecycle and registration.
-- Add service-worker and global security headers.
-- Verify installability over HTTPS without enabling offline data or push notifications.
+- Add the manifest, install assets and guidance, minimal service-worker lifecycle, and security headers.
+- Verify installability and graceful degradation without offline application data or push notifications.
 
-### Phase 4: Jobs
+### Step 4: Owner jobs and Kanban
 
-- Implement job schema, owner board, job creation, assignment, and drag/drop.
-- Implement employee job flow, notes, evidence upload, submission, comments, review, reopen, and archive.
+- Implement the job schema, transitions, owner creation flow, employee-column board, filters, and assignment/reassignment.
 
-### Phase 5: Roster
+### Step 5: Employee job execution and owner review
 
-- Implement employee week view and organisation day view.
-- Implement shift creation, editing, drag, resize, copy, overlap validation, deletion, and current-time indicator.
+- Implement start/resume, notes, evidence, submission, comments, review, reopen/reassign, and archive.
 
-### Phase 6: Templates, schedules, and hardening
+### Step 6: Roster data and calendar views
 
-- Implement templates and idempotent daily/weekly job generation.
-- Complete end-to-end coverage, responsive QA, accessibility checks, and staging verification.
+- Implement shift schema, RLS, overlap protection, employee week view, organisation day view, and employee shift summary.
+
+### Step 7: Calendar interactions
+
+- Add shift creation, exact editing, drag, resize, copy, delete, optimistic rollback, and current-time indicator.
+
+### Step 8: Templates and schedules
+
+- Implement templates and idempotent daily/weekly job generation with retry visibility.
+
+### Step 9: Operational dashboards
+
+- Compose the verified employee, job, and roster query contracts into owner and employee dashboards.
+
+### Step 10: Integration and production hardening
+
+- Resolve all deferred cross-step TODOs.
+- Complete end-to-end coverage, responsive QA, accessibility checks, security verification, and staging readiness.
 
 ## 13. Prototype and production readiness
 

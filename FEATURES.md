@@ -1,533 +1,698 @@
-# Employee Operations Dashboard — Feature Branch Registry
+# Employee Operations Dashboard — Sequential Implementation Register
 
 ## Purpose
 
-This file turns [`PRD.md`](PRD.md) into executable development branches. It is the operational register for:
+This file converts [`PRD.md`](PRD.md) into one ordered implementation plan.
 
-- feature ownership and branch names;
-- dependency and merge order;
-- ready-to-use Codex task prompts;
-- tests and definition of done;
-- shared-file overlap;
-- cross-feature integration TODOs.
+`PRD.md` remains the source of truth for product behaviour, architecture, security, and acceptance criteria. This file tracks:
 
-`PRD.md` remains the product and architecture source of truth. This file must not redefine product behaviour. If implementation needs a product decision, update the PRD first and link the resulting story or section here.
+- the current implementation step;
+- the exact order of work;
+- tasks and PRD references for each step;
+- required tests and completion gates;
+- reusable reference code;
+- deferred integration TODOs;
+- checkpoint notes and verification results.
 
-## How to use this registry
+This plan does not depend on parallel branches or sub-agents. Work proceeds one step at a time in the same implementation lineage.
 
-1. Start a Codex Worktree task from the branch listed under **Base**.
-2. Paste the feature's task prompt into that task.
-3. Create the listed `codex/...` branch in the worktree.
-4. Change the feature status to `in_progress` and add the Codex task or PR link when available.
-5. Implement the database, permissions, server behaviour, UI, and tests for the feature as one working vertical slice.
-6. Add any cross-branch conflict or deferred integration to the integration ledger before finishing the branch.
-7. Change the status to `ready_for_review` only after its required checks pass.
-8. Merge features in dependency order and resolve integration TODOs in the designated integration branch.
+## Working method
+
+1. Confirm the previous step is `complete`.
+2. Change the next step to `in_progress`.
+3. Read its linked PRD stories and relevant Next.js 16 documentation.
+4. Inspect relevant files in `components/ref-files`.
+5. Implement the complete step, including schema, permissions, server behaviour, UI, and tests.
+6. Run the step's required checks.
+7. Update generated types, `.env.example`, documentation, and the TODO ledger where applicable.
+8. Record the verification result and checkpoint commit.
+9. Mark the step `complete`.
+10. Begin the next step only after the working tree is clean and the checkpoint is recoverable.
+
+Normal Git commits remain encouraged as checkpoints, but feature branches, worktrees, and parallel agents are not part of this delivery plan.
 
 ## Status values
 
 | Status | Meaning |
 | --- | --- |
-| `planned` | Scoped but not started |
-| `blocked` | Cannot proceed until a named dependency or decision is resolved |
-| `in_progress` | Active implementation |
-| `ready_for_review` | Implementation and branch-level tests pass |
-| `merged` | Merged into the current integration base |
-| `verified` | Integrated end-to-end behaviour passes |
+| `planned` | Defined but not started |
+| `in_progress` | The only step currently being implemented |
+| `blocked` | Waiting on a required decision, credential, or external dependency |
+| `complete` | Implementation and step-level checks pass |
+| `verified` | Confirmed as part of the final integrated V1 journey |
 
-## Branch registry
+At most one row may be `in_progress`.
 
-| ID | Feature | Branch | Base | Depends on | Status | Task/PR |
-| --- | --- | --- | --- | --- | --- | --- |
-| F00 | Main baseline and coordination | `main` | — | — | `in_progress` | Current task |
-| F01 | Platform foundation | `codex/platform-foundation` | `main` | F00 | `planned` | — |
-| F02 | Authentication and employees | `codex/employees-auth` | `codex/platform-foundation` | F01 | `planned` | — |
-| F03 | Manual jobs workflow | `codex/jobs-workflow` | `codex/platform-foundation` | F01; integrates F02 | `planned` | — |
-| F04 | Roster and calendar | `codex/roster-calendar` | `codex/platform-foundation` | F01; integrates F02 | `planned` | — |
-| F05 | PWA application shell | `codex/pwa-shell` | `codex/platform-foundation` | F01 | `planned` | — |
-| F06 | Templates and job schedules | `codex/job-scheduling` | Integrated F03 branch | F03 | `planned` | — |
-| F07 | Operational dashboards | `codex/operational-dashboards` | Feature integration branch | F02, F03, F04 | `planned` | — |
-| F08 | Integration and production hardening | `codex/integration-hardening` | Feature integration branch | F02–F07 | `planned` | — |
+## Installed project skills
 
-F02, F03, F04, and F05 may run in parallel after F01. F03 and F04 must use the membership contract from F01 and record employee-profile display integration with F02 rather than duplicating employee management.
+The following checked-in skills are required parts of development:
 
-The **feature integration branch** is a temporary branch created from F01 after the parallel branches are ready. Merge F02–F05 into it one at a time, run combined checks after each merge, then use that updated branch as the base for F06 and F07. F08 becomes the final integration branch before changes return to `main`.
-
-## Shared ownership rules
-
-### Protected shared surfaces
-
-| Surface | Primary owner | Rule |
+| Skill | Required for | Primary steps |
 | --- | --- | --- |
-| `PRD.md` | F00/integration owner | Product decisions and acceptance criteria only |
-| `FEATURES.md` | Every active feature | Update only the relevant feature row and integration ledger |
-| `AGENTS.md` | F01/integration owner | Durable repository workflow rules |
-| `.env.example` | Feature introducing configuration | Keep names/placeholders canonical and explicitly notify the user to mirror real values into `.env.local` |
-| `package.json`, `pnpm-lock.yaml` | F01 initially; then feature adding dependency | Record dependency overlap in the ledger |
-| `app/layout.tsx`, dashboard shell, navigation | F01 | Feature branches expose route/nav requirements; integration owner combines them |
-| Root `proxy.ts`, `lib/supabase/proxy.ts` | F01 | Single thin entrypoint plus Supabase cookie/session helper; matcher changes require integration review |
-| `next.config.ts` | F05 | Other security or runtime changes must be logged for integration |
-| `app/globals.css` | F01/integration owner | Prefer component-local utility classes; log global token changes |
-| Supabase migrations | Creating feature | Add new immutable migrations; never edit another merged migration |
-| Generated Supabase types | F01 during foundation; F08 for final generation | Feature branches may regenerate locally but integration owns the final combined file |
-| Shared Playwright fixtures | F01/F08 | Features may extend without changing another role's semantics |
-| `components/ref-files/**` | Feature consuming the relevant code | Inspect before rebuilding; preserve useful styling/functionality/assets, then clean and move production code into repository-native locations |
+| `playwright-best-practices` | Playwright architecture, configuration, fixtures, Auth, mobile, drag/drop, upload, time, PWA, debugging, and CI | S01–S10 |
+| `supabase` | Supabase Auth, SSR, clients, CLI, migrations, RLS, Storage, and Cron | S01, S02, S04–S06, S08, S10 |
+| `supabase-postgres-best-practices` | Schema, constraints, indexes, RLS performance, queries, locking, and database review | Every schema/query step |
+| `vercel-react-best-practices` | React/Next.js rendering, data fetching, server actions, bundle size, and client performance | Every UI step |
 
-### Branch completion rules
+For each active step:
 
-Every feature branch must:
+1. Read every applicable skill's `SKILL.md` completely.
+2. Follow its activity routing and read only the references required for the work.
+3. Apply the guidance while preserving PRD behaviour.
+4. Record the skills and important references used in the checkpoint notes.
 
-- reference the applicable PRD story IDs in its PR or final task summary;
-- contain no unresolved TypeScript or lint errors introduced by the branch;
-- include unit/component tests for domain and UI behaviour;
-- include database/RLS tests when it changes Supabase;
-- include at least one critical Playwright path for user-visible behaviour;
-- document environment variables and setup changes;
-- update `.env.example` for every configuration change and explicitly tell the user which real values must be added to `.env.local`;
-- identify which reference files were reused, cleaned, moved, left for later, or removed;
-- ensure finished production code has no unresolved `@eva/*` or reference-only runtime imports;
-- avoid real email, push, or other external side effects in automated tests;
-- update the integration ledger for every known overlap;
-- leave unrelated user changes untouched.
+## Implementation status
 
-## F00 — Main baseline and coordination
+| Step | Capability | Status | Depends on | Checkpoint | Verification notes |
+| --- | --- | --- | --- | --- | --- |
+| S00 | Product and implementation baseline | `in_progress` | — | Pending | Sequential PRD/register reframing must be committed before S01 begins |
+| S01 | Platform foundation | `planned` | S00 | — | — |
+| S02 | Authentication and employees | `planned` | S01 | — | — |
+| S03 | Progressive Web App shell | `planned` | S02 | — | — |
+| S04 | Owner jobs and Kanban | `planned` | S03 | — | — |
+| S05 | Employee job execution and owner review | `planned` | S04 | — | — |
+| S06 | Roster data and calendar views | `planned` | S05 | — | — |
+| S07 | Calendar interactions | `planned` | S06 | — | — |
+| S08 | Templates and job schedules | `planned` | S07 | — | — |
+| S09 | Operational dashboards | `planned` | S08 | — | — |
+| S10 | Integration and production hardening | `planned` | S09 | — | — |
 
-### PRD references
+## Rules that apply to every step
 
-- Development control
-- Sections 1, 11, 12, and 13
+- Link implementation decisions to the applicable PRD story or section.
+- Do not begin work that belongs to a later step.
+- Preserve established contracts from completed steps unless the PRD is updated first.
+- Add new Supabase migrations; do not rewrite migrations already used by a completed step.
+- Regenerate checked-in Supabase types after schema changes.
+- Treat `.env.example` as the canonical variable list.
+- If `.env.example` changes, explicitly tell the user which real values must be added, renamed, or removed in `.env.local`.
+- Never place usable secrets in `.env.example`.
+- Inspect relevant reference implementations before recreating styling or functionality.
+- Preserve useful styling, interactions, logic, and assets while replacing obsolete `@eva/*`, missing, or reference-only dependencies.
+- Record which reference files were reused, cleaned, moved, left for later, or removed.
+- Keep production imports in repository-native `app`, `features`, `lib`, or shared component locations.
+- Add tests with the implementation, not in a later cleanup pass.
+- Use the installed project skills for every matching implementation or test task.
+- Record deferred cross-step work in the TODO ledger as soon as it is discovered.
+- Finish with a clean lint, type-check, test, and build result appropriate to the step.
+
+## Shared implementation surfaces
+
+| Surface | Rule |
+| --- | --- |
+| `PRD.md` | Update first when product behaviour or architecture changes |
+| `FEATURES.md` | Update active status, checkpoint, verification notes, and TODOs |
+| `AGENTS.md` | Keep durable repository workflow guidance aligned with this plan |
+| `.env.example` | Names and safe placeholders only; explicitly notify the user of every change |
+| `package.json`, `pnpm-lock.yaml` | Add dependencies only when required by the active step |
+| Root `proxy.ts`, `lib/supabase/proxy.ts` | Established in S01; later changes require regression tests |
+| `app/layout.tsx`, dashboard shell, navigation | Establish incrementally; avoid placeholders that imply unavailable features work |
+| `next.config.ts` | Reconcile Proxy, PWA, and security requirements when S03 changes it |
+| Supabase migrations | Append-only after the owning step is complete |
+| Generated Supabase types | Regenerate after every schema step and verify again in S10 |
+| Shared test fixtures | Extend without weakening prior role or organisation isolation |
+| `components/ref-files/**` | Reusable source material; clean and absorb relevant code during the owning step |
+
+## S00 — Product and implementation baseline
 
 ### Outcome
 
-Maintain a clean, committed starting point containing the starter application, PRD, feature registry, and repository guidance. No product feature is implemented directly on `main`.
+The product scope, sequential implementation plan, reference assets, environment contract, and durable agent guidance are committed and recoverable.
 
-### Tasks
+### Included
 
-- Keep `PRD.md` authoritative and current.
-- Maintain this branch registry and integration ledger.
-- Ensure intended starter and reference files are committed.
-- Define the branch base used by F01.
-- Do not merge partially complete feature branches.
+- [`PRD.md`](PRD.md)
+- [`FEATURES.md`](FEATURES.md)
+- [`AGENTS.md`](AGENTS.md)
+- `.env.example`
+- Starter UI and `components/ref-files`
 
-### Required checks
+### Completion evidence
 
+- Baseline commit exists on `main`.
 - Documentation links resolve.
-- `git status` contains only intentional coordination-document changes before commit.
+- No feature implementation is represented as complete.
 
-## F01 — Platform foundation
+## S01 — Platform foundation
 
 ### PRD references
 
 - AUTH-01
-- Sections 2, 6.1–6.3, 8, 11, and Phase 1
+- Sections 2, 6.1–6.3, 8, and 11
+- Sequential implementation Step 1
 
-### Owned scope
+### Required skills
 
-- Clean TypeScript and ESLint baseline, excluding untouched reference files.
-- Vitest, Testing Library, Playwright, and Supabase local test structure.
-- `organisations`, `memberships`, and minimal `employee_profiles` schema contracts.
-- Supabase browser, server, and admin clients.
-- Session loading, active membership, role, and organisation permission helpers.
-- Thin root-level Next.js 16 `proxy.ts` delegating to `lib/supabase/proxy.ts`.
-- Supabase Auth cookie refresh that propagates refreshed cookies through the request and returned response.
-- Optimistic signed-out dashboard and signed-in login/root redirects.
-- A matcher that excludes framework assets, image assets, and public PWA assets while preserving public Auth callbacks.
-- Environment validation based on the committed `.env.example` contract.
-- Role-aware application shell and protected-route boundaries.
-- Shared action-result, validation, date/time, and test-fixture conventions.
-- Seeded owner and representative invited/active/inactive employee memberships.
+- `playwright-best-practices`
+- `supabase`
+- `supabase-postgres-best-practices`
+- `vercel-react-best-practices`
 
-### Excluded scope
+### Outcome
 
-- Invitation delivery and employee management UI.
-- Jobs, roster shifts, templates, schedules, and dashboards.
-- PWA manifest and service worker.
+The application has a clean quality baseline, local Supabase foundation, typed session boundary, organisation membership security, and protected application shell.
+
+### Tasks
+
+- Exclude untouched reference files from production lint and TypeScript scope while keeping them available for inspection.
+- Fix starter lint and type-check failures.
+- Add Vitest and React Testing Library alongside the already installed `@playwright/test`.
+- Configure `playwright.config.ts`, local web-server lifecycle, Chromium development project, mobile project, failure artifacts, deterministic Auth/data fixtures, and test directories according to the Playwright skill.
+- Add scripts for lint, type-check, unit tests, database tests, Playwright tests, and production build.
+- Create `organisations`, `memberships`, and minimal `employee_profiles` migrations.
+- Add representative seed data for owner, invited employee, active employee, and inactive employee states.
+- Generate checked-in Supabase types.
+- Port Supabase browser, server, admin, and environment helpers into repository-native modules.
+- Port the reference Proxy pattern into a thin root `proxy.ts` and `lib/supabase/proxy.ts`.
+- Propagate refreshed Supabase cookies through both the request and returned response.
+- Implement optimistic signed-out dashboard and signed-in root/login redirects.
+- Exclude framework assets, images, `/sw.js`, and `/manifest.webmanifest` from the matcher.
+- Add authoritative session, membership, role, status, and organisation helpers.
+- Establish the role-aware application shell and protected-route boundaries.
 
 ### Tests
 
-- Session and permission unit tests.
-- Proxy cookie propagation, redirect, public-route, and matcher tests.
-- Organisation-isolation and membership-state RLS tests.
-- Signed-out, owner, employee, and inactive-user route tests.
-- Clean lint, type-check, build, and baseline test commands.
+- Environment validation.
+- Session and permission helpers.
+- Proxy cookie propagation and redirects.
+- Public Auth route and static/PWA matcher behaviour.
+- Membership state and organisation-isolation RLS.
+- Signed-out, owner, employee, and inactive-user route behaviour.
+- Clean lint, type-check, test, and build commands.
+- Playwright configuration, fixtures, user-facing locators, web-first assertions, and failure artifacts.
 
-### Shared overlap to record
+### Reference material
 
-- Final application navigation items.
-- PWA `/sw.js` and `/manifest.webmanifest` matcher exclusions.
-- Generated database types after feature migrations.
-- Package-lock changes from later test or UI dependencies.
-- Environment variables introduced by feature branches.
+- `components/ref-files/supabase/browser.ts`
+- `components/ref-files/supabase/server.ts`
+- `components/ref-files/supabase/admin.ts`
+- `components/ref-files/supabase/env.ts`
+- `components/ref-files/supabase/proxy.ts`
+- `components/ref-files/supabase/root-proxy.ts`
+- Existing application shell and sidebar components
 
-### Codex task prompt
+### Completion gate
+
+- All foundation checks pass.
+- Required environment variables are documented and validated.
+- Any `.env.example` changes have been explicitly reported to the user.
+- There are no authoritative access decisions implemented only in Proxy.
+- Status, checkpoint, verification notes, and TODOs are updated.
+
+### Implementation prompt
 
 ```text
-Implement feature F01 Platform Foundation from FEATURES.md against PRD.md.
+Implement S01 Platform Foundation from FEATURES.md against PRD.md.
 
-Deliver only the foundation scope: clean quality baselines, test tooling, Supabase local setup, organisations/memberships/minimal employee profile contracts, typed clients, session and permission helpers, a thin root proxy delegating to a project-native Supabase proxy helper, correct request/response cookie refresh, optimistic redirects, matcher exclusions, role-aware app shell, environment validation, seeds, RLS, and foundation tests.
+Work only on S01. Establish clean lint/type/build baselines, test tooling, Supabase local structure, organisations/memberships/minimal employee profiles, generated types, typed clients, environment validation, session and permission helpers, RLS, seeds, and the role-aware application shell.
 
-Read the relevant Next.js 16 Proxy and environment guides in node_modules/next/dist/docs before using framework APIs. Clean and port the working patterns from components/ref-files/supabase/proxy.ts and root-proxy.ts into root proxy.ts and lib/supabase/proxy.ts, replacing @eva imports with repository-native contracts. You may edit or remove superseded reference copies after the production implementation is verified. Exclude untouched reference files from production checks. Do not implement employee invitations, jobs, roster, PWA, templates, schedules, or dashboards.
+Read the bundled Next.js 16 Proxy and environment guides first. Clean and port the Supabase reference helpers into repository-native modules. Create one thin root proxy.ts delegating to lib/supabase/proxy.ts, with correct request/response cookie propagation, optimistic redirects, public Auth access, and static/PWA matcher exclusions. Keep authoritative authorisation in the data-access layer and mutations.
 
-Treat .env.example as the canonical variable list. If you add, rename, or remove an entry, update validation/tests and explicitly tell the user which real value they must add to .env.local. Update the F01 registry status and record every shared-file or future-feature overlap in the integration ledger. Done means lint, type-check, proxy tests, unit tests, database tests, Playwright foundation tests, and production build pass.
+Inspect and reuse suitable existing styling and functionality. Do not implement invitations, employee management UI, PWA assets, jobs, roster, templates, schedules, or dashboards.
+
+If .env.example changes, explicitly list the changed variables and tell the user to add real values to .env.local. Update S01 status, verification notes, checkpoint, reference-code disposition, and deferred TODOs. Finish only after the S01 checks pass.
 ```
 
-## F02 — Authentication and employees
+## S02 — Authentication and employees
 
 ### PRD references
 
 - AUTH-02 through AUTH-04
 - EMP-01 through EMP-03
 - `/auth/confirm`, `/set-password`, and `/dashboard/employees`
-- Sections 6.2, 6.3, 7, 8.2, 8.3, and Phase 2
+- Sequential implementation Step 2
 
-### Owned scope
+### Outcome
 
-- Employee creation, editing, search, filtering, detail, and status management.
-- Supabase Admin invitation and reinvitation.
-- Invitation confirmation, membership linking, password setup, and activation.
-- Resend-backed Supabase Auth SMTP contract and mocked test boundary.
-- Private avatar bucket, validation, storage policies, and signed URLs.
-- Deactivation/reactivation access behaviour.
-- Employee directory and detail pages.
+An owner can manage the employee lifecycle, and an invited employee can activate a secure account.
 
-### Excluded scope
+### Tasks
 
-- Public owner signup.
-- Job assignment UI and job history implementation.
-- Roster editing.
-- Non-Auth application email.
+- Implement owner login against the S01 Auth/session boundary.
+- Implement employee creation, validation, directory, filtering, and detail.
+- Create pending membership and profile records idempotently.
+- Call Supabase Admin invitation and reinvitation.
+- Implement Auth confirmation, membership linking, password setup, and activation.
+- Implement edit, deactivate, and reactivate behaviour.
+- Add private avatar storage, validation, policies, signed URLs, and initials fallback.
+- Publish a stable active-employee option/display query for later jobs and roster steps.
 
 ### Tests
 
-- Invitation idempotency and duplicate-email validation.
-- Invite callback, password setup, active/inactive access.
-- Owner and employee RLS boundaries.
-- Avatar type, size, path, signed URL, and policy tests.
-- Owner creates/invites employee Playwright journey.
+- Login success and safe failure.
+- Duplicate and case-insensitive employee email handling.
+- Invitation idempotency, callback, password setup, and activation.
+- Inactive-user access.
+- Owner/employee/cross-organisation RLS.
+- Avatar type, size, path, signed URL, and storage policies.
+- Owner creates/invites employee E2E journey.
 
-### Integration TODO triggers
+### Completion gate
 
-- Expose a stable active-employee option view model for F03 and F04.
-- Provide employee photo/name display primitives without requiring feature branches to query profile tables directly.
-- Leave dashboard job/shift panels as integration placeholders.
+- The full invitation-to-activation journey passes.
+- Employee permissions do not expose another employee's data.
+- Later steps can consume a typed active-employee interface.
+- Email is mocked in automated tests.
 
-### Codex task prompt
-
-```text
-Implement feature F02 Authentication and Employees from FEATURES.md against PRD stories AUTH-02–AUTH-04 and EMP-01–EMP-03.
-
-Build the complete owner-to-employee activation slice: employee records, invitation/reinvitation, Auth callback, password setup, directory, detail, profile edit, avatar storage, deactivation/reactivation, RLS, and tests. Use the F01 membership and permission contracts without redesigning the shared foundation.
-
-Expose a small typed employee option/display interface for jobs and roster integration. Do not implement jobs, roster editing, templates, schedules, PWA, or dashboards beyond necessary placeholders. Mock outbound email in tests.
-
-Update F02 status and the integration ledger. Done means lint, type-check, relevant unit/component tests, Supabase tests, the critical invitation Playwright journey, and production build pass.
-```
-
-## F03 — Manual jobs workflow
-
-### PRD references
-
-- JOB-01 through JOB-08
-- Sections 5, 6.5, 6.8, 6.9, and `/dashboard/jobs`
-- Phase 4
-
-### Owned scope
-
-- Jobs, job updates, and job assets schema and RLS.
-- Central job transition and evidence-validation domain functions.
-- Owner job creation and employee-column Kanban.
-- Active, Review, and Archived filters.
-- Drag-to-reassign with optimistic rollback.
-- Employee start/resume, notes, evidence upload, and review submission.
-- Owner comments, review, reopen/reassign, and archive.
-- Private job-evidence storage and signed URLs.
-
-### Excluded scope
-
-- Job templates and automatic schedules.
-- Dashboard aggregates outside job-specific query helpers.
-- Push or assignment email notifications.
-
-### Tests
-
-- Job state-transition and evidence-requirement unit tests.
-- Board ordering and optimistic rollback component tests.
-- Owner/assignee/cross-organisation RLS tests.
-- Evidence limits and storage-policy tests.
-- Owner creates/assigns and employee submits/owner reviews Playwright journeys.
-
-### Integration TODO triggers
-
-- Consume F02's employee option/display interface when available.
-- Expose stable outstanding, urgent, and review aggregate queries for F07.
-- Record navigation and shared upload-component needs.
-
-### Codex task prompt
+### Implementation prompt
 
 ```text
-Implement feature F03 Manual Jobs Workflow from FEATURES.md against PRD stories JOB-01–JOB-08.
+Implement S02 Authentication and Employees from FEATURES.md against PRD stories AUTH-02–AUTH-04 and EMP-01–EMP-03.
 
-Deliver the complete working manual lifecycle: schema, RLS, transition rules, owner creation and employee-column board, drag reassignment, employee start/notes/photos/submission, owner review/comments/reopen/archive, private evidence storage, optimistic rollback, and tests.
+Build the complete owner-to-employee lifecycle on the verified S01 contracts: login, employee creation, invitation/reinvitation, Auth callback, password setup, directory, detail, edit, avatar storage, deactivation/reactivation, RLS, and tests. Publish a small typed active-employee option/display query for later jobs and roster work.
 
-Base authorisation on F01 membership contracts. Use an adapter or fixture for employee display data until F02 is integrated; do not duplicate employee administration. Do not implement templates, recurring schedules, push notifications, or operational dashboard UI.
+Inspect and reuse relevant reference Supabase, Resend, form, and UI code while cleaning it into repository-native modules. Do not implement jobs, roster editing, PWA, templates, schedules, or operational dashboards.
 
-Inspect the reference Kanban, actions, query helpers, and styling before implementation. Preserve useful board interactions and visual treatment, while cleaning and moving the code into the jobs feature with repository-native types, imports, permissions, and tests. Record which reference files were consumed or remain. Update F03 status and record F02, navigation, generated-type, upload, and dashboard overlaps in the integration ledger. Done means all branch quality gates and critical Playwright journeys pass.
+Follow the environment notification rule. Update S02 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete invitation journey and all S02 checks pass.
 ```
 
-## F04 — Roster and calendar
-
-### PRD references
-
-- CAL-01 through CAL-04
-- Section 6.4 and `/dashboard/calendar`
-- Phase 5
-
-### Owned scope
-
-- Roster shift schema, RLS, and overlap protection.
-- Employee week and organisation day queries and views.
-- Shift creation, exact editing, move, resize, copy, and confirmed deletion.
-- Fifteen-minute interaction grid and optimistic rollback.
-- Organisation-timezone calculations and current-time indicator.
-- Read-only current/upcoming shift query for employee dashboards.
-
-### Excluded scope
-
-- Availability, leave, timesheets, clock-in/out, and payroll.
-- Job scheduling or shift-triggered job creation.
-- Operational dashboard composition.
-
-### Tests
-
-- Timezone and overlap domain tests.
-- Database overlap and RLS tests.
-- Calendar placement, drag/resize, and current-time component tests.
-- Owner shift-management Playwright journey.
-
-### Integration TODO triggers
-
-- Consume F02's employee option/display interface when available.
-- Expose stable working-now and today-roster aggregate queries for F07.
-- Record navigation, date-control, and global styling overlap.
-
-### Codex task prompt
-
-```text
-Implement feature F04 Roster and Calendar from FEATURES.md against PRD stories CAL-01–CAL-04.
-
-Deliver roster schema and RLS, overlap protection, selected-employee week view, all-employees day view, create/edit/move/resize/copy/delete interactions, 15-minute precision, optimistic rollback, timezone handling, current-time indicator, employee read-only shift query, and tests.
-
-Use F01 membership contracts and an adapter or fixture for employee display data until F02 integration. Do not implement availability, leave, timesheets, payroll, job scheduling, or dashboards.
-
-Inspect the reference calendar, roster time helpers, interactions, and styling before implementation. Preserve useful behaviour and visual treatment, while cleaning and moving the code into repository-native roster modules with current types, permissions, and tests. Record which reference files were consumed or remain. Update F04 status and integration TODOs. Done means all branch quality gates and the roster Playwright journey pass.
-```
-
-## F05 — PWA application shell
+## S03 — Progressive Web App shell
 
 ### PRD references
 
 - PWA-01 through PWA-03
 - `/manifest.webmanifest` and `/sw.js`
-- Sections 8.4, 10, 11, and Phase 3
+- Sections 8.4 and 10
+- Sequential implementation Step 3
 - [Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps)
 
-### Owned scope
+### Outcome
 
-- Typed `app/manifest.ts`.
-- 192×192, 512×512, maskable, and Apple touch icons.
-- Minimal same-origin service worker lifecycle.
-- Feature-detected client registration with `updateViaCache: "none"`.
-- Install/standalone detection and non-blocking install guidance.
-- iOS Add to Home Screen guidance.
-- Global and service-worker-specific security headers in `next.config.ts`.
-- HTTPS installability documentation and tests.
+The authenticated application can be installed on supported devices and degrades safely as a normal responsive website.
 
-### Explicit V1 boundary
+### Tasks
+
+- Add typed `app/manifest.ts`.
+- Add 192×192, 512×512, maskable, and Apple touch icons.
+- Add minimal same-origin service-worker install/activate lifecycle.
+- Register with feature detection and `updateViaCache: "none"`.
+- Add standalone detection and non-blocking installation guidance.
+- Add iOS Share → Add to Home Screen guidance.
+- Add global and service-worker-specific security headers.
+- Verify Proxy excludes `/sw.js` and `/manifest.webmanifest`.
+
+### Explicit boundary
 
 - No offline application-data caching.
-- No offline job, roster, evidence, or mutation support.
-- No background sync.
-- No push subscriptions, VAPID keys, or notification permission prompts.
+- No offline mutations or background sync.
+- No push subscriptions, VAPID keys, or notification permission requests.
 
 ### Tests
 
-- Manifest metadata and referenced asset tests.
-- Standalone and unsupported-browser component tests.
-- Registration success and failure tests.
-- `/sw.js` content type, cache control, CSP, and lifecycle tests.
-- Playwright smoke test confirming normal use without service-worker support.
-- Staging installability check over HTTPS.
+- Manifest metadata and icon references.
+- Service-worker lifecycle, response type, cache headers, and CSP.
+- Registration support and failure handling.
+- Standalone/install guidance visibility.
+- Signed-out standalone `/dashboard` launch.
+- Normal application use without service-worker support.
 
-### Integration TODO triggers
+### Completion gate
 
-- Mount registration and install guidance in the F01 application shell.
-- Reconcile `next.config.ts` with any security headers introduced elsewhere.
-- Confirm F01's root Proxy matcher excludes `/sw.js` and `/manifest.webmanifest`.
-- Ensure auth redirects and `/dashboard` start URL behave correctly when launched standalone.
+- Production build exposes valid install resources.
+- Auth and PWA routing work together.
+- Unsupported browsers retain the complete responsive web experience.
 
-### Codex task prompt
+### Implementation prompt
 
 ```text
-Implement feature F05 PWA Application Shell from FEATURES.md against PRD stories PWA-01–PWA-03 and the bundled Next.js 16 progressive-web-apps guide.
+Implement S03 Progressive Web App Shell from FEATURES.md against PRD stories PWA-01–PWA-03 and the bundled Next.js 16 PWA guide.
 
-Add the typed manifest, required install icons, Apple touch icon, minimal lifecycle-only service worker, safe feature-detected registration, standalone/install guidance including iOS instructions, security headers, and tests.
+Add the typed manifest, install icons, Apple touch icon, lifecycle-only service worker, feature-detected registration, standalone/install guidance, iOS instructions, Proxy exclusions, security headers, and tests.
 
-Do not implement offline application-data caching, background sync, push subscriptions, VAPID keys, notifications, or any claim that authenticated data works offline. Never cache Supabase requests, API responses, mutations, signed asset URLs, or uploaded evidence.
+Do not cache authenticated data, Supabase requests, API responses, mutations, signed asset URLs, or uploaded evidence. Do not implement background sync, push notifications, or offline product claims.
 
-Integrate only with the F01 shell and record every app layout or next.config overlap. Update F05 status and the integration ledger. Done means lint, type-check, PWA unit/component tests, Playwright degradation smoke test, production build, and documented HTTPS staging verification pass.
+Update S03 status, verification notes, checkpoint, and TODOs. Finish only after PWA, Auth-routing, degradation, lint, type-check, test, and build checks pass.
 ```
 
-## F06 — Templates and job schedules
+## S04 — Owner jobs and Kanban
+
+### PRD references
+
+- JOB-01 through JOB-03
+- Sections 5, 6.5, and `/dashboard/jobs`
+- Sequential implementation Step 4
+
+### Outcome
+
+An owner can create, inspect, filter, assign, and reassign jobs through the employee-column board.
+
+### Tasks
+
+- Create jobs and immutable job-update migrations and RLS.
+- Implement central state-transition and assignment domain rules.
+- Implement owner job creation and validation.
+- Implement Unassigned, working-now, rostered-today, and remaining-employee column ordering.
+- Add Active, Review, and Archived filters.
+- Port and clean Kanban styling, drag/drop, optimistic update, and rollback behaviour.
+- Record creation and assignment audit updates.
+- Expose job aggregate query contracts needed by the later dashboard step.
+
+### Tests
+
+- Job validation and allowed state transitions.
+- Employee-column ordering.
+- Assignment authorisation and audit history.
+- Owner/employee/cross-organisation RLS.
+- Optimistic reassignment and rollback.
+- Owner creates and reassigns a job E2E journey.
+
+### Completion gate
+
+- Owner job management works without employee execution features.
+- The board has accessible non-drag assignment controls.
+- No template or schedule behaviour is introduced early.
+
+### Implementation prompt
+
+```text
+Implement S04 Owner Jobs and Kanban from FEATURES.md against PRD stories JOB-01–JOB-03.
+
+Build job and audit schema/RLS, domain transitions, owner creation, filters, employee-column ordering, assignment/reassignment, accessible alternatives, and optimistic rollback. Use S02's employee display contract.
+
+Inspect the reference Kanban, actions, queries, and styling first. Preserve useful interaction and visual behaviour while replacing obsolete imports, domain types, permissions, and actions. Do not implement employee notes/evidence/submission, templates, schedules, or dashboards.
+
+Update S04 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after all S04 checks and owner job-management E2E pass.
+```
+
+## S05 — Employee job execution and owner review
+
+### PRD references
+
+- JOB-04 through JOB-08
+- Sections 6.8, 6.9, and 7
+- Sequential implementation Step 5
+
+### Outcome
+
+An employee can complete assigned work with evidence, and the owner can review, discuss, reopen, reassign, and archive it.
+
+### Tasks
+
+- Add private job-evidence storage and policies.
+- Implement employee start/resume.
+- Implement progress notes and completion photos.
+- Enforce note and minimum-photo requirements.
+- Implement submit-for-review.
+- Implement owner job detail, chronological history, evidence, and comments.
+- Implement approve/archive and reopen/reassign.
+- Preserve history and evidence through reopening.
+
+### Tests
+
+- Start and submission transition rules.
+- Evidence type, size, count, and requirement validation.
+- Owner/current-assignee comment permissions.
+- Evidence and update RLS/storage policies.
+- Complete submit, review, reopen, resubmit, and archive E2E journey.
+- Mobile viewport job and upload flow.
+
+### Completion gate
+
+- The complete manual job lifecycle passes.
+- Evidence remains private and authorised.
+- Notes, comments, assets, and system history remain distinct.
+
+### Implementation prompt
+
+```text
+Implement S05 Employee Job Execution and Owner Review from FEATURES.md against PRD stories JOB-04–JOB-08.
+
+Extend the verified S04 job contracts with employee start/resume, progress notes, private photo evidence, requirement validation, submission, owner review, comments, reopen/reassign, archive, preserved history, RLS, and tests.
+
+Reuse suitable reference action, upload, mutation, and UI patterns while cleaning them into repository-native modules. Do not implement templates, schedules, roster, or dashboards.
+
+Update S05 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete desktop/mobile job journey and all S05 checks pass.
+```
+
+## S06 — Roster data and calendar views
+
+### PRD references
+
+- CAL-01 and CAL-02
+- Section 6.4 and `/dashboard/calendar`
+- Sequential implementation Step 6
+
+### Outcome
+
+Owners can view accurate employee week and organisation day rosters, and employees can read their current and upcoming shifts.
+
+### Tasks
+
+- Create roster shift migration and RLS.
+- Add server-side overlap prevention.
+- Add organisation-timezone and calendar-range helpers.
+- Implement selected-employee seven-day view.
+- Implement all-rostered-employees single-day view.
+- Implement read-only employee current/upcoming shift query.
+- Port and clean calendar layout, slot positioning, responsive styling, and date controls.
+- Expose working-now and today-roster aggregates for dashboards.
+
+### Tests
+
+- Timezone and date-range calculations.
+- Shift overlap prevention.
+- Owner/employee/cross-organisation RLS.
+- Week/day placement and responsive rendering.
+- Employee shift summary.
+
+### Completion gate
+
+- Read-only roster views are correct before direct manipulation is added.
+- Shifts cannot overlap for the same employee.
+- Dashboard aggregate contracts are stable.
+
+### Implementation prompt
+
+```text
+Implement S06 Roster Data and Calendar Views from FEATURES.md against PRD stories CAL-01 and CAL-02.
+
+Build roster schema/RLS, overlap protection, timezone helpers, selected-employee week view, all-employees day view, employee shift summary, and dashboard aggregate queries.
+
+Inspect the reference calendar, roster time helpers, and styling first. Preserve useful layout and responsive behaviour while cleaning them into repository-native modules. Do not add drag, resize, copy, templates, scheduling, or dashboards yet.
+
+Update S06 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after roster data, RLS, rendering, lint, type-check, test, and build checks pass.
+```
+
+## S07 — Calendar interactions
+
+### PRD references
+
+- CAL-03 and CAL-04
+- Sequential implementation Step 7
+
+### Outcome
+
+Owners can manage shifts directly on the calendar with precise, safe, and accessible interactions.
+
+### Tasks
+
+- Add slot-based shift creation.
+- Add exact edit form.
+- Add drag, resize, copy, and confirmed delete.
+- Snap changes to 15-minute increments.
+- Add optimistic updates and rollback.
+- Add current-time indicator with minute updates.
+- Provide non-drag alternatives.
+
+### Tests
+
+- Create, edit, move, resize, copy, and delete.
+- Invalid ranges and overlap rejection.
+- Optimistic rollback.
+- Current-time visibility and positioning.
+- Keyboard-accessible alternatives.
+- Complete owner roster-management E2E journey.
+
+### Completion gate
+
+- All calendar manipulation works against the S06 server contracts.
+- Failed mutations restore the prior visible roster.
+- Reference calendar code consumed by this step is cleaned or documented for removal.
+
+### Implementation prompt
+
+```text
+Implement S07 Calendar Interactions from FEATURES.md against PRD stories CAL-03 and CAL-04.
+
+Extend the verified S06 calendar with create/edit/move/resize/copy/delete, 15-minute snapping, optimistic rollback, current-time indicator, accessible non-drag controls, and tests.
+
+Clean and reuse suitable reference calendar interactions and styling without reintroducing obsolete task/automation domain behaviour. Update S07 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete roster-management journey and all S07 checks pass.
+```
+
+## S08 — Templates and job schedules
 
 ### PRD references
 
 - TPL-01 and TPL-02
 - Sections 6.6 and 6.7
-- Phase 6
+- Sequential implementation Step 8
 
-### Owned scope
+### Outcome
 
-- Job template CRUD and activation state.
-- Template-prefilled manual job creation.
-- Daily and weekly schedule CRUD and pause/resume.
-- Timezone-aware occurrence calculation.
-- Idempotent concrete-job generation and retry safety.
-- Scheduler failure visibility.
+Owners can reuse job definitions and generate daily or weekly jobs exactly once per schedule occurrence.
 
-### Dependencies
+### Tasks
 
-- Must start from the integrated F03 manual job workflow.
-- Uses F02 employee selection after integration.
+- Add job template and job schedule migrations and RLS.
+- Implement template CRUD and active state.
+- Implement template-prefilled manual job creation with overrides.
+- Implement daily and weekly schedule CRUD, pause, edit, and delete.
+- Implement organisation-timezone occurrence calculation.
+- Generate concrete jobs through the existing S04/S05 job contracts.
+- Enforce occurrence uniqueness and safe retry.
+- Add scheduler failure visibility.
 
 ### Tests
 
-- Recurrence calculation and timezone unit tests.
-- Occurrence uniqueness and RLS database tests.
-- Template override component tests.
-- Exactly-one-job-per-occurrence Playwright or integration test.
+- Template defaults and overrides.
+- Daily/weekly timezone occurrence calculation.
+- Occurrence uniqueness and retry.
+- Schedule RLS.
+- Exactly-one-job-per-occurrence integration journey.
 
-### Codex task prompt
+### Completion gate
+
+- Generated jobs behave exactly like manual jobs.
+- Editing schedules changes only future occurrences.
+- No advanced recurrence or shift-start triggers are introduced.
+
+### Implementation prompt
 
 ```text
-Implement feature F06 Templates and Job Schedules from FEATURES.md against PRD stories TPL-01 and TPL-02.
+Implement S08 Templates and Job Schedules from FEATURES.md against PRD stories TPL-01 and TPL-02.
 
-Start from the integrated manual job workflow. Deliver template management, template-prefilled job creation, daily/weekly schedules, pause/edit/delete behaviour, timezone-aware occurrences, idempotent generation, retry safety, scheduler visibility, RLS, and tests.
+Build template CRUD, template-prefilled job creation, daily/weekly schedules, timezone-aware occurrences, idempotent concrete-job generation, retry safety, failure visibility, RLS, and tests on top of the verified manual job lifecycle.
 
-Do not add advanced recurrence, shift-start triggers, or notifications. Update F06 status and integration TODOs. Done means all branch quality gates and the exactly-once occurrence scenario pass.
+Do not add advanced recurrence, shift-start triggers, or notifications. Update S08 status, verification notes, checkpoint, and TODOs. Finish only after exactly-once generation and all S08 checks pass.
 ```
 
-## F07 — Operational dashboards
+## S09 — Operational dashboards
 
 ### PRD references
 
 - DASH-01, DASH-02, EDASH-01, and EDASH-02
 - `/dashboard`
-- Sections 3.2, 3.3, and 13
+- Sequential implementation Step 9
 
-### Owned scope
+### Outcome
 
-- Owner statistics and actionable lists.
-- Employee shift summary and prioritised personal work queue.
-- Organisation-timezone display.
-- Empty, loading, and failure states.
-- Links into integrated employee, job, and roster features.
+Owners and employees receive useful role-specific dashboards composed from already verified feature contracts.
 
-### Dependencies
+### Tasks
 
-- Starts only after F02, F03, and F04 are integrated.
-- Consumes feature-owned aggregate query interfaces rather than duplicating their domain logic.
+- Implement owner operational counts and actionable lists.
+- Implement employee current/next shift summary.
+- Implement prioritised employee job queue and primary Start/Resume action.
+- Link statistics and rows to correct filtered destinations.
+- Add timezone-correct labels, empty states, loading states, and failures.
+- Verify mobile employee and desktop owner layouts.
 
 ### Tests
 
-- Statistic calculation and priority ordering unit tests.
-- Owner/employee role composition tests.
-- Dashboard link/filter Playwright tests at desktop and mobile sizes.
+- Statistic calculations.
+- Job priority and due-time ordering.
+- Owner/employee role composition.
+- Links and filter destinations.
+- Desktop and mobile dashboard E2E journeys.
 
-### Codex task prompt
+### Completion gate
+
+- Dashboard code composes employee, job, and roster query contracts without duplicating domain rules.
+- Role-specific data remains isolated.
+
+### Implementation prompt
 
 ```text
-Implement feature F07 Operational Dashboards from FEATURES.md against PRD stories DASH-01, DASH-02, EDASH-01, and EDASH-02.
+Implement S09 Operational Dashboards from FEATURES.md against PRD stories DASH-01, DASH-02, EDASH-01, and EDASH-02.
 
-Start from integrated Employees, Jobs, and Roster features. Compose their stable aggregate queries into role-specific owner and employee dashboards with timezone-correct values, actionable links, empty/loading/error states, responsive behaviour, and tests.
+Compose the verified employee, job, and roster query contracts into role-specific owner and employee dashboards with accurate counts, action lists, priority ordering, timezone formatting, links, empty/loading/error states, responsive behaviour, and tests.
 
-Do not reimplement job, employee, or roster domain rules inside dashboard components. Update F07 status and integration TODOs. Done means all branch quality gates and desktop/mobile dashboard journeys pass.
+Do not duplicate feature domain rules inside dashboard components. Update S09 status, verification notes, checkpoint, and TODOs. Finish only after desktop/mobile dashboard journeys and all S09 checks pass.
 ```
 
-## F08 — Integration and production hardening
+## S10 — Integration and production hardening
 
 ### PRD references
 
 - Sections 9–15
 - Prototype and production readiness
 
-### Owned scope
+### Outcome
 
-- Merge and resolve every open integration TODO.
-- Reconcile navigation, shared types, dependencies, headers, fixtures, and migrations.
-- Regenerate final Supabase types.
-- Run complete owner and employee Playwright journeys.
-- Responsive and accessibility QA.
-- RLS, storage, email, PWA, scheduler, and staging verification.
-- Monitoring, failure visibility, and deployment documentation.
+The complete V1 is verified as one secure, accessible, responsive, deployable product.
 
-### Tests
+### Tasks
 
-- All CI quality gates.
-- Full critical journey suite.
-- Cross-feature reassignment, dashboard, roster, scheduling, and PWA checks.
-- Desktop and mobile viewport suites.
-- Staging smoke test.
+- Resolve or explicitly defer every open TODO.
+- Reconcile navigation, dependencies, headers, fixtures, and shared UI.
+- Regenerate and verify final Supabase types.
+- Remove superseded reference duplicates and unresolved reference-only imports.
+- Run the complete owner and employee E2E journey.
+- Run accessibility and responsive QA.
+- Verify RLS, storage, Auth email, scheduler, PWA, and security behaviour.
+- Document monitoring, failure visibility, backup, recovery, and deployment checks.
+- Perform staging smoke tests.
 
-### Codex task prompt
+### Completion gate
+
+- All CI quality gates pass.
+- Prototype acceptance is satisfied.
+- Production-readiness evidence is recorded.
+- Every TODO is resolved or explicitly moved to the PRD's deferred-work section.
+
+### Implementation prompt
 
 ```text
-Implement feature F08 Integration and Production Hardening from FEATURES.md and PRD sections 9–15.
+Implement S10 Integration and Production Hardening from FEATURES.md and PRD sections 9–15.
 
-Start from the latest branch containing F02–F07. Resolve every open integration TODO, reconcile shared navigation/types/dependencies/headers/fixtures/migrations, regenerate final Supabase types, complete cross-feature Playwright coverage, run accessibility and responsive QA, and verify staging email, storage, scheduler, PWA, and security behaviour.
+Resolve every open cross-step TODO, reconcile navigation/dependencies/headers/fixtures/shared UI, regenerate final Supabase types, remove superseded reference code, complete cross-feature Playwright coverage, run accessibility and responsive QA, and verify staging Auth email, storage, scheduler, PWA, and security behaviour.
 
-Do not silently change product scope to make integration easier. Update PRD.md first if a product decision is required. Done means every integration TODO is resolved or explicitly deferred in PRD.md, all CI gates pass, and prototype/production readiness evidence is recorded.
+Do not silently reduce product scope. Update PRD.md first if a product decision is required. Update S10 status, verification evidence, checkpoint, and TODO resolution. Finish only when all CI gates and prototype/production readiness checks pass.
 ```
 
-## Integration TODO ledger
+## Deferred integration TODO ledger
 
 ### Rules
 
-- Add an entry as soon as a feature knowingly touches or depends on another feature's contract.
-- The feature that discovers the overlap owns documenting it; the Integration owner owns final resolution unless another owner is named.
-- Do not mark an item resolved until the merged implementation and relevant cross-feature test pass.
-- If resolution changes product behaviour, link the updated PRD story.
+- Add a TODO as soon as an active step identifies work that belongs to a later step.
+- Give every TODO a target step.
+- Resolve it when the target step begins, not during unrelated work.
+- Do not mark it resolved until the integrated behaviour and relevant regression test pass.
+- If resolution changes product behaviour, update `PRD.md` first.
 
-| ID | Introduced by | Affects | Integration work | Owner | Status | Resolution/PR |
-| --- | --- | --- | --- | --- | --- | --- |
-| INT-001 | F01 | F02–F07 | Combine final owner/employee navigation after feature routes exist. | F08 | `planned` | — |
-| INT-002 | F02 | F03, F04 | Replace employee fixtures/adapters with the shared active-employee option and display interface. | F08 | `planned` | — |
-| INT-003 | F02–F06 | All database features | Regenerate and verify final Supabase types after all migrations merge. | F08 | `planned` | — |
-| INT-004 | F01–F06 | All features | Reconcile `package.json` and `pnpm-lock.yaml` dependency additions and remove duplicates. | F08 | `planned` | — |
-| INT-005 | F03, F04 | F07 | Integrate job and roster aggregate queries into role-specific dashboards. | F07 | `planned` | — |
-| INT-006 | F05 | F01, F08 | Mount PWA registration/install guidance in the final shell and reconcile `next.config.ts` security headers. | F08 | `planned` | — |
-| INT-007 | F01–F07 | Test suite | Merge shared Supabase and Playwright fixtures without weakening role isolation. | F08 | `planned` | — |
-| INT-008 | F03, F04 | Shared UI | Reconcile optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | F08 | `planned` | — |
-| INT-009 | F05 | Auth | Verify standalone `/dashboard` launch respects signed-out redirects and invite/password routes remain browser-accessible. | F08 | `planned` | — |
-| INT-010 | F03, F06 | Jobs | Confirm generated jobs use the same transition, audit, assignment, and evidence contracts as manual jobs. | F06 | `planned` | — |
-| INT-011 | F01, F05 | Proxy/PWA | Exclude `/sw.js` and `/manifest.webmanifest` from the root Proxy matcher and verify Auth redirects when the installed app starts at `/dashboard`. | F08 | `planned` | — |
-| INT-012 | F01–F06 | Environment | Reconcile `.env.example`, runtime validation, deployment configuration, and explicit `.env.local` setup instructions for every feature-added variable. | F08 | `planned` | — |
-| INT-013 | F01, F03, F04 | Reference code | Reconcile reference files touched by multiple features, remove superseded duplicates, and verify all production imports use repository-native modules. | F08 | `planned` | — |
+| ID | Introduced in | Target step | Deferred work | Status | Resolution/checkpoint |
+| --- | --- | --- | --- | --- | --- |
+| TODO-001 | S01 | S09 | Complete final owner/employee navigation after all feature routes exist. | `planned` | — |
+| TODO-002 | S02 | S04/S06 | Consume the shared active-employee option/display query in Jobs and Roster. | `planned` | — |
+| TODO-003 | Schema steps | S10 | Regenerate and verify final combined Supabase types. | `planned` | — |
+| TODO-004 | All steps | S10 | Reconcile final dependencies and remove unused packages. | `planned` | — |
+| TODO-005 | S04/S06 | S09 | Compose job and roster aggregate queries into dashboards. | `planned` | — |
+| TODO-006 | S01 | S03 | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers. | `planned` | — |
+| TODO-007 | All steps | S10 | Consolidate shared Supabase and Playwright fixtures without weakening isolation. | `planned` | — |
+| TODO-008 | S04/S07 | S10 | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | — |
+| TODO-009 | S04/S05 | S08 | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts. | `planned` | — |
+| TODO-010 | All steps | S10 | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions. | `planned` | — |
+| TODO-011 | S01/S04/S06/S07 | S10 | Remove superseded reference duplicates and verify repository-native production imports. | `planned` | — |
 
-### New integration TODO template
-
-Copy this row and allocate the next identifier:
+### New TODO template
 
 ```text
-| INT-XXX | FXX | FXX, FXX | Concrete overlapping contract or merge work. | FXX/F08 | `planned` | — |
+| TODO-XXX | SXX | SXX | Concrete deferred behaviour or shared contract. | `planned` | — |
 ```
 
-## Merge order
+## Checkpoint record template
 
-1. F00 main baseline and coordination
-2. F01 platform foundation
-3. F02, F03, F04, and F05 feature branches
-4. F06 templates and schedules after F03
-5. F07 dashboards after F02, F03, and F04
-6. F08 integration and hardening
+Add this information to the active step's verification notes before marking it complete:
 
-When parallel branches finish at different times, merge one at a time into a temporary integration branch, run the combined quality gates, and update the remaining branches from that new base. Do not use a partially integrated branch as the base for unrelated new work.
+```text
+Checkpoint:
+- Commit:
+- PRD stories verified:
+- Commands passed:
+- Database migrations:
+- Environment variables changed:
+- Project skills and references used:
+- Reference files reused/cleaned/moved/removed:
+- Deferred TODOs added or resolved:
+- Known limitations:
+```
