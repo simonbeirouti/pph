@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures"
+import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar"
 
 test("signed-out dashboard requests redirect to login", async ({ page }) => {
   await page.goto("/dashboard")
@@ -22,7 +23,8 @@ test("sidebar toggles and links to the current profile", async ({
 }, testInfo) => {
   await ownerPage.goto("/dashboard")
   await ownerPage.waitForLoadState("networkidle")
-  const dashboardLink = ownerPage.getByRole("link", { name: "Dashboard" })
+  const sidebar = ownerPage.locator('[data-sidebar="sidebar"]')
+  const dashboardLink = sidebar.getByRole("link", { name: "Dashboard" })
   const toggle = ownerPage.getByRole("button", { name: "Toggle navigation" })
   const mobile = testInfo.project.name.includes("mobile")
 
@@ -39,13 +41,20 @@ test("sidebar toggles and links to the current profile", async ({
       ownerPage.locator('[data-slot="sidebar"][data-state="collapsed"]')
     ).toBeAttached()
     await expect(dashboardLink).toBeVisible()
+    await expect
+      .poll(async () => {
+        const cookies = await ownerPage.context().cookies()
+        return cookies.find((cookie) => cookie.name === SIDEBAR_COOKIE_NAME)
+          ?.value
+      })
+      .toBe("false")
     await ownerPage.reload()
     await expect(
       ownerPage.locator('[data-slot="sidebar"][data-state="collapsed"]')
     ).toBeAttached()
   }
 
-  await ownerPage.getByRole("link", { name: /Olivia Owner/ }).click()
+  await ownerPage.getByRole("link", { name: /Olivia Owner/ }).press("Enter")
   await expect(ownerPage).toHaveURL(/\/dashboard\/profile$/)
   await expect(
     ownerPage.getByRole("heading", { name: "Olivia Owner" })
@@ -67,6 +76,10 @@ test("sidebar and breadcrumb reflect the current page", async ({
   const employeesLink = sidebar.getByRole("link", { name: "Employees" })
   await expect(employeesLink).toHaveAttribute("aria-current", "page")
   await expect(dashboardLink).not.toHaveAttribute("aria-current", "page")
+
+  if (testInfo.project.name.includes("mobile")) {
+    await ownerPage.getByRole("button", { name: "Close navigation" }).click()
+  }
 
   const breadcrumb = ownerPage.getByRole("navigation", {
     name: "breadcrumb",

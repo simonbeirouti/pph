@@ -135,11 +135,11 @@ test("owner opens employee details in a sheet without navigation", async ({
       name: "Change Alex Employee profile photo",
     })
   ).toBeVisible()
-  await expect(sheet.getByRole("link", { name: "Email" })).toHaveAttribute(
+  await expect(sheet.getByRole("button", { name: "Email" })).toHaveAttribute(
     "href",
     "mailto:employee@example.test"
   )
-  await expect(sheet.getByRole("link", { name: "Call" })).toHaveAttribute(
+  await expect(sheet.getByRole("button", { name: "Call" })).toHaveAttribute(
     "href",
     "tel:0400000002"
   )
@@ -162,7 +162,9 @@ test("owner opens employee details in a sheet without navigation", async ({
     mimeType: "image/png",
     name: "alex.png",
   })
-  await expect(sheet.getByRole("button", { name: "Save profile" })).toBeVisible()
+  await expect(
+    sheet.getByRole("button", { name: "Save profile" })
+  ).toBeVisible()
   await expect(
     sheet.getByRole("img", { name: "Alex Employee profile photo" })
   ).toBeVisible()
@@ -295,11 +297,11 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
 
     await ownerPage.getByRole("button", { name: "Close" }).click()
     await ownerPage.reload()
-    await ownerPage
-      .getByRole("row", { name: "Open Jamie Lifecycle details" })
-      .click()
+    await ownerPage.getByRole("row").filter({ hasText: email }).click()
     await expect(
-      ownerPage.getByRole("dialog").getByText("Jamie Lifecycle", { exact: true })
+      ownerPage
+        .getByRole("dialog")
+        .getByText("Jamie Lifecycle", { exact: true })
     ).toBeVisible()
     await expect(
       ownerPage.getByRole("img", {
@@ -308,6 +310,10 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     ).toBeVisible()
     await ownerPage
       .getByRole("dialog")
+      .getByRole("button", { name: "Deactivate access" })
+      .click()
+    await ownerPage
+      .getByRole("alertdialog")
       .getByRole("button", { name: "Deactivate access" })
       .click()
     await expect(

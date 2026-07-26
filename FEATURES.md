@@ -68,7 +68,7 @@ For each active step:
 | S00  | Product and implementation baseline     | `complete`    | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                         |
 | S01  | Platform foundation                     | `complete`    | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass |
 | S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
-| S03  | Progressive Web App shell               | `planned`     | S02        | —          | —                                                                                                                                                                                 |
+| S03  | Progressive Web App shell               | `complete`    | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass. |
 | S04  | Owner jobs and Kanban                   | `planned`     | S03        | —          | —                                                                                                                                                                                 |
 | S05  | Employee job execution and owner review | `planned`     | S04        | —          | —                                                                                                                                                                                 |
 | S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                 |
@@ -323,35 +323,51 @@ The authenticated application can be installed on supported devices and degrades
 
 ### Tasks
 
-- Add typed `app/manifest.ts`.
-- Add 192×192, 512×512, maskable, and Apple touch icons.
-- Add minimal same-origin service-worker install/activate lifecycle.
-- Register with feature detection and `updateViaCache: "none"`.
-- Add standalone detection and non-blocking installation guidance.
-- Add iOS Share → Add to Home Screen guidance.
-- Add global and service-worker-specific security headers.
-- Verify Proxy excludes `/sw.js` and `/manifest.webmanifest`.
+- [x] Add typed `app/manifest.ts`.
+- [x] Add 192×192, 512×512, maskable, and Apple touch icons.
+- [x] Add minimal same-origin service-worker install/activate lifecycle.
+- [x] Register with feature detection and `updateViaCache: "none"`.
+- [x] Add standalone detection and non-blocking installation guidance.
+- [x] Add iOS Share → Add to Home Screen guidance.
+- [x] Add global and service-worker-specific security headers.
+- [x] Verify Proxy excludes `/sw.js` and `/manifest.webmanifest`.
 
 ### Explicit boundary
 
-- No offline application-data caching.
-- No offline mutations or background sync.
-- No push subscriptions, VAPID keys, or notification permission requests.
+- [x] No offline application-data caching.
+- [x] No offline mutations or background sync.
+- [x] No push subscriptions, VAPID keys, or notification permission requests.
 
 ### Tests
 
-- Manifest metadata and icon references.
-- Service-worker lifecycle, response type, cache headers, and CSP.
-- Registration support and failure handling.
-- Standalone/install guidance visibility.
-- Signed-out standalone `/dashboard` launch.
-- Normal application use without service-worker support.
+- [x] Manifest metadata and icon references.
+- [x] Service-worker lifecycle, response type, cache headers, and CSP.
+- [x] Registration support and failure handling.
+- [x] Standalone/install guidance visibility.
+- [x] Signed-out standalone `/dashboard` launch.
+- [x] Normal application use without service-worker support.
 
 ### Completion gate
 
-- Production build exposes valid install resources.
-- Auth and PWA routing work together.
-- Unsupported browsers retain the complete responsive web experience.
+- [x] Production build exposes valid install resources.
+- [x] Auth and PWA routing work together.
+- [x] Unsupported browsers retain the complete responsive web experience.
+
+### Reference material
+
+- [x] Used the bundled Next.js 16 Progressive Web App, manifest, and app-icon guidance.
+- [x] Used the supplied `public/logo.png` without visual editing; generated only deterministic black-background size and safe-area variants.
+- [x] No remaining `components/ref-files/**` file contains relevant PWA behaviour to consume.
+
+### S03 checkpoint
+
+- Commit: Pending; the user has not requested a Git checkpoint commit.
+- PRD stories verified: PWA-01 through PWA-03, `/manifest.webmanifest`, `/sw.js`, Proxy exclusions, security headers, and signed-out standalone launch.
+- Commands passed: `pnpm check` (`pnpm lint`, `pnpm typecheck`, 43 unit/component tests, 66 database tests, and production build), `pnpm test:e2e` (50 desktop/mobile checks), the complete S03 Playwright suite repeated twice (36 checks), the repaired sidebar persistence journey repeated twice on both projects (4 checks), icon MIME/dimension inspection, and `git diff --check`.
+- Project skills and references used: `playwright-best-practices` with service-worker, locator, assertion, and test-structure guidance; `vercel-react-best-practices`; the bundled Next.js 16 Progressive Web App, manifest, and app-icon documentation.
+- Shared-step overlap: S03 verification repaired stale S01/S02 Playwright contracts by scoping duplicate navigation locators, waiting for the sidebar cookie before reload, closing the mobile modal before breadcrumb assertions, selecting generated employees by their unique email, and confirming deactivation. The mobile sidebar close trigger also received the missing stacking priority so its visible control owns its pointer target.
+- Environment variable names changed: none. `.env.example` and `.env.local` require no S03 changes.
+- Deferred work: none. Offline data, offline mutations, background sync, push subscriptions, and notification permissions remain explicitly outside V1.
 
 ### Implementation prompt
 
@@ -708,7 +724,7 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 | TODO-003 | Schema steps    | S10         | Regenerate and verify final combined Supabase types.                                                          | `planned` | —                                                                                                     |
 | TODO-004 | All steps       | S10         | Reconcile final dependencies and remove unused packages.                                                      | `planned` | —                                                                                                     |
 | TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                     | `planned` | —                                                                                                     |
-| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `planned` | —                                                                                                     |
+| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite. |
 | TODO-007 | All steps       | S10         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                              | `planned` | —                                                                                                     |
 | TODO-008 | S04/S07         | S10         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | —                                                                                                     |
 | TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.               | `planned` | —                                                                                                     |

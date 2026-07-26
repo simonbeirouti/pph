@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
     >
       <AppSidebar avatarUrl={avatarUrl} membership={membership} />
       <SidebarInset>
+        <ServiceWorkerRegistration />
         <header className="flex h-16 shrink-0 items-center gap-2 border-b">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" aria-label="Toggle navigation" />

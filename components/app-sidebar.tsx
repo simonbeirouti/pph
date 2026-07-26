@@ -42,7 +42,7 @@ export function AppSidebar({
       <SidebarHeader className="relative">
         <SidebarTrigger
           aria-label="Close navigation"
-          className="absolute top-2 right-2 md:hidden"
+          className="absolute top-2 right-2 z-10 md:hidden"
         />
         <SidebarMenu>
           <SidebarMenuItem>

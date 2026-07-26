@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PwaInstallCard } from "@/components/pwa-install-card"
 import { requireActiveMembership } from "@/lib/auth/membership"
 
 export default async function Page() {
@@ -33,6 +34,7 @@ export default async function Page() {
           </div>
         </CardContent>
       </Card>
+      {membership.role === "employee" ? <PwaInstallCard /> : null}
     </div>
   )
 }

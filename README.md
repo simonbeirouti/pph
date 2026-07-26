@@ -67,6 +67,16 @@ pnpm dev
 The application is available at <http://127.0.0.1:4000>. Local email is
 captured by the Supabase mail service rather than sent externally.
 
+## Progressive Web App
+
+The authenticated dashboard can be installed from supported browsers. Hosted
+staging and production deployments must use HTTPS; localhost remains available
+for local service-worker testing.
+
+The V1 service worker manages installation and activation only. Jobs, rosters,
+evidence, and mutations are not cached for offline use, and the application
+does not request push-notification permission.
+
 ## Auth email setup
 
 For a hosted Supabase project:
