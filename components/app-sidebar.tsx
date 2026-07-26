@@ -1,10 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { Building2Icon, LayoutDashboardIcon } from "lucide-react"
+import { Building2Icon, LayoutDashboardIcon, UsersIcon } from "lucide-react"
+import { usePathname } from "next/navigation"
 
 import type { MembershipContext } from "@/lib/auth/membership"
 import { NavUser } from "@/components/nav-user"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -15,20 +17,40 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function AppSidebar({
+  avatarUrl,
   membership,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
+  avatarUrl: string | null
   membership: MembershipContext
 }) {
+  const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
+  const closeMobileSidebar = () => {
+    if (isMobile) setOpenMobile(false)
+  }
+  const isRouteActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`)
+
   return (
-    <Sidebar variant="inset" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="icon" variant="inset" {...props}>
+      <SidebarHeader className="relative">
+        <SidebarTrigger
+          aria-label="Close navigation"
+          className="absolute top-2 right-2 md:hidden"
+        />
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+            <SidebarMenuButton
+              size="lg"
+              onClick={closeMobileSidebar}
+              render={<Link href="/dashboard" />}
+            >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <Building2Icon className="size-4" />
               </div>
@@ -50,24 +72,42 @@ export function AppSidebar({
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive
+                aria-current={pathname === "/dashboard" ? "page" : undefined}
+                isActive={pathname === "/dashboard"}
                 tooltip="Dashboard"
+                onClick={closeMobileSidebar}
                 render={<Link href="/dashboard" />}
               >
                 <LayoutDashboardIcon />
                 <span>Dashboard</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {membership.role === "owner" ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-current={
+                    isRouteActive("/dashboard/employees") ? "page" : undefined
+                  }
+                  isActive={isRouteActive("/dashboard/employees")}
+                  tooltip="Employees"
+                  onClick={closeMobileSidebar}
+                  render={<Link href="/dashboard/employees" />}
+                >
+                  <UsersIcon />
+                  <span>Employees</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ) : null}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <ThemeToggle />
         <NavUser
+          isActive={isRouteActive("/dashboard/profile")}
           user={{
-            avatar: membership.avatarPath,
-            email: membership.email,
+            avatar: avatarUrl,
             name: membership.displayName,
-            role: membership.role,
           }}
         />
       </SidebarFooter>

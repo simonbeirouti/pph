@@ -1,6 +1,9 @@
 import type { ReactNode } from "react"
+import { cookies } from "next/headers"
 
+import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/app-sidebar"
+import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -8,6 +11,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { requireActiveMembership } from "@/lib/auth/membership"
+import { createSignedAvatarUrl } from "@/lib/employees/data"
+import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar"
 
 export default async function DashboardLayout({
   children,
@@ -15,10 +20,16 @@ export default async function DashboardLayout({
   children: ReactNode
 }) {
   const membership = await requireActiveMembership()
+  const avatarUrl = await createSignedAvatarUrl(membership.avatarPath)
+  const sidebarOpen =
+    (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value !== "false"
 
   return (
-    <SidebarProvider>
-      <AppSidebar membership={membership} />
+    <SidebarProvider
+      defaultOpen={sidebarOpen}
+      onOpenChange={setSidebarOpenAction}
+    >
+      <AppSidebar avatarUrl={avatarUrl} membership={membership} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b">
           <div className="flex items-center gap-2 px-4">
@@ -27,7 +38,7 @@ export default async function DashboardLayout({
               orientation="vertical"
               className="mr-2 data-vertical:h-4 data-vertical:self-auto"
             />
-            <span className="text-sm font-medium">Dashboard</span>
+            <DashboardBreadcrumb />
           </div>
         </header>
         <main className="flex flex-1 flex-col p-4 md:p-6">{children}</main>

@@ -33,13 +33,13 @@ Normal Git commits remain encouraged as checkpoints, but feature branches, workt
 
 ## Status values
 
-| Status | Meaning |
-| --- | --- |
-| `planned` | Defined but not started |
-| `in_progress` | The only step currently being implemented |
-| `blocked` | Waiting on a required decision, credential, or external dependency |
-| `complete` | Implementation and step-level checks pass |
-| `verified` | Confirmed as part of the final integrated V1 journey |
+| Status        | Meaning                                                            |
+| ------------- | ------------------------------------------------------------------ |
+| `planned`     | Defined but not started                                            |
+| `in_progress` | The only step currently being implemented                          |
+| `blocked`     | Waiting on a required decision, credential, or external dependency |
+| `complete`    | Implementation and step-level checks pass                          |
+| `verified`    | Confirmed as part of the final integrated V1 journey               |
 
 At most one row may be `in_progress`.
 
@@ -47,12 +47,12 @@ At most one row may be `in_progress`.
 
 The following checked-in skills are required parts of development:
 
-| Skill | Required for | Primary steps |
-| --- | --- | --- |
-| `playwright-best-practices` | Playwright architecture, configuration, fixtures, Auth, mobile, drag/drop, upload, time, PWA, debugging, and CI | S01–S10 |
-| `supabase` | Supabase Auth, SSR, clients, CLI, migrations, RLS, Storage, and Cron | S01, S02, S04–S06, S08, S10 |
-| `supabase-postgres-best-practices` | Schema, constraints, indexes, RLS performance, queries, locking, and database review | Every schema/query step |
-| `vercel-react-best-practices` | React/Next.js rendering, data fetching, server actions, bundle size, and client performance | Every UI step |
+| Skill                              | Required for                                                                                                    | Primary steps               |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `playwright-best-practices`        | Playwright architecture, configuration, fixtures, Auth, mobile, drag/drop, upload, time, PWA, debugging, and CI | S01–S10                     |
+| `supabase`                         | Supabase Auth, SSR, clients, CLI, migrations, RLS, Storage, and Cron                                            | S01, S02, S04–S06, S08, S10 |
+| `supabase-postgres-best-practices` | Schema, constraints, indexes, RLS performance, queries, locking, and database review                            | Every schema/query step     |
+| `vercel-react-best-practices`      | React/Next.js rendering, data fetching, server actions, bundle size, and client performance                     | Every UI step               |
 
 For each active step:
 
@@ -63,19 +63,19 @@ For each active step:
 
 ## Implementation status
 
-| Step | Capability | Status | Depends on | Checkpoint | Verification notes |
-| --- | --- | --- | --- | --- | --- |
-| S00 | Product and implementation baseline | `complete` | — | `8a07533` | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete |
-| S01 | Platform foundation | `complete` | S00 | Pending user commit | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass |
-| S02 | Authentication and employees | `planned` | S01 | — | — |
-| S03 | Progressive Web App shell | `planned` | S02 | — | — |
-| S04 | Owner jobs and Kanban | `planned` | S03 | — | — |
-| S05 | Employee job execution and owner review | `planned` | S04 | — | — |
-| S06 | Roster data and calendar views | `planned` | S05 | — | — |
-| S07 | Calendar interactions | `planned` | S06 | — | — |
-| S08 | Templates and job schedules | `planned` | S07 | — | — |
-| S09 | Operational dashboards | `planned` | S08 | — | — |
-| S10 | Integration and production hardening | `planned` | S09 | — | — |
+| Step | Capability                              | Status        | Depends on | Checkpoint | Verification notes                                                                                                                                                                |
+| ---- | --------------------------------------- | ------------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline     | `complete`    | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                         |
+| S01  | Platform foundation                     | `complete`    | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass |
+| S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
+| S03  | Progressive Web App shell               | `planned`     | S02        | —          | —                                                                                                                                                                                 |
+| S04  | Owner jobs and Kanban                   | `planned`     | S03        | —          | —                                                                                                                                                                                 |
+| S05  | Employee job execution and owner review | `planned`     | S04        | —          | —                                                                                                                                                                                 |
+| S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                 |
+| S07  | Calendar interactions                   | `planned`     | S06        | —          | —                                                                                                                                                                                 |
+| S08  | Templates and job schedules             | `planned`     | S07        | —          | —                                                                                                                                                                                 |
+| S09  | Operational dashboards                  | `planned`     | S08        | —          | —                                                                                                                                                                                 |
+| S10  | Integration and production hardening    | `planned`     | S09        | —          | —                                                                                                                                                                                 |
 
 ## Rules that apply to every step
 
@@ -98,20 +98,20 @@ For each active step:
 
 ## Shared implementation surfaces
 
-| Surface | Rule |
-| --- | --- |
-| `PRD.md` | Update first when product behaviour or architecture changes |
-| `FEATURES.md` | Update active status, checkpoint, verification notes, and TODOs |
-| `AGENTS.md` | Keep durable repository workflow guidance aligned with this plan |
-| `.env.example` | Names and safe placeholders only; explicitly notify the user of every change |
-| `package.json`, `pnpm-lock.yaml` | Add dependencies only when required by the active step |
-| Root `proxy.ts`, `lib/supabase/proxy.ts` | Established in S01; later changes require regression tests |
+| Surface                                       | Rule                                                                             |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| `PRD.md`                                      | Update first when product behaviour or architecture changes                      |
+| `FEATURES.md`                                 | Update active status, checkpoint, verification notes, and TODOs                  |
+| `AGENTS.md`                                   | Keep durable repository workflow guidance aligned with this plan                 |
+| `.env.example`                                | Names and safe placeholders only; explicitly notify the user of every change     |
+| `package.json`, `pnpm-lock.yaml`              | Add dependencies only when required by the active step                           |
+| Root `proxy.ts`, `lib/supabase/proxy.ts`      | Established in S01; later changes require regression tests                       |
 | `app/layout.tsx`, dashboard shell, navigation | Establish incrementally; avoid placeholders that imply unavailable features work |
-| `next.config.ts` | Reconcile Proxy, PWA, and security requirements when S03 changes it |
-| Supabase migrations | Append-only after the owning step is complete |
-| Generated Supabase types | Regenerate after every schema step and verify again in S10 |
-| Shared test fixtures | Extend without weakening prior role or organisation isolation |
-| `components/ref-files/**` | Reusable source material; clean and absorb relevant code during the owning step |
+| `next.config.ts`                              | Reconcile Proxy, PWA, and security requirements when S03 changes it              |
+| Supabase migrations                           | Append-only after the owning step is complete                                    |
+| Generated Supabase types                      | Regenerate after every schema step and verify again in S10                       |
+| Shared test fixtures                          | Extend without weakening prior role or organisation isolation                    |
+| `components/ref-files/**`                     | Reusable source material; clean and absorb relevant code during the owning step  |
 
 ## S00 — Product and implementation baseline
 
@@ -201,7 +201,7 @@ The application has a clean quality baseline, local Supabase foundation, typed s
 
 ### S01 checkpoint
 
-- Commit: Pending; the user requested no Git commits and will create the checkpoint.
+- Commit: `2e26642`.
 - PRD stories verified: AUTH-01 foundation and sections 2, 6.1–6.3, 8, and 11.
 - Commands passed: `pnpm db:reset`, Supabase schema lint with warnings treated as failures, `pnpm db:types`, `pnpm test:db` (24), `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (22), `pnpm test:e2e` (10 across desktop Chromium and Pixel 7), and `pnpm build`.
 - Database migration: `20260726032911_platform_foundation.sql`; the existing `pph` local project, ports, PostgreSQL 17 stack, migration configuration, seed configuration, and local SMTP capture were preserved.
@@ -209,7 +209,7 @@ The application has a clean quality baseline, local Supabase foundation, typed s
 - Project skills and references used: `playwright-best-practices`, `supabase`, `supabase-postgres-best-practices`, and `vercel-react-best-practices`; Next.js 16 Proxy, environment, `distDir`, and custom TypeScript configuration guides; Supabase SSR cookie/session guidance.
 - Reference files reused/cleaned/removed: the browser, server, admin, environment, Proxy, and root Proxy prototypes were ported into repository-native production modules and then removed. The remaining `components/ref-files/**` examples stay available for later owning steps and remain excluded from production TypeScript and ESLint scope. The application-shell and sidebar components were cleaned into the role-aware S01 shell.
 - Deferred TODOs: TODO-001, TODO-006, and TODO-011 remain planned for their registered later steps.
-- Known limitations: credential submission, invitation acceptance, password setup, final feature navigation, and PWA assets remain owned by later steps. Playwright uses an isolated port-3100 development server and output directory so it can coexist with the normal port-3000 server.
+- Known limitations: credential submission, invitation acceptance, password setup, final feature navigation, and PWA assets remain owned by later steps. From S02 onward, local development and Playwright use the shared port-4000 application origin.
 
 ### Implementation prompt
 
@@ -240,38 +240,67 @@ An owner can manage the employee lifecycle, and an invited employee can activate
 
 ### Tasks
 
-- Implement owner login against the S01 Auth/session boundary.
-- Implement employee creation, validation, directory, filtering, and detail.
-- Create pending membership and profile records idempotently.
-- Call Supabase Admin invitation and reinvitation.
-- Implement Auth confirmation, membership linking, password setup, and activation.
-- Implement edit, deactivate, and reactivate behaviour.
-- Add private avatar storage, validation, policies, signed URLs, and initials fallback.
-- Publish a stable active-employee option/display query for later jobs and roster steps.
+- [x] Implement owner login against the S01 Auth/session boundary.
+- [x] Implement employee creation, validation, directory, filtering, and detail.
+- [x] Create pending membership and profile records idempotently.
+- [x] Call Supabase Admin for initial employee invitations.
+- [x] Implement token-hash Auth confirmation, exact membership linking, password setup, and activation.
+- [x] Implement edit, deactivate, and reactivate behaviour.
+- [x] Add private avatar storage, content validation, path policies, signed URLs, cleanup, and initials fallback.
+- [x] Publish the server-only typed `ActiveEmployeeOption` query for later jobs and roster steps.
+- [x] Keep S04 job summaries and S06 roster information as explicit deferred states.
+- [x] Move the canonical local application and Playwright origin to port 4000.
+- [x] Provide root toast/tooltip providers and header theme switching; link the sidebar user directly to profile and keep logout in the profile header.
+- [x] Make each full employee row in the full-width directory open details in a right-hand sheet and create employees in a dialog without route transitions.
+- [x] Keep access deactivation at the end of the employee sheet.
+- [x] Require confirmation before deleting an invited employee or deactivating an active employee; keep resend above the access action and report results through toasts.
+- [x] Allow every active user, including owners, to edit their own profile under organisation-scoped RLS.
+- [x] Provide responsive mobile navigation and an evenly spaced desktop inset sidebar whose cookie-backed icon-collapsed preference is rendered correctly on the first frame after reload.
+- [x] Keep theme rendering hydration-safe and expose a prominent invitation send/resend/retry action near the top of the employee sheet.
+- [x] Refine the employee sheet with a large clickable avatar, centred identity and status, direct email/call actions, dirty-only save, and a persistent access footer that keeps invitation resend immediately above invited-employee deletion.
+- [x] Keep the outlined theme control hydration-safe by avoiding server/client attributes derived from the pre-hydration resolved theme.
+- [x] Allow both local application hostnames (`127.0.0.1` and `localhost`) for invitation confirmation so Supabase does not silently replace the requested callback with the login-bound site root.
 
 ### Tests
 
-- Login success and safe failure.
-- Duplicate and case-insensitive employee email handling.
-- Invitation idempotency, callback, password setup, and activation.
-- Inactive-user access.
-- Owner/employee/cross-organisation RLS.
-- Avatar type, size, path, signed URL, and storage policies.
-- Owner creates/invites employee E2E journey.
+- [x] Login validation, success, safe failure, and inactive-user handling.
+- [x] Duplicate and case-insensitive employee email handling.
+- [x] Invitation idempotency, exact callback linking, password setup, and activation.
+- [x] Owner/employee/inactive/cross-organisation RLS and privileged-function grants.
+- [x] Avatar type, size, magic bytes, path, owner/self/cross-organisation access, signed URL, and storage policies.
+- [x] Active-employee contract mapping and database source filtering.
+- [x] Owner creates/invites employee E2E journey on desktop and mobile at port 4000.
 
 ### Completion gate
 
-- The full invitation-to-activation journey passes.
-- Employee permissions do not expose another employee's data.
-- Later steps can consume a typed active-employee interface.
-- Email is mocked in automated tests.
+- [x] The full invitation-to-activation journey passes on desktop and mobile at port 4000.
+- [x] Employee permissions do not expose another employee's data.
+- [x] Later steps can consume a typed active-employee interface.
+- [x] Email is captured by local Mailpit in automated tests; no real email is sent.
+
+### Reference material
+
+- [x] The remaining `components/ref-files/resend/**` examples were inspected and left in place. S02 delegates initial invite delivery to Supabase Auth SMTP, so direct application Resend code is intentionally not ported or removed.
+- [x] Employee forms, directory/detail views, access actions, and avatar UI use repository-native components and imports.
+
+### S02 checkpoint
+
+- Commit: Pending; the user has not requested a Git checkpoint commit.
+- PRD stories verified: AUTH-02 through AUTH-04, EMP-01 through EMP-03, and the `/auth/confirm`, `/set-password`, and `/dashboard/employees` route contracts.
+- Commands passed: `pnpm test:unit` (33), the prior `pnpm test:e2e` journey (18 across desktop and mobile at port 4000), `pnpm db:reset`, `pnpm test:db` (66), `pnpm db:types`, Supabase schema lint with warnings treated as failures, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check`. Current live-browser QA verified shadcn theme switching without hydration errors, direct sidebar profile navigation, profile-header logout, owner profile editing, shared employee filters, full-row right-hand employee details, the large clickable sheet avatar, centred identity/status, direct email/call actions, dirty-only save, persistent resend/delete and access actions, confirmed invited-employee deletion and active-employee deactivation, toast feedback for invitation resend and access changes, in-place reactivate, dialog-based employee creation, cookie-first expanded and collapsed sidebar reloads without a post-hydration state correction, and even collapsed icon-rail spacing. A fresh CLI Playwright rerun could not start in the restricted sandbox because its server reachability check attempted to bind the already-running port 4000.
+- Database migration: `20260726062502_authentication_employees.sql`; the owner self-profile update and invited-employee deletion follow-ups were consolidated into this S02 migration before the local reset.
+- Environment variable names changed: none. `.env.example` now provides the safe local Docker Supabase defaults for its existing URL, publishable-key, and secret-key entries. Hosted Resend SMTP credentials belong in Supabase Auth configuration, not application variables.
+- Project skills and references used: `playwright-best-practices`, `supabase`, `supabase-postgres-best-practices`, and `vercel-react-best-practices`; Next.js 16 layouts, navigation, cookies, client/server components, Server Actions, forms, Route Handlers, and authentication guides; Supabase server-side token-hash, invitation, local email-template, Auth user, SSR, RLS, and Storage guidance.
+- Reference files reused/cleaned/moved/removed: no S02 production dependency remains on `components/ref-files/**`. The direct-Resend examples remain because S02 uses Supabase Auth SMTP for initial invitations and does not own direct application email sending.
+- Deferred TODOs added: TODO-012 for S04 employee job summaries and TODO-013 for S06 roster state/upcoming shifts. TODO-002 remains the consumer handoff for `ActiveEmployeeOption`.
+- Known limitations: employee job summaries remain owned by S04, and roster state/upcoming shifts remain owned by S06.
 
 ### Implementation prompt
 
 ```text
 Implement S02 Authentication and Employees from FEATURES.md against PRD stories AUTH-02–AUTH-04 and EMP-01–EMP-03.
 
-Build the complete owner-to-employee lifecycle on the verified S01 contracts: login, employee creation, invitation/reinvitation, Auth callback, password setup, directory, detail, edit, avatar storage, deactivation/reactivation, RLS, and tests. Publish a small typed active-employee option/display query for later jobs and roster work.
+Build the complete owner-to-employee lifecycle on the verified S01 contracts: login, employee creation, initial invitation, Auth callback, password setup, directory, detail, edit, avatar storage, deactivation/reactivation, RLS, and tests. Publish a small typed active-employee option/display query for later jobs and roster work.
 
 Use the established project-native Supabase clients and inspect the remaining Resend, form, and UI references while cleaning relevant pieces into repository-native modules. Do not implement jobs, roster editing, PWA, templates, schedules, or operational dashboards.
 
@@ -672,19 +701,21 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 - Do not mark it resolved until the integrated behaviour and relevant regression test pass.
 - If resolution changes product behaviour, update `PRD.md` first.
 
-| ID | Introduced in | Target step | Deferred work | Status | Resolution/checkpoint |
-| --- | --- | --- | --- | --- | --- |
-| TODO-001 | S01 | S09 | Complete final owner/employee navigation after all feature routes exist. | `planned` | — |
-| TODO-002 | S02 | S04/S06 | Consume the shared active-employee option/display query in Jobs and Roster. | `planned` | — |
-| TODO-003 | Schema steps | S10 | Regenerate and verify final combined Supabase types. | `planned` | — |
-| TODO-004 | All steps | S10 | Reconcile final dependencies and remove unused packages. | `planned` | — |
-| TODO-005 | S04/S06 | S09 | Compose job and roster aggregate queries into dashboards. | `planned` | — |
-| TODO-006 | S01 | S03 | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers. | `planned` | — |
-| TODO-007 | All steps | S10 | Consolidate shared Supabase and Playwright fixtures without weakening isolation. | `planned` | — |
-| TODO-008 | S04/S07 | S10 | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | — |
-| TODO-009 | S04/S05 | S08 | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts. | `planned` | — |
-| TODO-010 | All steps | S10 | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions. | `planned` | — |
-| TODO-011 | S01/S04/S06/S07 | S10 | Remove superseded reference duplicates and verify repository-native production imports. | `planned` | S01 Supabase duplicates removed; remaining reference disposition continues in S04, S06, S07, and S10. |
+| ID       | Introduced in   | Target step | Deferred work                                                                                                 | Status    | Resolution/checkpoint                                                                                 |
+| -------- | --------------- | ----------- | ------------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                      | `planned` | —                                                                                                     |
+| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                   | `planned` | —                                                                                                     |
+| TODO-003 | Schema steps    | S10         | Regenerate and verify final combined Supabase types.                                                          | `planned` | —                                                                                                     |
+| TODO-004 | All steps       | S10         | Reconcile final dependencies and remove unused packages.                                                      | `planned` | —                                                                                                     |
+| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                     | `planned` | —                                                                                                     |
+| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `planned` | —                                                                                                     |
+| TODO-007 | All steps       | S10         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                              | `planned` | —                                                                                                     |
+| TODO-008 | S04/S07         | S10         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | —                                                                                                     |
+| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.               | `planned` | —                                                                                                     |
+| TODO-010 | All steps       | S10         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.            | `planned` | —                                                                                                     |
+| TODO-011 | S01/S04/S06/S07 | S10         | Remove superseded reference duplicates and verify repository-native production imports.                       | `planned` | S01 Supabase duplicates removed; remaining reference disposition continues in S04, S06, S07, and S10. |
+| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                             | `planned` | S02 renders an explicit S04 deferred state.                                                           |
+| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.        | `planned` | S02 renders explicit S06 deferred states.                                                             |
 
 ### New TODO template
 

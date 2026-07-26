@@ -42,7 +42,7 @@ async function authenticate(
   await context.addCookies(
     cookies.map(({ name, value }) => ({
       name,
-      url: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3100",
+      url: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000",
       value,
     }))
   )

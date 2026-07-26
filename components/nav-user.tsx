@@ -1,22 +1,26 @@
 "use client"
 
+import Link from "next/link"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavUser({
+  isActive = false,
   user,
 }: {
+  isActive?: boolean
   user: {
     avatar: string | null
-    email: string
     name: string
-    role: "owner" | "employee"
   }
 }) {
+  const { isMobile, setOpenMobile } = useSidebar()
   const initials = user.name
     .split(/\s+/)
     .map((part) => part[0])
@@ -27,18 +31,23 @@ export function NavUser({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" className="cursor-default">
+        <SidebarMenuButton
+          aria-current={isActive ? "page" : undefined}
+          isActive={isActive}
+          onClick={() => {
+            if (isMobile) setOpenMobile(false)
+          }}
+          render={<Link href="/dashboard/profile" />}
+          size="lg"
+          tooltip="Profile"
+        >
           <Avatar>
-            {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
+            {user.avatar ? (
+              <AvatarImage src={user.avatar} alt={user.name} />
+            ) : null}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{user.name}</span>
-            <span className="truncate text-xs">{user.email}</span>
-          </div>
-          <span className="text-xs capitalize text-muted-foreground">
-            {user.role}
-          </span>
+          <span className="truncate font-medium">{user.name}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>

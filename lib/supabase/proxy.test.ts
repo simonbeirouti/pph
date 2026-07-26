@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest"
 import { resolveOptimisticRedirect } from "@/lib/supabase/proxy"
 
 function request(pathname: string) {
-  return new NextRequest(new URL(pathname, "http://127.0.0.1:3000"))
+  return new NextRequest(new URL(pathname, "http://127.0.0.1:4000"))
 }
 
 describe("resolveOptimisticRedirect", () => {
@@ -26,7 +26,9 @@ describe("resolveOptimisticRedirect", () => {
   })
 
   it("allows public Auth routes and inactive recovery through", () => {
-    expect(resolveOptimisticRedirect(request("/auth/confirm"), false)).toBeNull()
+    expect(
+      resolveOptimisticRedirect(request("/auth/confirm"), false)
+    ).toBeNull()
     expect(resolveOptimisticRedirect(request("/set-password"), true)).toBeNull()
     expect(
       resolveOptimisticRedirect(request("/login?reason=inactive"), true)

@@ -1,4 +1,9 @@
-import { cn } from "@/lib/utils"
+"use client"
+
+import { useActionState } from "react"
+
+import { loginAction } from "@/app/login/actions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -14,12 +19,19 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { INITIAL_ACTION_STATE } from "@/lib/forms/action-state"
+import { cn } from "@/lib/utils"
 
 export function LoginForm({
   inactive = false,
   className,
   ...props
 }: React.ComponentProps<"div"> & { inactive?: boolean }) {
+  const [state, action, pending] = useActionState(
+    loginAction,
+    INITIAL_ACTION_STATE
+  )
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -34,28 +46,50 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form action={action}>
             <FieldGroup>
+              {state.message ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{state.message}</AlertDescription>
+                </Alert>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
+                  aria-invalid={Boolean(state.errors?.email)}
+                  defaultValue={state.values?.email}
+                  key={state.values?.email}
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="m@example.com"
                   required
                 />
+                {state.errors?.email?.map((error) => (
+                  <FieldDescription className="text-destructive" key={error}>
+                    {error}
+                  </FieldDescription>
+                ))}
               </Field>
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input id="password" type="password" required />
+                <Input
+                  aria-invalid={Boolean(state.errors?.password)}
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                />
+                {state.errors?.password?.map((error) => (
+                  <FieldDescription className="text-destructive" key={error}>
+                    {error}
+                  </FieldDescription>
+                ))}
               </Field>
               <Field>
-                <Button type="submit" disabled>
-                  Sign in
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Signing in…" : "Sign in"}
                 </Button>
-                <FieldDescription className="text-center">
-                  Credential sign-in will be enabled in the employee access step.
-                </FieldDescription>
               </Field>
             </FieldGroup>
           </form>

@@ -36,7 +36,9 @@ function readLocalSupabaseEnvironment() {
   const secretKey = values.get("SECRET_KEY")
 
   if (!url || !publishableKey || !secretKey) {
-    throw new Error("Local Supabase is running but did not return test credentials")
+    throw new Error(
+      "Local Supabase is running but did not return test credentials"
+    )
   }
 
   process.env.NEXT_PUBLIC_SUPABASE_URL = url
@@ -51,7 +53,7 @@ function readLocalSupabaseEnvironment() {
 }
 
 const localSupabaseEnvironment = readLocalSupabaseEnvironment()
-const baseURL = "http://127.0.0.1:3100"
+const baseURL = "http://127.0.0.1:4000"
 
 process.env.PLAYWRIGHT_BASE_URL = baseURL
 
@@ -68,7 +70,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm dev --hostname 127.0.0.1 --port 3100",
+    command: "pnpm dev --hostname 127.0.0.1",
     env: {
       ...localSupabaseEnvironment,
       PPH_PLAYWRIGHT_SERVER: "1",

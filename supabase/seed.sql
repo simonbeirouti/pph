@@ -205,7 +205,14 @@ overriding system value
 values
   (1201, 1001, 1102, 'Indie', 'Invited', '0400 000 001', 'Team Member'),
   (1202, 1001, 1103, 'Alex', 'Employee', '0400 000 002', 'Operator'),
-  (1203, 1001, 1104, 'Casey', 'Inactive', '0400 000 003', 'Former Operator');
+  (1203, 1001, 1104, 'Casey', 'Inactive', '0400 000 003', 'Former Operator'),
+  (1204, 1001, 1101, 'Olivia', 'Owner', '0400 000 004', 'Owner'),
+  (2201, 2001, 2101, 'Morgan', 'Owner', '0400 000 005', 'Owner');
+
+update public.memberships
+set
+  invite_delivery_status = 'sent',
+  invite_last_attempted_at = invited_at;
 
 select setval(
   pg_get_serial_sequence('public.organisations', 'id'),

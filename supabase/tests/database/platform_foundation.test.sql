@@ -1,6 +1,6 @@
 begin;
 
-select plan(24);
+select plan(25);
 
 select has_table('public', 'organisations', 'organisations exists');
 select has_table('public', 'memberships', 'memberships exists');
@@ -82,7 +82,17 @@ select set_config(
 );
 select is((select count(*) from public.organisations), 1::bigint, 'owner sees one organisation');
 select is((select count(*) from public.memberships), 4::bigint, 'owner sees organisation memberships');
-select is((select count(*) from public.employee_profiles), 3::bigint, 'owner sees organisation profiles');
+select is((select count(*) from public.employee_profiles), 4::bigint, 'owner sees organisation profiles');
+select results_eq(
+  $$
+    update public.employee_profiles
+    set phone = '0400 111 222'
+    where membership_id = 1101
+    returning membership_id
+  $$,
+  $$ values (1101::bigint) $$,
+  'owner can update their own profile'
+);
 
 select set_config(
   'request.jwt.claim.sub',
@@ -120,7 +130,7 @@ select set_config(
 );
 select is((select count(*) from public.organisations), 1::bigint, 'second owner sees only their organisation');
 select is((select count(*) from public.memberships), 1::bigint, 'second owner sees only their membership');
-select is((select count(*) from public.employee_profiles), 0::bigint, 'second owner sees no first-organisation profiles');
+select is((select count(*) from public.employee_profiles), 1::bigint, 'second owner sees only their own profile');
 
 reset role;
 select results_eq(
@@ -134,11 +144,13 @@ select results_eq(
   $$,
   $$
     values
+      ('employee_profiles'::information_schema.sql_identifier, 'INSERT'::information_schema.character_data),
       ('employee_profiles'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data),
+      ('memberships'::information_schema.sql_identifier, 'INSERT'::information_schema.character_data),
       ('memberships'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data),
       ('organisations'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data)
   $$,
-  'authenticated receives only explicit select privileges'
+  'authenticated receives only explicit step-owned privileges'
 );
 
 select is_empty(

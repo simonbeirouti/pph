@@ -1,9 +1,9 @@
 # Employee Operations Dashboard
 
-The S01 foundation is a Next.js 16 application backed by the repository's
-existing local Supabase Docker stack. The local database includes
-organisation-scoped memberships, employee profiles, Row Level Security, and
-deterministic test users.
+The S02 application is a Next.js 16 employee operations dashboard backed by
+Supabase. It includes credential login, owner-managed employee invitations,
+activation and access controls, private avatars, organisation-scoped Row Level
+Security, and deterministic local test users.
 
 ## Local setup
 
@@ -32,11 +32,11 @@ pnpm exec supabase status -o env
 
 Use these mappings:
 
-| Application variable | Local Supabase output |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | `API_URL` |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PUBLISHABLE_KEY` |
-| `SUPABASE_SECRET_KEY` | `SECRET_KEY` |
+| Application variable                   | Local Supabase output |
+| -------------------------------------- | --------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | `API_URL`             |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PUBLISHABLE_KEY`     |
+| `SUPABASE_SECRET_KEY`                  | `SECRET_KEY`          |
 
 Never commit `.env.local` or any value printed by the status command. Restart
 the Next.js development server after changing environment variables.
@@ -55,9 +55,8 @@ accounts:
 - `inactive@example.test`
 - `other-owner@example.test`
 
-The invited employee is intentionally not login-capable. The S01 login
-presentation does not submit credentials yet; functional credential login is
-owned by S02.
+The invited employee is intentionally not login-capable until its invitation
+has been accepted and a password has been set.
 
 Start the application:
 
@@ -65,8 +64,33 @@ Start the application:
 pnpm dev
 ```
 
-The application is available at <http://127.0.0.1:3000>. Local email is
+The application is available at <http://127.0.0.1:4000>. Local email is
 captured by the Supabase mail service rather than sent externally.
+
+## Auth email setup
+
+For a hosted Supabase project:
+
+1. Set the Auth site URL to the deployed application origin.
+2. Add `<application-origin>/auth/confirm` to the Auth redirect allow-list.
+3. Configure Resend SMTP in Supabase Auth using the project’s Resend SMTP
+   credentials. The application does not send invitation email directly and
+   therefore has no Resend application environment variables.
+4. Copy `supabase/templates/invite.html` into the corresponding Supabase Auth
+   invite template. Keep the `token_hash` and `type=invite` callback parameters
+   intact.
+
+Local Supabase loads those checked-in templates from `supabase/config.toml`.
+Template changes require a local stack restart:
+
+```bash
+pnpm exec supabase stop
+pnpm exec supabase start
+```
+
+Captured local invitations are available in Mailpit at
+<http://127.0.0.1:54324>. Automated tests poll the Mailpit API and never send
+real email.
 
 ## Verification
 
@@ -79,9 +103,9 @@ pnpm test:e2e
 pnpm build
 ```
 
-Playwright resolves credentials from the running local stack and starts an
-isolated managed Next.js server on port 3100. This allows the browser suite to
-run while the normal development server remains active on port 3000.
+Playwright resolves credentials from the running local stack and tests
+<http://127.0.0.1:4000>. It reuses a development server already running there,
+or starts the repository's managed server when the port is free.
 
 Database maintenance:
 

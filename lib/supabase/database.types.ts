@@ -70,6 +70,8 @@ export type Database = {
           deactivated_at: string | null
           email: string
           id: number
+          invite_delivery_status: Database["public"]["Enums"]["invite_delivery_status"]
+          invite_last_attempted_at: string | null
           invited_at: string | null
           organisation_id: number
           role: Database["public"]["Enums"]["membership_role"]
@@ -83,6 +85,8 @@ export type Database = {
           deactivated_at?: string | null
           email: string
           id?: never
+          invite_delivery_status?: Database["public"]["Enums"]["invite_delivery_status"]
+          invite_last_attempted_at?: string | null
           invited_at?: string | null
           organisation_id: number
           role: Database["public"]["Enums"]["membership_role"]
@@ -96,6 +100,8 @@ export type Database = {
           deactivated_at?: string | null
           email?: string
           id?: never
+          invite_delivery_status?: Database["public"]["Enums"]["invite_delivery_status"]
+          invite_last_attempted_at?: string | null
           invited_at?: string | null
           organisation_id?: number
           role?: Database["public"]["Enums"]["membership_role"]
@@ -142,9 +148,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      activate_invited_membership: { Args: never; Returns: number }
+      create_employee: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_job_title: string
+          p_last_name: string
+          p_phone: string
+        }
+        Returns: {
+          auth_user_id: string
+          created: boolean
+          membership_id: number
+          membership_status: Database["public"]["Enums"]["membership_status"]
+          profile_id: number
+        }[]
+      }
+      delete_invited_employee: {
+        Args: { p_membership_id: number }
+        Returns: boolean
+      }
+      link_invited_membership: { Args: never; Returns: number }
     }
     Enums: {
+      invite_delivery_status: "pending" | "sent" | "failed"
       membership_role: "owner" | "employee"
       membership_status: "invited" | "active" | "inactive"
     }
@@ -274,9 +302,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      invite_delivery_status: ["pending", "sent", "failed"],
       membership_role: ["owner", "employee"],
       membership_status: ["invited", "active", "inactive"],
     },
   },
 } as const
-

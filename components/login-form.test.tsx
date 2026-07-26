@@ -9,8 +9,21 @@ describe("LoginForm", () => {
 
     expect(screen.getByRole("textbox", { name: "Email" })).toBeVisible()
     expect(screen.getByLabelText("Password")).toBeVisible()
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled()
     expect(screen.queryByText(/Google|Sign up|Forgot/i)).not.toBeInTheDocument()
+  })
+
+  it("associates credential fields with submitted names", () => {
+    render(<LoginForm />)
+
+    expect(screen.getAllByLabelText("Email").at(-1)).toHaveAttribute(
+      "name",
+      "email"
+    )
+    expect(screen.getAllByLabelText("Password").at(-1)).toHaveAttribute(
+      "name",
+      "password"
+    )
   })
 
   it("shows a safe inactive membership message", () => {

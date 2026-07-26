@@ -1,0 +1,108 @@
+import { notFound } from "next/navigation"
+
+import { updateEmployeeAction } from "@/app/dashboard/employees/actions"
+import { EmployeeAccessActions } from "@/components/employee-access-actions"
+import { EmployeeAvatar } from "@/components/employee-avatar"
+import { EmployeeForm } from "@/components/employee-form"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { getEmployee } from "@/lib/employees/data"
+
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ membershipId: string }>
+  searchParams: Promise<{ access?: string }>
+}) {
+  const { membershipId: rawMembershipId } = await params
+  const { access } = await searchParams
+  const membershipId = Number(rawMembershipId)
+  if (!Number.isSafeInteger(membershipId)) notFound()
+  const employee = await getEmployee(membershipId)
+  if (!employee) notFound()
+  const updateAction = updateEmployeeAction.bind(null, membershipId)
+
+  return (
+    <div className="grid w-full gap-6">
+      {access ? (
+        <Alert variant={access === "error" ? "destructive" : "default"}>
+          <AlertDescription>
+            {access === "active"
+              ? "Employee access reactivated."
+              : access === "inactive"
+                ? "Employee access deactivated."
+                : "Unable to change employee access."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <Card>
+        <CardContent className="flex flex-col gap-5 pt-6 sm:flex-row sm:items-center">
+          <EmployeeAvatar
+            className="size-20"
+            name={employee.displayName}
+            url={employee.avatarUrl}
+          />
+          <div className="grid flex-1 gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold">{employee.displayName}</h1>
+              <Badge className="capitalize" variant="secondary">
+                {employee.status}
+              </Badge>
+              <Badge className="capitalize" variant="outline">
+                Invite {employee.inviteDeliveryStatus}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">{employee.jobTitle}</p>
+            <p className="text-sm">
+              {employee.email} · {employee.phone}
+            </p>
+          </div>
+          <EmployeeAccessActions
+            displayName={employee.displayName}
+            membershipId={membershipId}
+            status={employee.status}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Active and archived jobs</CardTitle>
+            <CardDescription>
+              Job summaries will be connected in S04.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming shifts</CardTitle>
+            <CardDescription>
+              Roster information will be connected in S06.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Edit profile</CardTitle>
+          <CardDescription>
+            Update contact information, job title, or profile photo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmployeeForm action={updateAction} employee={employee} />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

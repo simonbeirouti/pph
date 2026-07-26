@@ -77,7 +77,7 @@ V1 is successful when:
 An owner can:
 
 - View all organisation dashboard statistics.
-- Create, edit, invite, reinvite, and deactivate employees.
+- Create, edit, invite, and deactivate employees.
 - View all employee profiles, shifts, jobs, comments, notes, and evidence.
 - Create, edit, assign, reassign, archive, and review jobs.
 - Create and manage job templates and schedules.
@@ -142,6 +142,9 @@ Acceptance criteria:
 - Supabase Auth sends the invitation through Resend SMTP.
 - The callback returns to `/auth/confirm` and then `/set-password`.
 - A failed invite remains visible as an invited employee and can be resent.
+- The employee sheet shows an invitation action whose label and pending state
+  reflect whether the invitation is pending, sent, or failed; sent invitations
+  can be resent and failed invitations can be retried.
 - The UI clearly reports invitation success or failure.
 - Repeated requests do not create duplicate memberships.
 
@@ -238,6 +241,10 @@ Acceptance criteria:
 - The directory shows photo, full name, job title, email, status, and today's roster state.
 - Owners can search by name or email and filter by membership status.
 - Invited, active, and inactive states are visually distinct.
+- The entire employee table row opens detail and edit controls in a right-side sheet without navigating away from the directory.
+- Employee creation uses an in-page dialog rather than a separate navigation transition.
+- Deactivation, reactivation, or invited-employee deletion remains persistently visible at the end of the employee sheet.
+- When an invitation action is available, it appears immediately above the invited-employee delete action and never replaces or obscures it.
 - Employees cannot access the directory route.
 
 #### EMP-02: Employee profile
@@ -248,7 +255,12 @@ Acceptance criteria:
 
 - The view shows contact information, job title, photo, membership state, and invite state.
 - The view includes upcoming shifts, active jobs, and recently archived jobs.
-- Owners can edit the employee, resend a pending invitation, or deactivate/reactivate access.
+- Owners can edit the employee or deactivate/reactivate access.
+- In the employee sheet, the profile photo is enlarged and opens the photo picker when clicked, with the employee name centred beneath it.
+- The employee sheet keeps membership and invitation status visible and provides direct email and phone call actions.
+- The employee sheet only shows its save action after an editable profile field or photo changes.
+- Every active user can open their own profile directly from the sidebar user link and update their own name, phone, job title, and photo.
+- Employees cannot use the self-profile flow to read or update another employee.
 - Historical activity remains available after deactivation.
 
 #### EMP-03: Profile photo
@@ -554,6 +566,13 @@ Acceptance criteria:
 - Renders the owner dashboard for owners and personal dashboard for employees.
 - Does not fetch data the current role is not permitted to access.
 
+### `/dashboard/profile`
+
+- Requires an active membership and is linked directly from the sidebar user control.
+- Owners and employees can update only their own profile information and photo.
+- Logout is displayed in the profile header opposite the current user's name and is not persistently displayed on every page.
+- The authenticated header exposes a light/dark theme toggle.
+
 ### `/dashboard/jobs`
 
 - Owners receive the employee-column Kanban board, filters, creation, templates, schedules, and review tools.
@@ -569,7 +588,8 @@ Acceptance criteria:
 ### `/dashboard/employees`
 
 - Owner-only route.
-- Contains directory, creation/invitation, profile detail, edit, reinvite, and deactivation.
+- Contains a full-width directory with fully clickable employee rows, dialog-based creation/invitation, right-side profile detail and editing, and deactivation.
+- The desktop sidebar collapses to navigable icons, keeps visually even spacing on both sides of the icon rail, and restores the last expanded/collapsed choice from a cookie.
 
 ### `/manifest.webmanifest`
 
@@ -585,16 +605,16 @@ Acceptance criteria:
 
 ## 5. Job state model
 
-| Current state | Actor | Action | Next state |
-| --- | --- | --- | --- |
-| `assigned` | Employee assignee | Start | `in_progress` |
-| `assigned` | Employee assignee | Submit with valid evidence | `in_review` |
-| `in_progress` | Employee assignee | Submit with valid evidence | `in_review` |
-| `in_review` | Owner | Archive/approve | `archived` |
-| `in_review` | Owner | Reopen/reassign | `assigned` |
-| `assigned` | Owner | Reassign | `assigned` |
-| `in_progress` | Owner | Reassign | `assigned` |
-| `archived` | Owner | Reopen/reassign | `assigned` |
+| Current state | Actor             | Action                     | Next state    |
+| ------------- | ----------------- | -------------------------- | ------------- |
+| `assigned`    | Employee assignee | Start                      | `in_progress` |
+| `assigned`    | Employee assignee | Submit with valid evidence | `in_review`   |
+| `in_progress` | Employee assignee | Submit with valid evidence | `in_review`   |
+| `in_review`   | Owner             | Archive/approve            | `archived`    |
+| `in_review`   | Owner             | Reopen/reassign            | `assigned`    |
+| `assigned`    | Owner             | Reassign                   | `assigned`    |
+| `in_progress` | Owner             | Reassign                   | `assigned`    |
+| `archived`    | Owner             | Reopen/reassign            | `assigned`    |
 
 State transitions must be validated on the server. Status, assignment, and evidence changes produce immutable audit updates.
 
@@ -619,6 +639,8 @@ Database migrations are the source of truth. Generated Supabase TypeScript types
 - `role`: `owner` or `employee`
 - `status`: `invited`, `active`, or `inactive`
 - `invited_at`
+- `invite_delivery_status`: `pending`, `sent`, or `failed`
+- `invite_last_attempted_at`
 - `activated_at`
 - `deactivated_at`
 - `created_at`
@@ -790,7 +812,7 @@ Requirements:
 ### 8.3 Email
 
 - Resend is configured as Supabase Auth SMTP.
-- V1 application email is limited to employee invitations and Auth recovery messages.
+- V1 application email is limited to initial employee invitations.
 - Assignment, feedback, roster, and completion notification emails are post-V1 work.
 - Tests must not send real email.
 
@@ -970,7 +992,7 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 ### Step 2: Authentication and employees
 
 - Implement login, invitation confirmation, password setup, and role-aware access.
-- Implement employee directory, profile, invitation, reinvitation, deactivation, and avatar upload.
+- Implement employee directory, profile, invitation, deactivation, and avatar upload.
 
 ### Step 3: Progressive Web App shell
 
