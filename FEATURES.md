@@ -65,8 +65,8 @@ For each active step:
 
 | Step | Capability | Status | Depends on | Checkpoint | Verification notes |
 | --- | --- | --- | --- | --- | --- |
-| S00 | Product and implementation baseline | `in_progress` | — | Pending | Sequential PRD/register reframing must be committed before S01 begins |
-| S01 | Platform foundation | `planned` | S00 | — | — |
+| S00 | Product and implementation baseline | `complete` | — | `8a07533` | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete |
+| S01 | Platform foundation | `complete` | S00 | Pending user commit | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass |
 | S02 | Authentication and employees | `planned` | S01 | — | — |
 | S03 | Progressive Web App shell | `planned` | S02 | — | — |
 | S04 | Owner jobs and Kanban | `planned` | S03 | — | — |
@@ -121,17 +121,17 @@ The product scope, sequential implementation plan, reference assets, environment
 
 ### Included
 
-- [`PRD.md`](PRD.md)
-- [`FEATURES.md`](FEATURES.md)
-- [`AGENTS.md`](AGENTS.md)
-- `.env.example`
-- Starter UI and `components/ref-files`
+- [x] [`PRD.md`](PRD.md)
+- [x] [`FEATURES.md`](FEATURES.md)
+- [x] [`AGENTS.md`](AGENTS.md)
+- [x] `.env.example`
+- [x] Starter UI and `components/ref-files`
 
 ### Completion evidence
 
-- Baseline commit exists on `main`.
-- Documentation links resolve.
-- No feature implementation is represented as complete.
+- [x] Baseline checkpoint `8a07533` exists in the current implementation lineage.
+- [x] Documentation links resolve.
+- [x] At the S00 checkpoint, no feature implementation was represented as complete.
 
 ## S01 — Platform foundation
 
@@ -154,50 +154,62 @@ The application has a clean quality baseline, local Supabase foundation, typed s
 
 ### Tasks
 
-- Exclude untouched reference files from production lint and TypeScript scope while keeping them available for inspection.
-- Fix starter lint and type-check failures.
-- Add Vitest and React Testing Library alongside the already installed `@playwright/test`.
-- Configure `playwright.config.ts`, local web-server lifecycle, Chromium development project, mobile project, failure artifacts, deterministic Auth/data fixtures, and test directories according to the Playwright skill.
-- Add scripts for lint, type-check, unit tests, database tests, Playwright tests, and production build.
-- Create `organisations`, `memberships`, and minimal `employee_profiles` migrations.
-- Add representative seed data for owner, invited employee, active employee, and inactive employee states.
-- Generate checked-in Supabase types.
-- Port Supabase browser, server, admin, and environment helpers into repository-native modules.
-- Port the reference Proxy pattern into a thin root `proxy.ts` and `lib/supabase/proxy.ts`.
-- Propagate refreshed Supabase cookies through both the request and returned response.
-- Implement optimistic signed-out dashboard and signed-in root/login redirects.
-- Exclude framework assets, images, `/sw.js`, and `/manifest.webmanifest` from the matcher.
-- Add authoritative session, membership, role, status, and organisation helpers.
-- Establish the role-aware application shell and protected-route boundaries.
+- [x] Exclude untouched reference files from production lint and TypeScript scope while keeping them available for inspection.
+- [x] Fix starter lint and type-check failures.
+- [x] Add Vitest and React Testing Library alongside the already installed `@playwright/test`.
+- [x] Configure `playwright.config.ts`, local web-server lifecycle, Chromium development project, mobile project, failure artifacts, deterministic Auth/data fixtures, and test directories according to the Playwright skill.
+- [x] Add scripts for lint, type-check, unit tests, database tests, Playwright tests, and production build.
+- [x] Create `organisations`, `memberships`, and minimal `employee_profiles` migrations.
+- [x] Add representative seed data for owner, invited employee, active employee, and inactive employee states.
+- [x] Generate checked-in Supabase types.
+- [x] Port Supabase browser, server, admin, and environment helpers into repository-native modules.
+- [x] Port the reference Proxy pattern into a thin root `proxy.ts` and `lib/supabase/proxy.ts`.
+- [x] Propagate refreshed Supabase cookies through both the request and returned response.
+- [x] Implement optimistic signed-out dashboard and signed-in root/login redirects.
+- [x] Exclude framework assets, images, `/sw.js`, and `/manifest.webmanifest` from the matcher.
+- [x] Add authoritative session, membership, role, status, and organisation helpers.
+- [x] Establish the role-aware application shell and protected-route boundaries.
 
 ### Tests
 
-- Environment validation.
-- Session and permission helpers.
-- Proxy cookie propagation and redirects.
-- Public Auth route and static/PWA matcher behaviour.
-- Membership state and organisation-isolation RLS.
-- Signed-out, owner, employee, and inactive-user route behaviour.
-- Clean lint, type-check, test, and build commands.
-- Playwright configuration, fixtures, user-facing locators, web-first assertions, and failure artifacts.
+- [x] Environment validation.
+- [x] Session and permission helpers.
+- [x] Proxy cookie propagation and redirects.
+- [x] Public Auth route and static/PWA matcher behaviour.
+- [x] Membership state and organisation-isolation RLS.
+- [x] Signed-out, owner, employee, and inactive-user route behaviour.
+- [x] Clean lint, type-check, test, and build commands.
+- [x] Playwright configuration, fixtures, user-facing locators, web-first assertions, and failure artifacts.
 
 ### Reference material
 
-- `components/ref-files/supabase/browser.ts`
-- `components/ref-files/supabase/server.ts`
-- `components/ref-files/supabase/admin.ts`
-- `components/ref-files/supabase/env.ts`
-- `components/ref-files/supabase/proxy.ts`
-- `components/ref-files/supabase/root-proxy.ts`
-- Existing application shell and sidebar components
+- [x] Supabase browser prototype — consumed into `lib/supabase/browser.ts` and removed.
+- [x] Supabase server prototype — consumed into `lib/supabase/server.ts` and removed.
+- [x] Supabase admin prototype — consumed into `lib/supabase/admin.ts` and removed.
+- [x] Supabase environment prototype — split into `lib/supabase/public-env.ts` and `lib/supabase/server-env.ts`, then removed.
+- [x] Supabase session Proxy prototype — consumed into `lib/supabase/proxy.ts` and removed.
+- [x] Thin root Proxy prototype — consumed into root `proxy.ts` and removed.
+- [x] Existing application shell and sidebar components — cleaned into the role-aware S01 shell.
 
 ### Completion gate
 
-- All foundation checks pass.
-- Required environment variables are documented and validated.
-- Any `.env.example` changes have been explicitly reported to the user.
-- There are no authoritative access decisions implemented only in Proxy.
-- Status, checkpoint, verification notes, and TODOs are updated.
+- [x] All foundation checks pass.
+- [x] Required environment variables are documented and validated.
+- [x] The `.env.example` changes were explicitly reported to the user.
+- [x] No authoritative access decisions are implemented only in Proxy.
+- [x] Status, checkpoint, verification notes, and TODOs are updated.
+
+### S01 checkpoint
+
+- Commit: Pending; the user requested no Git commits and will create the checkpoint.
+- PRD stories verified: AUTH-01 foundation and sections 2, 6.1–6.3, 8, and 11.
+- Commands passed: `pnpm db:reset`, Supabase schema lint with warnings treated as failures, `pnpm db:types`, `pnpm test:db` (24), `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (22), `pnpm test:e2e` (10 across desktop Chromium and Pixel 7), and `pnpm build`.
+- Database migration: `20260726032911_platform_foundation.sql`; the existing `pph` local project, ports, PostgreSQL 17 stack, migration configuration, seed configuration, and local SMTP capture were preserved.
+- Environment variables changed: `.env.example` now contains empty placeholders for `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and the added server-only `SUPABASE_SECRET_KEY`. The secret in `.env.local` matches the local stack; its two public entries still require the local `API_URL` and `PUBLISHABLE_KEY` mappings followed by a Next.js restart.
+- Project skills and references used: `playwright-best-practices`, `supabase`, `supabase-postgres-best-practices`, and `vercel-react-best-practices`; Next.js 16 Proxy, environment, `distDir`, and custom TypeScript configuration guides; Supabase SSR cookie/session guidance.
+- Reference files reused/cleaned/removed: the browser, server, admin, environment, Proxy, and root Proxy prototypes were ported into repository-native production modules and then removed. The remaining `components/ref-files/**` examples stay available for later owning steps and remain excluded from production TypeScript and ESLint scope. The application-shell and sidebar components were cleaned into the role-aware S01 shell.
+- Deferred TODOs: TODO-001, TODO-006, and TODO-011 remain planned for their registered later steps.
+- Known limitations: credential submission, invitation acceptance, password setup, final feature navigation, and PWA assets remain owned by later steps. Playwright uses an isolated port-3100 development server and output directory so it can coexist with the normal port-3000 server.
 
 ### Implementation prompt
 
@@ -206,7 +218,7 @@ Implement S01 Platform Foundation from FEATURES.md against PRD.md.
 
 Work only on S01. Establish clean lint/type/build baselines, test tooling, Supabase local structure, organisations/memberships/minimal employee profiles, generated types, typed clients, environment validation, session and permission helpers, RLS, seeds, and the role-aware application shell.
 
-Read the bundled Next.js 16 Proxy and environment guides first. Clean and port the Supabase reference helpers into repository-native modules. Create one thin root proxy.ts delegating to lib/supabase/proxy.ts, with correct request/response cookie propagation, optimistic redirects, public Auth access, and static/PWA matcher exclusions. Keep authoritative authorisation in the data-access layer and mutations.
+Read the bundled Next.js 16 Proxy and environment guides first. Use the completed repository-native Supabase modules and the thin root proxy.ts delegating to lib/supabase/proxy.ts, with correct request/response cookie propagation, optimistic redirects, public Auth access, and static/PWA matcher exclusions. The consumed Supabase prototypes have been removed. Keep authoritative authorisation in the data-access layer and mutations.
 
 Inspect and reuse suitable existing styling and functionality. Do not implement invitations, employee management UI, PWA assets, jobs, roster, templates, schedules, or dashboards.
 
@@ -261,7 +273,7 @@ Implement S02 Authentication and Employees from FEATURES.md against PRD stories 
 
 Build the complete owner-to-employee lifecycle on the verified S01 contracts: login, employee creation, invitation/reinvitation, Auth callback, password setup, directory, detail, edit, avatar storage, deactivation/reactivation, RLS, and tests. Publish a small typed active-employee option/display query for later jobs and roster work.
 
-Inspect and reuse relevant reference Supabase, Resend, form, and UI code while cleaning it into repository-native modules. Do not implement jobs, roster editing, PWA, templates, schedules, or operational dashboards.
+Use the established project-native Supabase clients and inspect the remaining Resend, form, and UI references while cleaning relevant pieces into repository-native modules. Do not implement jobs, roster editing, PWA, templates, schedules, or operational dashboards.
 
 Follow the environment notification rule. Update S02 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete invitation journey and all S02 checks pass.
 ```
@@ -672,7 +684,7 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 | TODO-008 | S04/S07 | S10 | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | — |
 | TODO-009 | S04/S05 | S08 | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts. | `planned` | — |
 | TODO-010 | All steps | S10 | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions. | `planned` | — |
-| TODO-011 | S01/S04/S06/S07 | S10 | Remove superseded reference duplicates and verify repository-native production imports. | `planned` | — |
+| TODO-011 | S01/S04/S06/S07 | S10 | Remove superseded reference duplicates and verify repository-native production imports. | `planned` | S01 Supabase duplicates removed; remaining reference disposition continues in S04, S06, S07, and S10. |
 
 ### New TODO template
 

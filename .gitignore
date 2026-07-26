@@ -10,9 +10,13 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+/playwright/.auth
 
 # next.js
 /.next/
+/.next-playwright/
 /out/
 
 # production

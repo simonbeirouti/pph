@@ -9,15 +9,22 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:db": "pnpm exec supabase test db",
+    "test:e2e": "playwright test",
+    "db:reset": "pnpm exec supabase db reset",
+    "db:types": "pnpm exec supabase gen types --local --lang typescript --schema public > lib/supabase/database.types.ts",
+    "check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:db && pnpm build"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@dnd-kit/helpers": "^0.5.0",
     "@dnd-kit/react": "^0.5.0",
     "@shadcn/react": "^0.2.1",
-    "@supabase/ssr": "^0.12.3",
-    "@supabase/supabase-js": "^2.110.8",
+    "@supabase/ssr": "0.12.3",
+    "@supabase/supabase-js": "2.110.8",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-query-persist-client": "^5.101.4",
     "class-variance-authority": "^0.7.1",
@@ -44,16 +51,24 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "1.62.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "29.1.1",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "supabase": "2.109.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.10"
   }
 }

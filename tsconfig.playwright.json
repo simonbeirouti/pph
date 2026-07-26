@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": ".next-playwright/cache/tsconfig.tsbuildinfo"
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.mts",
+    ".next-playwright/types/**/*.ts",
+    ".next-playwright/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "components/ref-files/**"
+  ]
+}

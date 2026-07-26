@@ -15,9 +15,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Update the active step status, verification results, and deferred integration TODOs in `FEATURES.md` as part of the implementation.
 - Record cross-step or shared-file overlap immediately; do not silently redesign a completed step's contract.
 - Add new Supabase migrations instead of editing migrations owned by another merged feature.
-- Inspect the relevant `components/ref-files/**` implementation before rebuilding equivalent styling or functionality; preserve and reuse suitable interactions, visual treatment, logic, and assets.
-- You may clean, refactor, split, move, or remove reference code as it is absorbed into production, but finished production modules must use repository-native imports, types, permissions, and tests rather than unresolved `@eva/*` or reference-only dependencies.
-- Implement Supabase session refresh through one root-level `proxy.ts` that delegates to project-native logic; clean and port `components/ref-files/supabase/proxy.ts` and `root-proxy.ts` into that production structure.
+- Inspect the relevant remaining `components/ref-files/**` implementation before rebuilding equivalent styling or functionality; preserve and reuse suitable interactions, visual treatment, logic, and assets.
+- You may clean, refactor, split, move, or remove reference code as it is absorbed into production, but finished production modules must use repository-native imports, types, permissions, and tests rather than unresolved `@eva/*` or reference-only dependencies. Record consumed and removed references in `FEATURES.md`.
+- Maintain Supabase session refresh through the S01 production contract: one root-level `proxy.ts` delegates to `lib/supabase/proxy.ts`. Extend those project-native modules directly; the consumed Supabase client and Proxy prototypes have been removed from `components/ref-files`.
 - Treat `.env.example` as the canonical environment-variable contract and keep it limited to names and safe empty/example placeholders.
 - Never add real secrets to `.env.example` or assume `.env.local` has been updated.
 - Whenever you add, rename, or remove an entry in `.env.example`, explicitly tell the user in the final response which variables changed and that the corresponding real values must be added to `.env.local`.

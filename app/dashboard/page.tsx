@@ -1,55 +1,38 @@
-import { AppSidebar } from "@/components/app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { requireActiveMembership } from "@/lib/auth/membership"
 
-export default function Page() {
+export default async function Page() {
+  const membership = await requireActiveMembership()
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Build Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Badge className="w-fit capitalize" variant="secondary">
+          {membership.role}
+        </Badge>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Welcome, {membership.displayName}
+        </h1>
+        <p className="text-muted-foreground">
+          Your operational dashboard is ready for the next feature step.
+        </p>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform foundation</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <p className="text-muted-foreground">Organisation</p>
+            <p className="font-medium">{membership.organisationName}</p>
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-            <div className="aspect-video rounded-xl bg-muted/50" />
-            <div className="aspect-video rounded-xl bg-muted/50" />
-            <div className="aspect-video rounded-xl bg-muted/50" />
+          <div>
+            <p className="text-muted-foreground">Timezone</p>
+            <p className="font-medium">{membership.timezone}</p>
           </div>
-          <div className="min-h-screen flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

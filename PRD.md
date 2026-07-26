@@ -3,7 +3,7 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.5
+- Version: 1.6
 - Last updated: 26 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui, Playwright
@@ -766,7 +766,7 @@ Requirements:
 - Use client components only where browser state or interaction is required, including drag/drop, calendar manipulation, upload progress, and optimistic updates.
 - Use the required root-level `proxy.ts` as the single Next.js Proxy entrypoint.
 - Keep the root entrypoint thin: it imports and returns a project-native Supabase session helper from `lib/supabase/proxy.ts`.
-- Port the cookie propagation and route-gating pattern from `components/ref-files/supabase/proxy.ts` and `components/ref-files/supabase/root-proxy.ts`; do not import the reference files or their `@eva/*` dependencies.
+- Preserve the verified S01 cookie propagation and route-gating contract in the project-native root `proxy.ts` and `lib/supabase/proxy.ts`; the original reference prototypes were consumed and removed after verification.
 - Use Proxy for Supabase Auth cookie refresh and optimistic signed-in/signed-out redirects only.
 - The Proxy matcher excludes Next.js static/image assets, favicon and image files, `/sw.js`, and `/manifest.webmanifest`.
 - Public Auth routes remain reachable for invitation confirmation and password setup.
@@ -817,18 +817,24 @@ Requirements:
 
 ### 8.6 Reference code
 
-`components/ref-files` is reusable prototype and implementation source material. It contains working styling, interaction patterns, assets, Supabase helpers, and domain logic that should accelerate feature delivery.
+`components/ref-files` is reusable prototype and implementation source material. Its remaining files contain working styling, interaction patterns, assets, JSON helpers, email abstractions, and domain logic that should accelerate later feature delivery.
 
 Each implementation step should inspect the relevant reference implementation before rebuilding equivalent behaviour. Where it matches this PRD, preserve its useful visual treatment, interaction behaviour, and available assets rather than recreating them without reason.
 
-Implementation may port:
+Future implementation may port:
 
 - Kanban drag/drop and optimistic rollback concepts.
 - Calendar slot positioning and drag interactions.
 - Timezone conversion helpers.
-- Supabase server/browser/admin client patterns.
-- Supabase Auth cookie propagation and the thin root Proxy composition pattern.
 - Resend sender abstractions.
+
+S01 consumed and verified the Supabase browser, server, admin, environment,
+session-cookie, and thin root Proxy prototypes. Those six obsolete reference
+files were removed; their maintained production replacements are
+`lib/supabase/browser.ts`, `lib/supabase/server.ts`,
+`lib/supabase/admin.ts`, `lib/supabase/public-env.ts`,
+`lib/supabase/server-env.ts`, `lib/supabase/proxy.ts`, and the root
+`proxy.ts`.
 
 Feature owners may clean, edit, split, move, rename, or remove reference files as they are absorbed into the application. The expected workflow is:
 
@@ -955,11 +961,11 @@ Every change must pass:
 
 Development proceeds through the following verified steps. Detailed tasks, status, prompts, and test gates live in `FEATURES.md`.
 
-### Step 1: Platform foundation
+### Step 1: Platform foundation — complete
 
-- Establish clean lint, type-check, build, and test baselines.
-- Configure the installed Playwright package, deterministic fixtures, test scripts, reports, and local web-server lifecycle using the project Playwright skill.
-- Add Supabase local configuration, organisations, memberships, seeds, clients, session handling, root Proxy, data-access authorisation, and initial RLS.
+- [x] Establish clean lint, type-check, build, and test baselines.
+- [x] Configure the installed Playwright package, deterministic fixtures, test scripts, reports, and local web-server lifecycle using the project Playwright skill.
+- [x] Add Supabase local configuration, organisations, memberships, seeds, clients, session handling, root Proxy, data-access authorisation, and initial RLS.
 
 ### Step 2: Authentication and employees
 

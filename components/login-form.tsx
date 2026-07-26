@@ -16,16 +16,21 @@ import {
 import { Input } from "@/components/ui/input"
 
 export function LoginForm({
+  inactive = false,
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { inactive?: boolean }) {
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>
+            <h1>Sign in</h1>
+          </CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            {inactive
+              ? "Your access is unavailable. Contact your organisation owner if you believe this is a mistake."
+              : "Use your organisation email and password."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -41,24 +46,15 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a>
-                </div>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
                 <Input id="password" type="password" required />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
-                <Button variant="outline" type="button">
-                  Login with Google
+                <Button type="submit" disabled>
+                  Sign in
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="#">Sign up</a>
+                  Credential sign-in will be enabled in the employee access step.
                 </FieldDescription>
               </Field>
             </FieldGroup>
