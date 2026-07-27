@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getEmployee } from "@/lib/employees/data"
+import { getEmployeeJobSummary } from "@/lib/jobs/data"
 
 export default async function Page({
   params,
@@ -26,7 +27,10 @@ export default async function Page({
   const { access } = await searchParams
   const membershipId = Number(rawMembershipId)
   if (!Number.isSafeInteger(membershipId)) notFound()
-  const employee = await getEmployee(membershipId)
+  const [employee, jobSummary] = await Promise.all([
+    getEmployee(membershipId),
+    getEmployeeJobSummary(membershipId),
+  ])
   if (!employee) notFound()
   const updateAction = updateEmployeeAction.bind(null, membershipId)
 
@@ -78,9 +82,26 @@ export default async function Page({
           <CardHeader>
             <CardTitle>Active and archived jobs</CardTitle>
             <CardDescription>
-              Job summaries will be connected in S04.
+              {jobSummary.active.length} active · {jobSummary.archived.length}{" "}
+              recently archived
             </CardDescription>
           </CardHeader>
+          <CardContent className="grid gap-2">
+            {jobSummary.active.length ? (
+              jobSummary.active.map((job) => (
+                <div className="rounded-md border p-3" key={job.id}>
+                  <p className="font-medium">{job.title}</p>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {job.priority} · {job.status.replace("_", " ")}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No active jobs assigned.
+              </p>
+            )}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader>

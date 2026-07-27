@@ -134,7 +134,7 @@ test("sidebar theme toggle switches the active theme", async ({
 
 test("employee receives only their application shell", async ({
   employeePage,
-}) => {
+}, testInfo) => {
   await employeePage.goto("/dashboard")
 
   await expect(
@@ -145,6 +145,12 @@ test("employee receives only their application shell", async ({
   await expect(
     employeePage.getByRole("link", { name: "Employees" })
   ).toHaveCount(0)
+  if (testInfo.project.name.includes("mobile")) {
+    await employeePage
+      .getByRole("button", { name: "Toggle navigation" })
+      .click()
+  }
+  await expect(employeePage.getByRole("link", { name: "Jobs" })).toBeVisible()
 })
 
 test("signed-in users are redirected from root and login", async ({

@@ -64,7 +64,7 @@ V1 is successful when:
 - An employee can start and submit a job from a mobile viewport.
 - Evidence requirements prevent incomplete submissions.
 - An owner can review, comment on, reopen, reassign, and archive submitted work.
-- The jobs board correctly prioritises employees who are working or rostered today.
+- The jobs board clearly separates unassigned, assigned, and review-ready work.
 - The roster accurately represents shifts in both week and day views.
 - The application exposes a valid manifest, install icons, and a securely served service worker so supported browsers can install it.
 - Organisation and role boundaries are enforced by application checks and Supabase Row Level Security.
@@ -278,25 +278,28 @@ Acceptance criteria:
 
 ### 3.5 Jobs and Kanban board
 
-#### JOB-01: Employee-column board
+#### JOB-01: Workflow board
 
-As an owner, I want jobs grouped by employee so that I can understand and balance workloads.
+As an owner, I want jobs grouped by workflow state so that I can see what needs assignment, what is being worked on, and what is ready for review.
 
-Column order:
+The Workflow view has three fixed columns:
 
 1. Unassigned
-2. Employees working now, ordered by shift start
-3. Other employees rostered today, ordered by shift start
-4. Remaining active employees, ordered by name
+2. Assigned
+3. To review
 
 Acceptance criteria:
 
-- Each employee appears once.
-- Inactive employees are hidden from assignment targets but remain available in historical filters.
-- The board supports Active, Review, and Archived filters.
-- Changing a filter does not change the employee-column structure.
+- An `assigned` job with no assignee appears in Unassigned.
+- An `assigned` or `in_progress` job with an assignee appears in Assigned.
+- An `in_review` job appears in To review and can enter that column only through employee submission.
+- Assigned and review cards show the assignee, including inactive historical assignees.
+- Inactive and invited employees are hidden from assignment targets.
+- The Workflow and Archived filters sit with the create action; on mobile, the filters span the row beneath the create button.
+- Archived displays one non-workflow column that matches a Workflow column's width on desktop.
 - Cards show title, priority, status, scheduled/due time, and evidence requirement indicators.
-- Horizontal scrolling remains usable on desktop and narrow screens.
+- Columns fill the remaining viewport height and scroll their cards internally.
+- On mobile, each column occupies the board width and horizontal scrolling snaps to the next column.
 
 #### JOB-02: Job creation
 
@@ -324,14 +327,18 @@ Acceptance criteria:
 - Creation produces an audit update.
 - The new job appears without a full-page refresh.
 
-#### JOB-03: Drag-to-reassign
+#### JOB-03: Assign and reassign
 
-As an owner, I want to drag a job to another employee so that I can rebalance work quickly.
+As an owner, I want to move jobs between Unassigned and Assigned so that I can allocate and rebalance work quickly.
 
 Acceptance criteria:
 
-- Dropping in an employee column changes the assignee.
+- Dropping an unassigned job in Assigned requires the owner to choose an active employee.
 - Dropping in Unassigned clears the assignee.
+- Cancelling employee selection leaves the job unassigned.
+- To review is not a manual drop target.
+- Cards provide an accessible non-drag assignment control for reassignment and mobile use.
+- Assignment controls always display the employee name rather than an internal identifier.
 - The UI updates optimistically and rolls back if persistence fails.
 - Reassignment is authorised and validated on the server.
 - Every assignment change records previous and new assignee identifiers.
@@ -845,7 +852,6 @@ Each implementation step should inspect the relevant reference implementation be
 
 Future implementation may port:
 
-- Kanban drag/drop and optimistic rollback concepts.
 - Calendar slot positioning and drag interactions.
 - Timezone conversion helpers.
 - Resend sender abstractions.
@@ -857,6 +863,11 @@ files were removed; their maintained production replacements are
 `lib/supabase/admin.ts`, `lib/supabase/public-env.ts`,
 `lib/supabase/server-env.ts`, `lib/supabase/proxy.ts`, and the root
 `proxy.ts`.
+
+S04 consumed the Kanban layout, drag/drop, filtering, optimistic movement, and
+rollback concepts from `components/ref-files/dashboard-workspace.tsx`. The
+verified production implementation now lives in the repository-native Jobs
+modules, and the obsolete reference duplicate was removed.
 
 Feature owners may clean, edit, split, move, rename, or remove reference files as they are absorbed into the application. The expected workflow is:
 
@@ -1001,7 +1012,7 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 ### Step 4: Owner jobs and Kanban
 
-- Implement the job schema, transitions, owner creation flow, employee-column board, filters, and assignment/reassignment.
+- Implement the job schema, transitions, owner creation flow, three-column workflow board, filters, and assignment/reassignment.
 
 ### Step 5: Employee job execution and owner review
 

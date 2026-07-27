@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState } from "react"
+import { useActionState, useEffect, useRef } from "react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -147,11 +147,13 @@ export function EmployeeForm({
   employee,
   returnHref = "/dashboard/employees",
   returnLabel = "Back to employees",
+  onSuccess,
   showDestinationLink = true,
   showReturn = true,
 }: {
   action: EmployeeFormAction
   employee?: EmployeeSummary
+  onSuccess?: (state: ActionState) => void
   returnHref?: string
   returnLabel?: string
   showDestinationLink?: boolean
@@ -161,7 +163,15 @@ export function EmployeeForm({
     action,
     INITIAL_ACTION_STATE
   )
+  const handledSuccess = useRef<string | null>(null)
   const editing = Boolean(employee)
+
+  useEffect(() => {
+    if (state.ok && state.message && handledSuccess.current !== state.message) {
+      handledSuccess.current = state.message
+      onSuccess?.(state)
+    }
+  }, [onSuccess, state])
 
   return (
     <form action={formAction}>

@@ -8,10 +8,7 @@ import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeInvitationAction } from "@/components/employee-invitation-action"
 import { EmployeeSheetProfile } from "@/components/employee-sheet-profile"
 import { Badge } from "@/components/ui/badge"
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 import {
   Table,
   TableBody,
@@ -21,19 +18,23 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { EmployeeSummary } from "@/lib/employees/data"
+import type { EmployeeJobSummary } from "@/lib/jobs/types"
 
 export function EmployeeDirectoryTable({
   employees,
+  jobSummaries,
 }: {
   employees: EmployeeSummary[]
+  jobSummaries: Record<number, EmployeeJobSummary>
 }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
     null
   )
   const [open, setOpen] = useState(false)
   const selectedEmployee =
-    employees.find((employee) => employee.membershipId === selectedEmployeeId) ??
-    null
+    employees.find(
+      (employee) => employee.membershipId === selectedEmployeeId
+    ) ?? null
   const openEmployee = (membershipId: number) => {
     setSelectedEmployeeId(membershipId)
     setOpen(true)
@@ -113,6 +114,12 @@ export function EmployeeDirectoryTable({
                 selectedEmployee.membershipId
               )}
               employee={selectedEmployee}
+              jobSummary={
+                jobSummaries[selectedEmployee.membershipId] ?? {
+                  active: [],
+                  archived: [],
+                }
+              }
               key={`profile-${selectedEmployee.membershipId}`}
             />
             <div className="grid shrink-0 gap-2 border-t p-4">

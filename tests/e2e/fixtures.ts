@@ -14,7 +14,7 @@ type RoleFixtures = {
 
 const password = "Password123!"
 
-async function authenticate(
+export async function authenticate(
   context: BrowserContext,
   email: string
 ): Promise<void> {

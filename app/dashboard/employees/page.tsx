@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { listEmployees } from "@/lib/employees/data"
+import { listEmployeeJobSummaries } from "@/lib/jobs/data"
 
 const STATUSES = new Set(["all", "invited", "active", "inactive"])
 
@@ -23,7 +24,10 @@ export default async function Page({
   const status = STATUSES.has(params.status ?? "")
     ? (params.status as "all" | "invited" | "active" | "inactive")
     : "all"
-  const employees = await listEmployees({ search: params.q, status })
+  const [employees, jobSummaries] = await Promise.all([
+    listEmployees({ search: params.q, status }),
+    listEmployeeJobSummaries(),
+  ])
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -64,7 +68,10 @@ export default async function Page({
             </Button>
           </form>
           {employees.length ? (
-            <EmployeeDirectoryTable employees={employees} />
+            <EmployeeDirectoryTable
+              employees={employees}
+              jobSummaries={jobSummaries}
+            />
           ) : (
             <div className="grid justify-items-center gap-3 py-12 text-center">
               <h2 className="font-medium">No employees found</h2>

@@ -40,6 +40,8 @@ function getBreadcrumbEntries(pathname: string): BreadcrumbEntry[] {
     } else if (pathname !== "/dashboard/employees") {
       entries.push({ label: "Employee" })
     }
+  } else if (pathname.startsWith("/dashboard/jobs")) {
+    entries.push({ label: "Jobs" })
   } else if (pathname.startsWith("/dashboard/profile")) {
     entries.push({ label: "Profile" })
   }

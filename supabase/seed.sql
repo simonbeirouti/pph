@@ -209,6 +209,131 @@ values
   (1204, 1001, 1101, 'Olivia', 'Owner', '0400 000 004', 'Owner'),
   (2201, 2001, 2101, 'Morgan', 'Owner', '0400 000 005', 'Owner');
 
+insert into public.roster_shifts (
+  id,
+  organisation_id,
+  employee_membership_id,
+  starts_at,
+  ends_at,
+  notes,
+  created_by
+)
+overriding system value
+values (
+  1301,
+  1001,
+  1103,
+  now() - interval '2 hours',
+  now() + interval '6 hours',
+  'Seeded current shift',
+  1101
+);
+
+insert into public.jobs (
+  id,
+  organisation_id,
+  assignee_membership_id,
+  title,
+  description,
+  location,
+  priority,
+  status,
+  scheduled_at,
+  due_at,
+  requires_completion_note,
+  minimum_completion_photos,
+  submitted_at,
+  archived_at,
+  created_by
+)
+overriding system value
+values
+  (
+    1401,
+    1001,
+    1103,
+    'Inspect loading bay',
+    'Check the loading bay and record any safety issues.',
+    'Loading bay',
+    'urgent',
+    'assigned',
+    now() - interval '30 minutes',
+    now() + interval '2 hours',
+    true,
+    2,
+    null,
+    null,
+    1101
+  ),
+  (
+    1402,
+    1001,
+    null,
+    'Restock first aid station',
+    'Replace used supplies and confirm expiry dates.',
+    'Main office',
+    'normal',
+    'assigned',
+    null,
+    now() + interval '1 day',
+    false,
+    0,
+    null,
+    null,
+    1101
+  ),
+  (
+    1403,
+    1001,
+    1103,
+    'Review submitted checklist',
+    '',
+    '',
+    'high',
+    'in_review',
+    now() - interval '1 day',
+    now() - interval '2 hours',
+    true,
+    1,
+    now() - interval '1 hour',
+    null,
+    1101
+  ),
+  (
+    1404,
+    1001,
+    1104,
+    'Historical equipment audit',
+    '',
+    'Warehouse',
+    'low',
+    'archived',
+    now() - interval '14 days',
+    now() - interval '13 days',
+    false,
+    0,
+    now() - interval '12 days',
+    now() - interval '11 days',
+    1101
+  );
+
+insert into public.job_updates (
+  organisation_id,
+  job_id,
+  author_membership_id,
+  type,
+  metadata,
+  created_at
+)
+select
+  job.organisation_id,
+  job.id,
+  job.created_by,
+  'system',
+  jsonb_build_object('event', 'created'),
+  job.created_at
+from public.jobs as job;
+
 update public.memberships
 set
   invite_delivery_status = 'sent',
@@ -227,5 +352,20 @@ select setval(
 select setval(
   pg_get_serial_sequence('public.employee_profiles', 'id'),
   (select max(id) from public.employee_profiles),
+  true
+);
+select setval(
+  pg_get_serial_sequence('public.roster_shifts', 'id'),
+  (select max(id) from public.roster_shifts),
+  true
+);
+select setval(
+  pg_get_serial_sequence('public.jobs', 'id'),
+  (select max(id) from public.jobs),
+  true
+);
+select setval(
+  pg_get_serial_sequence('public.job_updates', 'id'),
+  (select max(id) from public.job_updates),
   true
 );

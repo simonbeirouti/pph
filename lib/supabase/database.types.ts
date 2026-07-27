@@ -63,6 +63,155 @@ export type Database = {
           },
         ]
       }
+      job_updates: {
+        Row: {
+          author_membership_id: number | null
+          body: string | null
+          created_at: string
+          id: number
+          job_id: number
+          metadata: Json
+          organisation_id: number
+          type: Database["public"]["Enums"]["job_update_type"]
+        }
+        Insert: {
+          author_membership_id?: number | null
+          body?: string | null
+          created_at?: string
+          id?: never
+          job_id: number
+          metadata?: Json
+          organisation_id: number
+          type: Database["public"]["Enums"]["job_update_type"]
+        }
+        Update: {
+          author_membership_id?: number | null
+          body?: string | null
+          created_at?: string
+          id?: never
+          job_id?: number
+          metadata?: Json
+          organisation_id?: number
+          type?: Database["public"]["Enums"]["job_update_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_updates_author_organisation_fkey"
+            columns: ["author_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_updates_job_organisation_fkey"
+            columns: ["job_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_updates_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submitted_at: string | null
+          template_id: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_membership_id?: number | null
+          created_at?: string
+          created_by: number
+          description?: string
+          due_at?: string | null
+          id?: never
+          location?: string
+          minimum_completion_photos?: number
+          organisation_id: number
+          priority?: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note?: boolean
+          schedule_id?: number | null
+          schedule_occurrence_at?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          submitted_at?: string | null
+          template_id?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_membership_id?: number | null
+          created_at?: string
+          created_by?: number
+          description?: string
+          due_at?: string | null
+          id?: never
+          location?: string
+          minimum_completion_photos?: number
+          organisation_id?: number
+          priority?: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note?: boolean
+          schedule_id?: number | null
+          schedule_occurrence_at?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          submitted_at?: string | null
+          template_id?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_assignee_organisation_fkey"
+            columns: ["assignee_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "jobs_creator_organisation_fkey"
+            columns: ["created_by", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "jobs_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           activated_at: string | null
@@ -143,6 +292,67 @@ export type Database = {
         }
         Relationships: []
       }
+      roster_shifts: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: number
+          employee_membership_id: number
+          ends_at: string
+          id: number
+          notes: string
+          organisation_id: number
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by: number
+          employee_membership_id: number
+          ends_at: string
+          id?: never
+          notes?: string
+          organisation_id: number
+          starts_at: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: number
+          employee_membership_id?: number
+          ends_at?: string
+          id?: never
+          notes?: string
+          organisation_id?: number
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_shifts_creator_organisation_fkey"
+            columns: ["created_by", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_employee_organisation_fkey"
+            columns: ["employee_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -165,14 +375,139 @@ export type Database = {
           profile_id: number
         }[]
       }
+      create_job: {
+        Args: {
+          p_assignee_membership_id?: number
+          p_description?: string
+          p_due_at?: string
+          p_location?: string
+          p_minimum_completion_photos?: number
+          p_priority?: Database["public"]["Enums"]["job_priority"]
+          p_requires_completion_note?: boolean
+          p_scheduled_at?: string
+          p_title: string
+        }
+        Returns: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submitted_at: string | null
+          template_id: number | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       delete_invited_employee: {
         Args: { p_membership_id: number }
         Returns: boolean
       }
       link_invited_membership: { Args: never; Returns: number }
+      reassign_job: {
+        Args: { p_assignee_membership_id?: number; p_job_id: number }
+        Returns: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submitted_at: string | null
+          template_id: number | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_job: {
+        Args: {
+          p_assignee_membership_id?: number
+          p_description?: string
+          p_due_at?: string
+          p_job_id: number
+          p_location?: string
+          p_minimum_completion_photos?: number
+          p_priority?: Database["public"]["Enums"]["job_priority"]
+          p_requires_completion_note?: boolean
+          p_scheduled_at?: string
+          p_title: string
+        }
+        Returns: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submitted_at: string | null
+          template_id: number | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       invite_delivery_status: "pending" | "sent" | "failed"
+      job_priority: "low" | "normal" | "high" | "urgent"
+      job_status: "assigned" | "in_progress" | "in_review" | "archived"
+      job_update_type:
+        | "note"
+        | "comment"
+        | "status_change"
+        | "assignment_change"
+        | "system"
       membership_role: "owner" | "employee"
       membership_status: "invited" | "active" | "inactive"
     }
@@ -303,6 +638,15 @@ export const Constants = {
   public: {
     Enums: {
       invite_delivery_status: ["pending", "sent", "failed"],
+      job_priority: ["low", "normal", "high", "urgent"],
+      job_status: ["assigned", "in_progress", "in_review", "archived"],
+      job_update_type: [
+        "note",
+        "comment",
+        "status_change",
+        "assignment_change",
+        "system",
+      ],
       membership_role: ["owner", "employee"],
       membership_status: ["invited", "active", "inactive"],
     },

@@ -248,12 +248,14 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
   const suffix = `${testInfo.project.name.replaceAll(/[^a-z0-9]/gi, "-")}-${Date.now()}`
   const email = `s02-${suffix}@example.test`
   const password = "Activated123!"
+  const lastName = `Lifecycle ${testInfo.project.name}`
+  const displayName = `Jamie ${lastName}`
 
   try {
     await ownerPage.goto("/dashboard/employees")
     await ownerPage.getByRole("button", { name: "Add employee" }).click()
     await ownerPage.getByLabel("First name").fill("Jamie")
-    await ownerPage.getByLabel("Last name").fill("Lifecycle")
+    await ownerPage.getByLabel("Last name").fill(lastName)
     await ownerPage.getByLabel("Email").fill(email)
     await ownerPage.getByLabel("Phone").fill("0400 555 010")
     await ownerPage.getByLabel("Job title").fill("Operations Assistant")
@@ -266,9 +268,30 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
       name: "avatar.png",
     })
     await ownerPage.getByRole("button", { name: "Create and invite" }).click()
+    await expect(ownerPage.getByRole("dialog")).not.toBeVisible()
     await expect(
-      ownerPage.getByText("Employee created and invitation sent.")
+      ownerPage
+        .getByRole("region", { name: /Notifications/ })
+        .getByText("Employee created and invitation sent.")
     ).toBeVisible()
+    const ownerJobsPage = await ownerPage.context().newPage()
+    await ownerJobsPage.goto("/dashboard/jobs")
+    await expect(
+      ownerJobsPage.locator('[data-realtime-status="connected"]')
+    ).toBeAttached()
+    const assignmentControl = ownerJobsPage
+      .getByRole("region", { name: "Unassigned jobs", exact: true })
+      .getByRole("article")
+      .first()
+      .getByRole("combobox", { name: "Assign to" })
+    await assignmentControl.click()
+    await expect(
+      ownerJobsPage.getByRole("option", { name: displayName })
+    ).toHaveCount(0)
+    await ownerJobsPage.keyboard.press("Escape")
+    await expect(
+      ownerPage.locator('[data-realtime-status="connected"]')
+    ).toBeAttached()
 
     const inviteLink = await capturedInviteLink(request, email)
     expect(inviteLink).toContain("/auth/confirm")
@@ -292,20 +315,23 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     await invitePage.getByRole("button", { name: "Activate account" }).click()
     await expect(invitePage).toHaveURL(/\/dashboard$/)
     await expect(
-      invitePage.getByRole("heading", { name: "Welcome, Jamie Lifecycle" })
+      invitePage.getByRole("heading", { name: `Welcome, ${displayName}` })
     ).toBeVisible()
 
-    await ownerPage.getByRole("button", { name: "Close" }).click()
-    await ownerPage.reload()
-    await ownerPage.getByRole("row").filter({ hasText: email }).click()
+    const activatedRow = ownerPage.getByRole("row").filter({ hasText: email })
+    await expect(activatedRow).toContainText("active")
+    await assignmentControl.click()
     await expect(
-      ownerPage
-        .getByRole("dialog")
-        .getByText("Jamie Lifecycle", { exact: true })
+      ownerJobsPage.getByRole("option", { name: displayName })
+    ).toBeVisible()
+    await ownerJobsPage.keyboard.press("Escape")
+    await activatedRow.click()
+    await expect(
+      ownerPage.getByRole("dialog").getByText(displayName, { exact: true })
     ).toBeVisible()
     await expect(
       ownerPage.getByRole("img", {
-        name: "Jamie Lifecycle profile photo",
+        name: `${displayName} profile photo`,
       })
     ).toBeVisible()
     await ownerPage
@@ -338,6 +364,7 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     const relogin = await signIn(browser, email, password)
     await expect(relogin.page).toHaveURL(/\/dashboard$/)
     await relogin.context.close()
+    await ownerJobsPage.close()
     await inviteContext.close()
   } finally {
     await cleanupEmployee(email)

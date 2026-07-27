@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
+import { DashboardRealtimeProvider } from "@/components/dashboard-realtime-provider"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -30,21 +31,32 @@ export default async function DashboardLayout({
       defaultOpen={sidebarOpen}
       onOpenChange={setSidebarOpenAction}
     >
-      <AppSidebar avatarUrl={avatarUrl} membership={membership} />
-      <SidebarInset>
-        <ServiceWorkerRegistration />
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" aria-label="Toggle navigation" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <DashboardBreadcrumb />
-          </div>
-        </header>
-        <main className="flex flex-1 flex-col p-4 md:p-6">{children}</main>
-      </SidebarInset>
+      <DashboardRealtimeProvider
+        membership={{
+          membershipId: membership.membershipId,
+          organisationId: membership.organisationId,
+          role: membership.role,
+        }}
+      >
+        <AppSidebar avatarUrl={avatarUrl} membership={membership} />
+        <SidebarInset>
+          <ServiceWorkerRegistration />
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger
+                className="-ml-1"
+                aria-label="Toggle navigation"
+              />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              <DashboardBreadcrumb />
+            </div>
+          </header>
+          <main className="flex flex-1 flex-col p-4 md:p-6">{children}</main>
+        </SidebarInset>
+      </DashboardRealtimeProvider>
     </SidebarProvider>
   )
 }

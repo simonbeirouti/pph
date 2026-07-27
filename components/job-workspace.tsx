@@ -1,0 +1,746 @@
+"use client"
+
+import { move } from "@dnd-kit/helpers"
+import { DragDropProvider, useDroppable } from "@dnd-kit/react"
+import { useSortable } from "@dnd-kit/react/sortable"
+import {
+  ArchiveIcon,
+  BriefcaseBusinessIcon,
+  CameraIcon,
+  CircleCheckBigIcon,
+  ClockIcon,
+  FileTextIcon,
+  MapPinIcon,
+  UserRoundCheckIcon,
+  UserRoundXIcon,
+} from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
+
+import { reassignJobAction } from "@/app/dashboard/jobs/actions"
+import { EmployeeAvatar } from "@/components/employee-avatar"
+import { JobCreateDialog, JobEditDialog } from "@/components/job-create-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  columnsForJobView,
+  jobMatchesView,
+  jobWorkflowColumn,
+  sortJobsByUrgency,
+} from "@/lib/jobs/board"
+import type {
+  JobBoardColumn,
+  JobBoardEmployee,
+  JobCard,
+  JobView,
+  JobWorkflowColumnKey,
+} from "@/lib/jobs/types"
+import { cn } from "@/lib/utils"
+
+type BoardItems = Record<JobWorkflowColumnKey, JobCard[]>
+
+const VIEW_LABELS: Record<JobView, string> = {
+  archived: "Archived",
+  workflow: "Workflow",
+}
+
+const PRIORITY_LABELS = {
+  high: "High",
+  low: "Low",
+  normal: "Normal",
+  urgent: "Urgent",
+} as const
+
+function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
+  const board: BoardItems = {
+    archived: [],
+    assigned: [],
+    review: [],
+    unassigned: [],
+  }
+
+  for (const job of jobs) {
+    if (!jobMatchesView(job, view)) continue
+    board[jobWorkflowColumn(job)].push(job)
+  }
+
+  for (const key of Object.keys(board) as JobWorkflowColumnKey[]) {
+    board[key] = sortJobsByUrgency(board[key])
+  }
+
+  return board
+}
+
+export function JobWorkspace({
+  employees,
+  initialJobs,
+  timezone,
+}: {
+  employees: readonly JobBoardEmployee[]
+  initialJobs: readonly JobCard[]
+  timezone: string
+}) {
+  const [view, setView] = useState<JobView>("workflow")
+  const [jobs, setJobs] = useState(() => [...initialJobs])
+  const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set())
+  const [assignmentJob, setAssignmentJob] = useState<JobCard | null>(null)
+  const pendingIdsRef = useRef(new Set<number>())
+  const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
+  const columns = columnsForJobView(view)
+  const canonicalBoard = useMemo(() => buildBoard(jobs, view), [jobs, view])
+  const [dragBoard, setDragBoard] = useState<BoardItems | null>(null)
+  const dragBoardRef = useRef<BoardItems | null>(null)
+  const viewRef = useRef<JobView>(view)
+  const jobsRef = useRef(jobs)
+  const board = dragBoard ?? canonicalBoard
+  const assignmentTargets = useMemo(
+    () => employees.filter((employee) => employee.active),
+    [employees]
+  )
+  const employeeById = useMemo(
+    () =>
+      new Map(employees.map((employee) => [employee.membershipId, employee])),
+    [employees]
+  )
+
+  useEffect(() => {
+    jobsRef.current = jobs
+  }, [jobs])
+
+  useEffect(() => {
+    if (pendingIdsRef.current.size) {
+      deferredJobsRef.current = initialJobs
+      return
+    }
+
+    const next = [...initialJobs]
+    jobsRef.current = next
+    setJobs(next)
+  }, [initialJobs])
+
+  useEffect(() => {
+    viewRef.current = view
+  }, [view])
+
+  async function persistAssignment(
+    jobId: number,
+    assigneeMembershipId: number | null
+  ) {
+    if (pendingIdsRef.current.has(jobId)) return
+    const snapshot = jobsRef.current
+    const current = snapshot.find((job) => job.id === jobId)
+    if (!current || current.assigneeMembershipId === assigneeMembershipId) {
+      setDragBoard(null)
+      return
+    }
+
+    const previousView = viewRef.current
+    const optimistic = snapshot.map((job) =>
+      job.id === jobId
+        ? {
+            ...job,
+            assigneeMembershipId,
+            status: "assigned" as const,
+            updatedAt: new Date().toISOString(),
+          }
+        : job
+    )
+    jobsRef.current = optimistic
+    setJobs(optimistic)
+    viewRef.current = "workflow"
+    setView("workflow")
+    setDragBoard(null)
+    dragBoardRef.current = null
+    pendingIdsRef.current.add(jobId)
+    setPendingIds((currentIds) => new Set(currentIds).add(jobId))
+
+    try {
+      const result = await reassignJobAction(jobId, assigneeMembershipId)
+      if (!result.ok || !result.job) {
+        const restored = jobsRef.current.map((job) =>
+          job.id === jobId ? current : job
+        )
+        jobsRef.current = restored
+        setJobs(restored)
+        viewRef.current = previousView
+        setView(previousView)
+        toast.error(result.message)
+        return
+      }
+
+      const authoritative = optimistic.map((job) =>
+        job.id === result.job!.id ? result.job! : job
+      )
+      jobsRef.current = authoritative
+      setJobs(authoritative)
+      toast.success(result.message)
+    } catch {
+      const restored = jobsRef.current.map((job) =>
+        job.id === jobId ? current : job
+      )
+      jobsRef.current = restored
+      setJobs(restored)
+      viewRef.current = previousView
+      setView(previousView)
+      toast.error("Could not save the assignment. The card was moved back.")
+    } finally {
+      pendingIdsRef.current.delete(jobId)
+      setPendingIds((currentIds) => {
+        const next = new Set(currentIds)
+        next.delete(jobId)
+        return next
+      })
+      if (!pendingIdsRef.current.size && deferredJobsRef.current) {
+        const next = [...deferredJobsRef.current]
+        deferredJobsRef.current = null
+        jobsRef.current = next
+        setJobs(next)
+      }
+    }
+  }
+
+  function addCreatedJob(job: JobCard) {
+    const next = [
+      job,
+      ...jobsRef.current.filter((current) => current.id !== job.id),
+    ]
+    jobsRef.current = next
+    setJobs(next)
+    viewRef.current = "workflow"
+    setView("workflow")
+    toast.success("Job created.")
+  }
+
+  function updateSavedJob(job: JobCard) {
+    const next = jobsRef.current.map((current) =>
+      current.id === job.id ? job : current
+    )
+    jobsRef.current = next
+    setJobs(next)
+    viewRef.current = job.status === "archived" ? "archived" : "workflow"
+    setView(viewRef.current)
+    toast.success("Job updated.")
+  }
+
+  return (
+    <div className="grid h-[calc(100svh-6rem)] min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-5 md:h-[calc(100svh-8rem)]">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Jobs</h1>
+          <p className="text-muted-foreground">
+            Create, assign, and review work in one workflow.
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <div className="order-1 w-full sm:order-2 sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+            <JobCreateDialog
+              employees={assignmentTargets}
+              onCreated={addCreatedJob}
+              timezone={timezone}
+            />
+          </div>
+          <Tabs
+            className="order-2 w-full sm:order-1 sm:w-auto"
+            onValueChange={(value) => {
+              const nextView = value as JobView
+              viewRef.current = nextView
+              setView(nextView)
+              dragBoardRef.current = null
+              setDragBoard(null)
+            }}
+            value={view}
+          >
+            <TabsList
+              aria-label="Filter jobs"
+              className="grid w-full grid-cols-2 sm:inline-flex sm:w-fit"
+            >
+              {(["workflow", "archived"] as const).map((value) => (
+                <TabsTrigger key={value} value={value}>
+                  {VIEW_LABELS[value]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      <DragDropProvider
+        onDragStart={() => {
+          dragBoardRef.current = canonicalBoard
+          setDragBoard(canonicalBoard)
+        }}
+        onDragOver={(event) => {
+          const { source } = event.operation
+          if (source?.type !== "job") return
+          const next = move(
+            dragBoardRef.current ?? canonicalBoard,
+            event
+          ) as BoardItems
+          dragBoardRef.current = next
+          setDragBoard(next)
+        }}
+        onDragEnd={(event) => {
+          const { source } = event.operation
+          if (event.canceled || source?.type !== "job") {
+            dragBoardRef.current = null
+            setDragBoard(null)
+            return
+          }
+
+          const jobId = Number(source.id)
+          const job = jobsRef.current.find((current) => current.id === jobId)
+          const finalBoard = dragBoardRef.current ?? canonicalBoard
+          const destination = columns.find((column) =>
+            finalBoard[column.key]?.some((item) => item.id === jobId)
+          )
+
+          dragBoardRef.current = null
+          setDragBoard(null)
+          if (!job || !destination?.dropTarget) return
+
+          if (destination.key === "assigned" && !job.assigneeMembershipId) {
+            setAssignmentJob(job)
+            return
+          }
+          if (destination.key === "unassigned" && job.assigneeMembershipId) {
+            void persistAssignment(job.id, null)
+          }
+        }}
+      >
+        <div
+          className="h-full min-h-0 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-2 md:snap-none"
+          data-board-scroll
+        >
+          <div
+            aria-label={`${VIEW_LABELS[view]} jobs board`}
+            className="grid h-full min-h-0 w-full auto-cols-[100%] grid-flow-col gap-3 md:w-max md:auto-cols-[18rem] lg:w-full lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3"
+          >
+            {columns.map((column) => (
+              <JobColumn
+                assignmentTargets={assignmentTargets}
+                column={column}
+                employeeById={employeeById}
+                items={board[column.key]}
+                key={column.key}
+                onAssign={persistAssignment}
+                onUpdated={updateSavedJob}
+                pendingIds={pendingIds}
+                timezone={timezone}
+              />
+            ))}
+          </div>
+        </div>
+      </DragDropProvider>
+
+      <AssignmentDialog
+        employees={assignmentTargets}
+        job={assignmentJob}
+        key={assignmentJob?.id ?? "closed"}
+        onAssign={(employeeMembershipId) => {
+          const job = assignmentJob
+          setAssignmentJob(null)
+          if (job) void persistAssignment(job.id, employeeMembershipId)
+        }}
+        onOpenChange={(open) => {
+          if (!open) setAssignmentJob(null)
+        }}
+      />
+    </div>
+  )
+}
+
+function JobColumn({
+  assignmentTargets,
+  column,
+  employeeById,
+  items,
+  onAssign,
+  onUpdated,
+  pendingIds,
+  timezone,
+}: {
+  assignmentTargets: readonly JobBoardEmployee[]
+  column: JobBoardColumn
+  employeeById: ReadonlyMap<number, JobBoardEmployee>
+  items: readonly JobCard[]
+  onAssign: (
+    jobId: number,
+    assigneeMembershipId: number | null
+  ) => Promise<void>
+  onUpdated: (job: JobCard) => void
+  pendingIds: ReadonlySet<number>
+  timezone: string
+}) {
+  const { isDropTarget, ref } = useDroppable({
+    accept: column.dropTarget ? "job" : "read-only-job",
+    id: column.key,
+    type: "column",
+  })
+
+  return (
+    <section
+      aria-label={`${column.label} jobs`}
+      className={cn(
+        "flex h-full min-h-0 snap-start snap-always flex-col rounded-lg border bg-muted/30 md:snap-none",
+        isDropTarget && column.dropTarget && "border-primary bg-primary/5"
+      )}
+      data-column={column.key}
+      data-drop-target={isDropTarget ? "true" : undefined}
+      ref={ref}
+    >
+      <header className="flex min-h-14 items-center gap-2 border-b px-3 py-2">
+        <ColumnIcon column={column.key} />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-medium">{column.label}</h3>
+          <p className="truncate text-xs text-muted-foreground">
+            {column.description}
+          </p>
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {items.length}
+        </span>
+      </header>
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-y-contain p-2">
+        {items.length ? (
+          items.map((job, index) => (
+            <JobCardView
+              assignee={
+                job.assigneeMembershipId
+                  ? (employeeById.get(job.assigneeMembershipId) ?? null)
+                  : null
+              }
+              assignmentTargets={assignmentTargets}
+              index={index}
+              job={job}
+              key={job.id}
+              onAssign={onAssign}
+              onUpdated={onUpdated}
+              pending={pendingIds.has(job.id)}
+              timezone={timezone}
+            />
+          ))
+        ) : (
+          <div className="rounded-md border border-dashed bg-background/60 p-3 text-sm text-muted-foreground">
+            {column.dropTarget ? "Drop work here." : "No jobs here."}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ColumnIcon({ column }: { column: JobWorkflowColumnKey }) {
+  const iconClass = "size-4"
+  const icon =
+    column === "unassigned" ? (
+      <UserRoundXIcon className={iconClass} />
+    ) : column === "assigned" ? (
+      <UserRoundCheckIcon className={iconClass} />
+    ) : column === "review" ? (
+      <CircleCheckBigIcon className={iconClass} />
+    ) : (
+      <ArchiveIcon className={iconClass} />
+    )
+
+  return (
+    <div className="grid size-8 place-items-center rounded-full bg-background">
+      {icon}
+    </div>
+  )
+}
+
+function JobCardView({
+  assignee,
+  assignmentTargets,
+  index,
+  job,
+  onAssign,
+  onUpdated,
+  pending,
+  timezone,
+}: {
+  assignee: JobBoardEmployee | null
+  assignmentTargets: readonly JobBoardEmployee[]
+  index: number
+  job: JobCard
+  onAssign: (
+    jobId: number,
+    assigneeMembershipId: number | null
+  ) => Promise<void>
+  onUpdated: (job: JobCard) => void
+  pending: boolean
+  timezone: string
+}) {
+  const { isDragging, ref } = useSortable({
+    accept: "job",
+    group: "workflow-jobs",
+    id: job.id,
+    index,
+    transition: null,
+    type: "job",
+  })
+  const selectedAssigneeName = job.assigneeMembershipId
+    ? (assignee?.displayName ?? "Former employee")
+    : "Unassigned"
+
+  return (
+    <article
+      aria-label={`Job ${job.title}`}
+      className={cn(
+        "relative rounded-md border bg-background p-3 shadow-xs",
+        isDragging && "opacity-70",
+        pending && "pointer-events-none opacity-60"
+      )}
+      data-dragging={isDragging ? "true" : undefined}
+    >
+      <div
+        aria-label={`Drag ${job.title}`}
+        className="cursor-grab rounded-sm pr-8 active:cursor-grabbing"
+        ref={ref}
+      >
+        <h4 className="min-w-0 text-sm font-medium">{job.title}</h4>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <PriorityBadge priority={job.priority} />
+          <Badge variant="outline" className="capitalize">
+            {job.status === "assigned"
+              ? job.assigneeMembershipId
+                ? "Assigned"
+                : "Unassigned"
+              : job.status.replace("_", " ")}
+          </Badge>
+        </div>
+        {assignee || job.assigneeMembershipId ? (
+          <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/60 p-2">
+            <EmployeeAvatar
+              className="size-7"
+              name={assignee?.displayName ?? "Former employee"}
+              url={assignee?.avatarUrl ?? null}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium">
+                {assignee?.displayName ?? "Former employee"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {assignee
+                  ? assignee.active
+                    ? assignee.jobTitle
+                    : `${assignee.jobTitle} · Inactive`
+                  : "No longer in the directory"}
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {job.description ? (
+          <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+            {job.description}
+          </p>
+        ) : null}
+        <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+          {job.location ? (
+            <span className="flex items-center gap-1.5">
+              <MapPinIcon className="size-3.5" />
+              {job.location}
+            </span>
+          ) : null}
+          {job.scheduledAt ? (
+            <span className="flex items-center gap-1.5">
+              <BriefcaseBusinessIcon className="size-3.5" />
+              Scheduled {formatDateTime(job.scheduledAt, timezone)}
+            </span>
+          ) : null}
+          {job.dueAt ? (
+            <span className="flex items-center gap-1.5">
+              <ClockIcon className="size-3.5" />
+              Due {formatDateTime(job.dueAt, timezone)}
+            </span>
+          ) : null}
+          {job.requiresCompletionNote ? (
+            <span className="flex items-center gap-1.5">
+              <FileTextIcon className="size-3.5" />
+              Completion note required
+            </span>
+          ) : null}
+          {job.minimumCompletionPhotos > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <CameraIcon className="size-3.5" />
+              {job.minimumCompletionPhotos} completion{" "}
+              {job.minimumCompletionPhotos === 1 ? "photo" : "photos"}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <JobEditDialog
+        currentAssigneeName={
+          assignee?.displayName ??
+          (job.assigneeMembershipId ? "Former employee" : undefined)
+        }
+        employees={assignmentTargets}
+        job={job}
+        onUpdated={onUpdated}
+        timezone={timezone}
+      />
+      <div className="mt-3" onPointerDown={(event) => event.stopPropagation()}>
+        <label
+          className="mb-1 block text-xs font-medium"
+          htmlFor={`job-${job.id}-assignee`}
+        >
+          Assign to
+        </label>
+        <Select
+          disabled={pending}
+          onValueChange={(value) => {
+            void onAssign(
+              job.id,
+              !value || value === "unassigned" ? null : Number(value)
+            )
+          }}
+          value={
+            job.assigneeMembershipId
+              ? String(job.assigneeMembershipId)
+              : "unassigned"
+          }
+        >
+          <SelectTrigger
+            aria-label="Assign to"
+            className="w-full"
+            id={`job-${job.id}-assignee`}
+            size="sm"
+          >
+            <SelectValue>{selectedAssigneeName}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {assignmentTargets.map((employee) => (
+              <SelectItem
+                key={employee.membershipId}
+                value={String(employee.membershipId)}
+              >
+                {employee.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </article>
+  )
+}
+
+export function AssignmentDialog({
+  employees,
+  job,
+  onAssign,
+  onOpenChange,
+}: {
+  employees: readonly JobBoardEmployee[]
+  job: JobCard | null
+  onAssign: (employeeMembershipId: number) => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const [employeeMembershipId, setEmployeeMembershipId] = useState("")
+  const selectedEmployeeName = employees.find(
+    (employee) => String(employee.membershipId) === employeeMembershipId
+  )?.displayName
+
+  return (
+    <Dialog open={Boolean(job)} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign {job?.title}</DialogTitle>
+          <DialogDescription>
+            Choose the employee responsible for this job.
+          </DialogDescription>
+        </DialogHeader>
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-medium"
+            htmlFor="dropped-job-assignee"
+          >
+            Employee
+          </label>
+          <Select
+            onValueChange={(value) => setEmployeeMembershipId(value ?? "")}
+            value={employeeMembershipId}
+          >
+            <SelectTrigger
+              aria-label="Employee"
+              className="w-full"
+              id="dropped-job-assignee"
+            >
+              <SelectValue placeholder="Choose an employee">
+                {selectedEmployeeName}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {employees.map((employee) => (
+                <SelectItem
+                  key={employee.membershipId}
+                  value={String(employee.membershipId)}
+                >
+                  {employee.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={!employeeMembershipId}
+            onClick={() => onAssign(Number(employeeMembershipId))}
+            type="button"
+          >
+            Assign job
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function PriorityBadge({ priority }: { priority: JobCard["priority"] }) {
+  return (
+    <Badge
+      className={cn(
+        priority === "high" &&
+          "border-amber-300 text-amber-700 dark:text-amber-300",
+        priority === "normal" && "text-muted-foreground",
+        priority === "low" && "text-muted-foreground"
+      )}
+      variant={priority === "urgent" ? "destructive" : "outline"}
+    >
+      {PRIORITY_LABELS[priority]}
+    </Badge>
+  )
+}
+
+function formatDateTime(value: string, timezone: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    timeZone: timezone,
+  }).format(new Date(value))
+}

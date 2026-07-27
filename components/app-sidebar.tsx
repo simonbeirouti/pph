@@ -1,7 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { Building2Icon, LayoutDashboardIcon, UsersIcon } from "lucide-react"
+import {
+  BriefcaseBusinessIcon,
+  Building2Icon,
+  LayoutDashboardIcon,
+  UsersIcon,
+} from "lucide-react"
 import { usePathname } from "next/navigation"
 
 import type { MembershipContext } from "@/lib/auth/membership"
@@ -82,21 +87,37 @@ export function AppSidebar({
                 <span>Dashboard</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                aria-current={
+                  isRouteActive("/dashboard/jobs") ? "page" : undefined
+                }
+                isActive={isRouteActive("/dashboard/jobs")}
+                tooltip="Jobs"
+                onClick={closeMobileSidebar}
+                render={<Link href="/dashboard/jobs" />}
+              >
+                <BriefcaseBusinessIcon />
+                <span>Jobs</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             {membership.role === "owner" ? (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  aria-current={
-                    isRouteActive("/dashboard/employees") ? "page" : undefined
-                  }
-                  isActive={isRouteActive("/dashboard/employees")}
-                  tooltip="Employees"
-                  onClick={closeMobileSidebar}
-                  render={<Link href="/dashboard/employees" />}
-                >
-                  <UsersIcon />
-                  <span>Employees</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    aria-current={
+                      isRouteActive("/dashboard/employees") ? "page" : undefined
+                    }
+                    isActive={isRouteActive("/dashboard/employees")}
+                    tooltip="Employees"
+                    onClick={closeMobileSidebar}
+                    render={<Link href="/dashboard/employees" />}
+                  >
+                    <UsersIcon />
+                    <span>Employees</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             ) : null}
           </SidebarMenu>
         </SidebarGroup>

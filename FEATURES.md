@@ -63,19 +63,19 @@ For each active step:
 
 ## Implementation status
 
-| Step | Capability                              | Status        | Depends on | Checkpoint | Verification notes                                                                                                                                                                |
-| ---- | --------------------------------------- | ------------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline     | `complete`    | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                         |
-| S01  | Platform foundation                     | `complete`    | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass |
-| S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
-| S03  | Progressive Web App shell               | `complete`    | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass. |
-| S04  | Owner jobs and Kanban                   | `planned`     | S03        | —          | —                                                                                                                                                                                 |
-| S05  | Employee job execution and owner review | `planned`     | S04        | —          | —                                                                                                                                                                                 |
-| S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                 |
-| S07  | Calendar interactions                   | `planned`     | S06        | —          | —                                                                                                                                                                                 |
-| S08  | Templates and job schedules             | `planned`     | S07        | —          | —                                                                                                                                                                                 |
-| S09  | Operational dashboards                  | `planned`     | S08        | —          | —                                                                                                                                                                                 |
-| S10  | Integration and production hardening    | `planned`     | S09        | —          | —                                                                                                                                                                                 |
+| Step | Capability                              | Status     | Depends on | Checkpoint | Verification notes                                                                                                                                                                                         |
+| ---- | --------------------------------------- | ---------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline     | `complete` | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                                                  |
+| S01  | Platform foundation                     | `complete` | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass                          |
+| S02  | Authentication and employees            | `complete` | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
+| S03  | Progressive Web App shell               | `complete` | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
+| S04  | Owner jobs and Kanban                   | `complete` | S03        | —          | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
+| S05  | Employee job execution and owner review | `planned`  | S04        | —          | —                                                                                                                                                                                                          |
+| S06  | Roster data and calendar views          | `planned`  | S05        | —          | —                                                                                                                                                                                                          |
+| S07  | Calendar interactions                   | `planned`  | S06        | —          | —                                                                                                                                                                                                          |
+| S08  | Templates and job schedules             | `planned`  | S07        | —          | —                                                                                                                                                                                                          |
+| S09  | Operational dashboards                  | `planned`  | S08        | —          | —                                                                                                                                                                                                          |
+| S10  | Integration and production hardening    | `planned`  | S09        | —          | —                                                                                                                                                                                                          |
 
 ## Rules that apply to every step
 
@@ -386,45 +386,73 @@ Update S03 status, verification notes, checkpoint, and TODOs. Finish only after 
 ### PRD references
 
 - JOB-01 through JOB-03
+- EDASH-02 (read-only assigned work queue only; execution remains S05)
 - Sections 5, 6.5, and `/dashboard/jobs`
 - Sequential implementation Step 4
 
 ### Outcome
 
-An owner can create, inspect, filter, assign, and reassign jobs through the employee-column board.
+An owner can create, inspect, filter, assign, and reassign jobs through a fixed Unassigned, Assigned, and To review workflow, while employees can see their assigned work ranked by urgency.
 
 ### Tasks
 
-- Create jobs and immutable job-update migrations and RLS.
-- Implement central state-transition and assignment domain rules.
-- Implement owner job creation and validation.
-- Implement Unassigned, working-now, rostered-today, and remaining-employee column ordering.
-- Add Active, Review, and Archived filters.
-- Port and clean Kanban styling, drag/drop, optimistic update, and rollback behaviour.
-- Record creation and assignment audit updates.
-- Expose job aggregate query contracts needed by the later dashboard step.
+- [x] Create jobs and immutable job-update migrations and RLS.
+- [x] Implement central state-transition and assignment domain rules.
+- [x] Implement owner job creation, editing, and validation.
+- [x] Replace employee columns with fixed Unassigned, Assigned, and To review workflow columns.
+- [x] Show active and historical assignee identity while excluding invited and inactive assignment targets.
+- [x] Add Workflow and single-column Archived filters.
+- [x] Preserve keyboard/pointer drag/drop, assignment selection, optimistic update, and rollback behaviour.
+- [x] Fill the remaining viewport height, scroll cards within columns, and snap full-width columns on mobile.
+- [x] Render employee names rather than membership identifiers in every job assignment Select.
+- [x] Record creation, editing, and assignment audit updates.
+- [x] Expose job aggregate query contracts needed by the later dashboard step.
+- [x] Replace S02 employee-detail placeholders with active and archived job summaries.
+- [x] Add an employee-only assigned-jobs list ordered by priority, due time, and recent activity.
+- [x] Add the shared private Broadcast invalidation layer for memberships, employee profiles, jobs, job updates, and roster changes.
 
 ### Tests
 
-- Job validation and allowed state transitions.
-- Employee-column ordering.
-- Assignment authorisation and audit history.
-- Owner/employee/cross-organisation RLS.
-- Optimistic reassignment and rollback.
-- Owner creates and reassigns a job E2E journey.
+- [x] Job validation and allowed state transitions.
+- [x] Workflow status/assignee mapping and archived separation.
+- [x] Assignment authorisation and audit history.
+- [x] Owner/employee/cross-organisation RLS.
+- [x] Assignee identity, assignment selection, optimistic reassignment, cancellation, and rollback.
+- [x] Owner creates, edits, validates, filters, and reassigns a job E2E journey.
+- [x] Accessible pointer/keyboard drag and mobile assignment-control coverage.
+- [x] Viewport-height, mobile snap-width, and selected-assignee label coverage.
+- [x] Employee jobs route visibility, urgency ordering, and cross-job isolation.
+- [x] Realtime topic authorization, trigger routing, connection recovery, optimistic reconciliation, and multi-session employee/owner updates.
 
 ### Completion gate
 
-- Owner job management works without employee execution features.
-- The board has accessible non-drag assignment controls.
-- No template or schedule behaviour is introduced early.
+- [x] Owner job management works without employee execution features.
+- [x] The board has accessible non-drag assignment controls.
+- [x] No template or schedule behaviour is introduced early.
+
+### S04 checkpoint
+
+- Commit: Pending; the user has not requested a Git checkpoint commit.
+- PRD stories verified: JOB-01 through JOB-03 plus the read-only EDASH-02 queue, role-specific `/dashboard/jobs`, immutable create/edit/assignment audit history, assignment permissions, employee summaries, fixed workflow mapping, historical assignee display, Workflow/Archived views, equal desktop column widths, responsive header controls, remaining-viewport column height, mobile full-width snapping, and human-readable assignment controls.
+- Commands passed: `pnpm test` (65 unit/component checks), `pnpm lint`, `pnpm typecheck`, `pnpm test:db` (123 pgTAP checks), `pnpm exec supabase db lint --level warning`, focused owner-jobs Playwright coverage (2), isolated full Playwright regression (54 passed and 2 intentional project skips), `pnpm build`, and the single final `pnpm db:reset`.
+- Project skills and references used: `supabase`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and `playwright-best-practices`; Next.js 16 server/client component and form guides; React server-serialization and derived-state guidance; Playwright locator, waiting, drag/drop, and mobile guidance; Supabase July 2026 changelog reviewed with no applicable breaking change.
+- Migration disposition: no schema change was required; the existing job status, assignment RPC, RLS, audit, Realtime, and roster contracts remain unchanged.
+- Reference disposition: consumed the column layout, muted card treatment, sortable grouping, filter controls, optimistic movement, and rollback patterns from `components/ref-files/dashboard-workspace.tsx`; replaced the reference grip treatment with a functional edit action and shadcn form controls, then removed the consumed duplicate. Shared helper references still needed by the future roster/calendar steps remain in place. Production code has only repository-native imports and contracts.
+- S04 refinement: the owner board has fixed Unassigned, Assigned, and To review columns; Assigned includes `assigned` and `in_progress`; only employee submission can enter To review; Archived is a separate single-column view matching one Workflow column's desktop width. Columns fill the remaining viewport and scroll cards internally; mobile columns occupy the board width and snap horizontally. The Workflow/Archived tabs sit left of Create job on desktop and span the row beneath the button on mobile, without a redundant workflow explainer. Cards and every assignment Select show active or inactive historical assignee names rather than membership IDs, while only active employees appear as assignment targets. Dropping into Assigned opens a required employee picker, cancellation preserves Unassigned, and pointer/keyboard/mobile assignment paths are verified. The final layout-only refinement was not retested at the user's request.
+- Employee handoff: active employees can open Jobs from their sidebar and see only currently assigned, non-archived work ordered urgent-to-low, then by due time and recent activity. Start/resume, notes, evidence, submission, and review actions remain S05.
+- Realtime foundation: private `org:<organisationId>:operations` and `member:<membershipId>:work` Broadcast topics carry versioned invalidation metadata only. Existing membership, employee-profile, job, job-update, and roster tables publish through a reusable private helper; S05–S09 attach future evidence, review, template, schedule, and dashboard consumers without exposing row payloads.
+- Realtime UI: one dashboard-level subscription refreshes authoritative RLS-filtered server data, coalesces event bursts, recovers after reconnect or stale-tab focus, and shows a non-blocking degraded state only after a sustained failure. The Kanban defers refreshed snapshots while optimistic assignments are pending.
+- Shared-step overlap: S04's minimal `roster_shifts` table, overlap constraint, and read RLS remain as S06 prerequisites but are no longer queried to arrange the Jobs board. S04 also publishes the shared Realtime topic/event contract for S05–S09. Roster writes, calendar ranges, calendar UI, roster mutation behaviour, and future domain-specific Realtime triggers remain owned by their respective steps.
+- Test infrastructure: Playwright now accepts an isolated `PLAYWRIGHT_BASE_URL` port, preventing unrelated development servers from being reused during deterministic verification.
+- Environment variable names changed: none. `.env.example` and `.env.local` require no S04 changes. Hosted environments must enforce private Realtime channels in project settings.
+- Deferred work: employee execution, evidence, review, and lifecycle actions remain S05; roster/calendar views and mutations remain S06/S07; templates and schedules remain S08; dashboard composition remains S09.
 
 ### Implementation prompt
 
 ```text
 Implement S04 Owner Jobs and Kanban from FEATURES.md against PRD stories JOB-01–JOB-03.
 
-Build job and audit schema/RLS, domain transitions, owner creation, filters, employee-column ordering, assignment/reassignment, accessible alternatives, and optimistic rollback. Use S02's employee display contract.
+Build job and audit schema/RLS, domain transitions, owner creation, fixed Unassigned/Assigned/To review workflow mapping, Workflow/Archived filters, assignment/reassignment with employee selection, accessible alternatives, historical assignee display, and optimistic rollback. Use S02's employee display contract.
 
 Inspect the reference Kanban, actions, queries, and styling first. Preserve useful interaction and visual behaviour while replacing obsolete imports, domain types, permissions, and actions. Do not implement employee notes/evidence/submission, templates, schedules, or dashboards.
 
@@ -495,7 +523,7 @@ Owners can view accurate employee week and organisation day rosters, and employe
 
 ### Tasks
 
-- Create roster shift migration and RLS.
+- Extend the S04 prerequisite roster-shift schema/RLS with calendar query contracts.
 - Add server-side overlap prevention.
 - Add organisation-timezone and calendar-range helpers.
 - Implement selected-employee seven-day view.
@@ -717,21 +745,21 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 - Do not mark it resolved until the integrated behaviour and relevant regression test pass.
 - If resolution changes product behaviour, update `PRD.md` first.
 
-| ID       | Introduced in   | Target step | Deferred work                                                                                                 | Status    | Resolution/checkpoint                                                                                 |
-| -------- | --------------- | ----------- | ------------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                      | `planned` | —                                                                                                     |
-| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                   | `planned` | —                                                                                                     |
-| TODO-003 | Schema steps    | S10         | Regenerate and verify final combined Supabase types.                                                          | `planned` | —                                                                                                     |
-| TODO-004 | All steps       | S10         | Reconcile final dependencies and remove unused packages.                                                      | `planned` | —                                                                                                     |
-| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                     | `planned` | —                                                                                                     |
-| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite. |
-| TODO-007 | All steps       | S10         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                              | `planned` | —                                                                                                     |
-| TODO-008 | S04/S07         | S10         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned` | —                                                                                                     |
-| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.               | `planned` | —                                                                                                     |
-| TODO-010 | All steps       | S10         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.            | `planned` | —                                                                                                     |
-| TODO-011 | S01/S04/S06/S07 | S10         | Remove superseded reference duplicates and verify repository-native production imports.                       | `planned` | S01 Supabase duplicates removed; remaining reference disposition continues in S04, S06, S07, and S10. |
-| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                             | `planned` | S02 renders an explicit S04 deferred state.                                                           |
-| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.        | `planned` | S02 renders explicit S06 deferred states.                                                             |
+| ID       | Introduced in   | Target step | Deferred work                                                                                                 | Status     | Resolution/checkpoint                                                                                                                         |
+| -------- | --------------- | ----------- | ------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                      | `planned`  | —                                                                                                                                             |
+| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                   | `planned`  | Jobs consumption completed in S04; roster consumption remains for S06.                                                                        |
+| TODO-003 | Schema steps    | S10         | Regenerate and verify final combined Supabase types.                                                          | `planned`  | —                                                                                                                                             |
+| TODO-004 | All steps       | S10         | Reconcile final dependencies and remove unused packages.                                                      | `planned`  | —                                                                                                                                             |
+| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                     | `planned`  | S04 published job aggregate and employee-summary contracts; roster aggregates remain S06 and composition remains S09.                         |
+| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite.   |
+| TODO-007 | All steps       | S10         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                              | `planned`  | —                                                                                                                                             |
+| TODO-008 | S04/S07         | S10         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned`  | —                                                                                                                                             |
+| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.               | `planned`  | —                                                                                                                                             |
+| TODO-010 | All steps       | S10         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.            | `planned`  | —                                                                                                                                             |
+| TODO-011 | S01/S04/S06/S07 | S10         | Remove superseded reference duplicates and verify repository-native production imports.                       | `planned`  | S01 Supabase duplicates removed; S04 Kanban patterns consumed into repository-native modules; remaining disposition continues in S06/S07/S10. |
+| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                             | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                  |
+| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.        | `planned`  | S02 renders explicit S06 deferred states.                                                                                                     |
 
 ### New TODO template
 

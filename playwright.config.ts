@@ -53,7 +53,12 @@ function readLocalSupabaseEnvironment() {
 }
 
 const localSupabaseEnvironment = readLocalSupabaseEnvironment()
-const baseURL = "http://127.0.0.1:4000"
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000"
+const playwrightPort = new URL(baseURL).port || "80"
+
+if (!/^\d+$/.test(playwrightPort)) {
+  throw new Error("PLAYWRIGHT_BASE_URL must contain a numeric port")
+}
 
 process.env.PLAYWRIGHT_BASE_URL = baseURL
 
@@ -70,7 +75,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm dev --hostname 127.0.0.1",
+    command: `pnpm dev --hostname 127.0.0.1 --port ${playwrightPort}`,
     env: {
       ...localSupabaseEnvironment,
       PPH_PLAYWRIGHT_SERVER: "1",

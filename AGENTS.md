@@ -15,6 +15,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Update the active step status, verification results, and deferred integration TODOs in `FEATURES.md` as part of the implementation.
 - Record cross-step or shared-file overlap immediately; do not silently redesign a completed step's contract.
 - Add new Supabase migrations instead of editing migrations owned by another merged feature.
+- Do not repeatedly reset the local database between test passes. Apply migrations once, run focused and full verification against the current state, and perform a single final reset only after the implementation and all required tests pass so canonical seed data is restored.
 - Inspect the relevant remaining `components/ref-files/**` implementation before rebuilding equivalent styling or functionality; preserve and reuse suitable interactions, visual treatment, logic, and assets.
 - You may clean, refactor, split, move, or remove reference code as it is absorbed into production, but finished production modules must use repository-native imports, types, permissions, and tests rather than unresolved `@eva/*` or reference-only dependencies. Record consumed and removed references in `FEATURES.md`.
 - Maintain Supabase session refresh through the S01 production contract: one root-level `proxy.ts` delegates to `lib/supabase/proxy.ts`. Extend those project-native modules directly; the consumed Supabase client and Proxy prototypes have been removed from `components/ref-files`.

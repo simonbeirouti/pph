@@ -1,18 +1,9 @@
 "use client"
 
-import {
-  useActionState,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react"
+import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
 
-import {
-  EmployeeProfileFields,
-  FieldErrors,
-} from "@/components/employee-form"
+import { EmployeeProfileFields, FieldErrors } from "@/components/employee-form"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import type { EmployeeSummary } from "@/lib/employees/data"
+import type { EmployeeJobSummary } from "@/lib/jobs/types"
 import {
   INITIAL_ACTION_STATE,
   type ActionState,
@@ -38,9 +30,11 @@ type EmployeeFormAction = (
 export function EmployeeSheetProfile({
   action,
   employee,
+  jobSummary,
 }: {
   action: EmployeeFormAction
   employee: EmployeeSummary
+  jobSummary: EmployeeJobSummary
 }) {
   const [dirty, setDirty] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -157,9 +151,38 @@ export function EmployeeSheetProfile({
           <FieldErrors errors={state.errors?.avatar} />
           <div className="grid gap-1">
             <h3 className="font-medium">Work summary</h3>
-            <p className="text-sm text-muted-foreground">
-              Job summaries will be connected in S04. Upcoming shifts will be
-              connected in S06.
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-2xl font-semibold">
+                  {jobSummary.active.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Active jobs</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-2xl font-semibold">
+                  {jobSummary.archived.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Recent archived</p>
+              </div>
+            </div>
+            {jobSummary.active.length ? (
+              <div className="mt-2 grid gap-2">
+                {jobSummary.active.map((job) => (
+                  <div className="rounded-md border p-2.5" key={job.id}>
+                    <p className="text-sm font-medium">{job.title}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {job.priority} · {job.status.replace("_", " ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="pt-2 text-sm text-muted-foreground">
+                No active jobs assigned.
+              </p>
+            )}
+            <p className="pt-2 text-xs text-muted-foreground">
+              Upcoming shifts will be connected in S06.
             </p>
           </div>
           <div className="grid gap-3 border-t pt-5">
