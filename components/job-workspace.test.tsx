@@ -194,9 +194,9 @@ describe("JobWorkspace", () => {
 
     await waitFor(() =>
       expect(
-        within(assignedColumn).getByRole("article", {
-          name: "Job Inspect loading bay",
-        })
+        within(
+          screen.getByRole("region", { name: "Assigned jobs" })
+        ).getByRole("article", { name: "Job Inspect loading bay" })
       ).toBeVisible()
     )
     expect(

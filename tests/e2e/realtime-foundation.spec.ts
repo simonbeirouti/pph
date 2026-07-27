@@ -83,7 +83,9 @@ test("job changes reach active employee sessions without reload", async ({
       name: `Job ${updatedTitle}`,
     })
     await updatedOwnerJob.getByRole("combobox", { name: "Assign to" }).click()
-    await ownerPage.getByRole("option", { name: "Unassigned" }).click()
+    await ownerPage
+      .getByRole("option", { name: "Unassign", exact: true })
+      .click()
     await expect(
       employeePage.getByRole("article", {
         name: `Job ${updatedTitle}`,

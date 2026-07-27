@@ -105,6 +105,14 @@ export function JobWorkspace({
   const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
   const columns = columnsForJobView(view)
   const canonicalBoard = useMemo(() => buildBoard(jobs, view), [jobs, view])
+  const dragContextKey = useMemo(
+    () =>
+      jobs
+        .map((job) => `${job.id}:${jobWorkflowColumn(job)}`)
+        .toSorted()
+        .join("|"),
+    [jobs]
+  )
   const [dragBoard, setDragBoard] = useState<BoardItems | null>(null)
   const dragBoardRef = useRef<BoardItems | null>(null)
   const viewRef = useRef<JobView>(view)
@@ -282,6 +290,7 @@ export function JobWorkspace({
       </div>
 
       <DragDropProvider
+        key={dragContextKey}
         onDragStart={() => {
           dragBoardRef.current = canonicalBoard
           setDragBoard(canonicalBoard)
@@ -432,7 +441,7 @@ function JobColumn({
               assignmentTargets={assignmentTargets}
               index={index}
               job={job}
-              key={job.id}
+              key={`${column.key}-${job.id}`}
               onAssign={onAssign}
               onUpdated={onUpdated}
               pending={pendingIds.has(job.id)}

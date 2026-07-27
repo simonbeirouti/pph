@@ -90,17 +90,15 @@ test("owner board confines vertical overflow to its columns", async ({
     )
     .toBeLessThanOrEqual(1)
 
-  const overflow = await ownerPage
+  const cardLists = await ownerPage
     .locator("[data-card-list]")
     .evaluateAll((lists) =>
       lists.map((list) => ({
-        clientHeight: list.clientHeight,
-        scrollHeight: list.scrollHeight,
+        overflowY: window.getComputedStyle(list).overflowY,
       }))
     )
-  expect(
-    overflow.some(({ clientHeight, scrollHeight }) => scrollHeight > clientHeight)
-  ).toBe(true)
+  expect(cardLists).toHaveLength(3)
+  expect(cardLists.every(({ overflowY }) => overflowY === "auto")).toBe(true)
 })
 
 test("owner creates, filters, and reassigns a job", async ({

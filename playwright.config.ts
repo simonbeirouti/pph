@@ -64,10 +64,14 @@ process.env.PLAYWRIGHT_BASE_URL = baseURL
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
+  // The local suite intentionally shares one seeded organisation and its
+  // owner/employee accounts. Keep those database-backed journeys serial until
+  // worker-scoped organisations are introduced in the S11 fixture consolidation.
+  workers: 1,
   use: {
     baseURL,
     screenshot: "only-on-failure",
