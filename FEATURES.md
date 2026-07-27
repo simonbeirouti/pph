@@ -70,7 +70,7 @@ For each active step:
 | S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
 | S03  | Progressive Web App shell               | `complete`    | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
 | S04  | Owner jobs and Kanban                   | `complete`    | S03        | —          | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
-| S05  | Employee job execution and owner review | `in_progress` | S04        | —          | Submission email to the active job-creator owner is now included in S05; implementation and verification are in progress.                                                                                  |
+| S05  | Employee job execution and owner review | `complete`    | S04        | `ef897ef`  | Complete job execution/review, private evidence, creator-owner email, deterministic shared-fixture browser coverage, 96 unit/component, 170 database, and 57 desktop/mobile E2E checks pass.                  |
 | S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                                          |
 | S07  | Calendar interactions                   | `planned`     | S06        | —          | —                                                                                                                                                                                                          |
 | S08  | Templates and job schedules             | `planned`     | S07        | —          | —                                                                                                                                                                                                          |
@@ -544,7 +544,7 @@ An employee can complete assigned work with evidence, and the owner can review, 
 - Evidence remains private and authorised.
 - Notes, comments, assets, and system history remain distinct.
 
-### In-progress verification
+### Completion verification
 
 - Phone-native evidence refinement: HEIC and HEIF now pass the mobile picker,
   empty-browser-MIME normalization, server-side ISO-BMFF signature validation,
@@ -574,6 +574,15 @@ An employee can complete assigned work with evidence, and the owner can review, 
   bundled Next.js 16 forms guide, and current Supabase Storage bucket/TUS
   documentation. No applicable Storage breaking change was found.
 - Environment variable names changed: none.
+- Final S05 closure fixed the keyboard drag-assignment/Realtime reconciliation
+  race by remounting the drag context only when a job changes workflow columns,
+  made overflow and Realtime assertions independent of accumulated seed data,
+  and serialised the intentionally shared local Supabase organisation fixture.
+- Final verification: lint, TypeScript, 96 unit/component checks, 170 pgTAP
+  checks after the canonical reset, production build, three repeated focused
+  keyboard assignment journeys, and the complete desktop/mobile Playwright
+  suite (57 passed, three intentionally project-filtered checks skipped).
+- Checkpoint: `ef897ef`.
 
 ### Implementation prompt
 
