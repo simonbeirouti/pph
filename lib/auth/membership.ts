@@ -1,8 +1,11 @@
 import { cache } from "react"
+import { cookies } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 
+import { assertIanaTimezone } from "@/lib/roster/time"
 import type { Database } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
+import { VIEWER_TIMEZONE_COOKIE } from "@/lib/timezone"
 
 type MembershipRole = Database["public"]["Enums"]["membership_role"]
 type MembershipStatus = Database["public"]["Enums"]["membership_status"]
@@ -40,6 +43,7 @@ export type MembershipContext = {
   membershipId: number
   organisationId: number
   organisationName: string
+  organisationTimezone: string
   role: MembershipRole
   status: MembershipStatus
   timezone: string
@@ -68,6 +72,7 @@ export function mapMembershipContext(
     membershipId: membership.id,
     organisationId: membership.organisation_id,
     organisationName: organisation.name,
+    organisationTimezone: organisation.timezone,
     role: membership.role,
     status: membership.status,
     timezone: organisation.timezone,
@@ -105,9 +110,20 @@ export const getMembershipContext = cache(
       throw new Error("Unable to resolve the active membership")
     }
 
-    return data
-      ? mapMembershipContext(userId, data as MembershipQueryRow)
-      : null
+    if (!data) return null
+
+    const context = mapMembershipContext(userId, data as MembershipQueryRow)
+    const timezoneCookie = (await cookies()).get(VIEWER_TIMEZONE_COOKIE)?.value
+    if (!timezoneCookie) return context
+
+    try {
+      return {
+        ...context,
+        timezone: assertIanaTimezone(decodeURIComponent(timezoneCookie)),
+      }
+    } catch {
+      return context
+    }
   }
 )
 

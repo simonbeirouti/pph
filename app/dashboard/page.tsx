@@ -1,8 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmployeeShiftSummary } from "@/components/employee-shift-summary"
 import { requireActiveMembership } from "@/lib/auth/membership"
+import { getEmployeeShiftSummary } from "@/lib/roster/data"
 
 export default async function Page() {
   const membership = await requireActiveMembership()
+  const shiftSummary =
+    membership.role === "employee"
+      ? await getEmployeeShiftSummary(membership.membershipId)
+      : null
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -29,6 +35,19 @@ export default async function Page() {
           </div>
         </CardContent>
       </Card>
+      {shiftSummary ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your roster</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmployeeShiftSummary
+              summary={shiftSummary}
+              timezone={membership.timezone}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }

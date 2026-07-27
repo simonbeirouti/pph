@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/select"
 import { listEmployees } from "@/lib/employees/data"
 import { listEmployeeJobSummaries } from "@/lib/jobs/data"
+import {
+  getOwnerRosterContext,
+  listEmployeeShiftSummaries,
+} from "@/lib/roster/data"
 
 const STATUSES = new Set(["all", "invited", "active", "inactive"])
 
@@ -24,10 +28,13 @@ export default async function Page({
   const status = STATUSES.has(params.status ?? "")
     ? (params.status as "all" | "invited" | "active" | "inactive")
     : "all"
-  const [employees, jobSummaries] = await Promise.all([
-    listEmployees({ search: params.q, status }),
-    listEmployeeJobSummaries(),
-  ])
+  const [employees, jobSummaries, shiftSummaries, rosterContext] =
+    await Promise.all([
+      listEmployees({ search: params.q, status }),
+      listEmployeeJobSummaries(),
+      listEmployeeShiftSummaries(),
+      getOwnerRosterContext(),
+    ])
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -71,6 +78,8 @@ export default async function Page({
             <EmployeeDirectoryTable
               employees={employees}
               jobSummaries={jobSummaries}
+              shiftSummaries={shiftSummaries}
+              timezone={rosterContext.timezone}
             />
           ) : (
             <div className="grid justify-items-center gap-3 py-12 text-center">

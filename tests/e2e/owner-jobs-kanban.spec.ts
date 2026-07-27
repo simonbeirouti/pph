@@ -161,7 +161,22 @@ test("owner creates, filters, and reassigns a job", async ({
   await dialog.getByLabel("Assignee").click()
   await ownerPage.getByRole("option", { name: "Alex Employee" }).click()
   await expect(dialog.getByLabel("Assignee")).toContainText("Alex Employee")
+  await dialog.getByLabel("Rostered shift").click()
+  const rosteredShiftOptions = ownerPage
+    .getByRole("option")
+    .filter({ hasNotText: "No rostered shift" })
+  await expect(rosteredShiftOptions.first()).toBeVisible()
+  await rosteredShiftOptions.first().click()
+  await expect(dialog.getByLabel("Scheduled", { exact: true })).not.toContainText(
+    "Choose date and time"
+  )
+  await expect(dialog.getByLabel("Due", { exact: true })).not.toContainText(
+    "Choose date and time"
+  )
   await chooseJobDateTime(ownerPage, dialog, "Scheduled", "09:00")
+  await expect(dialog.getByLabel("Rostered shift")).toContainText(
+    "No rostered shift"
+  )
   await chooseJobDateTime(ownerPage, dialog, "Due", "08:00")
   await dialog.getByRole("button", { name: "Create job" }).click()
   await expect(

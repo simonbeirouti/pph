@@ -70,9 +70,9 @@ For each active step:
 | S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
 | S03  | Progressive Web App shell               | `complete`    | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
 | S04  | Owner jobs and Kanban                   | `complete`    | S03        | —          | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
-| S05  | Employee job execution and owner review | `complete`    | S04        | `ef897ef`  | Complete job execution/review, private evidence, creator-owner email, deterministic shared-fixture browser coverage, 96 unit/component, 170 database, and 57 desktop/mobile E2E checks pass.                  |
-| S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                                          |
-| S07  | Calendar interactions                   | `planned`     | S06        | —          | —                                                                                                                                                                                                          |
+| S05  | Employee job execution and owner review | `complete`    | S04        | `ef897ef`  | Complete job execution/review, private evidence, creator-owner email, deterministic shared-fixture browser coverage, 96 unit/component, 170 database, and 57 desktop/mobile E2E checks pass.               |
+| S06  | Roster data and views                   | `in_progress` | S05        | —          | Owner Roster route, viewer-local live time, Team day retains every active employee lane even without a shift on the selected date, viewport-contained Team day/Employee week views, employee-sheet exact create/edit, focused roster checks pass.          |
+| S07  | Roster interactions                     | `planned`     | S06        | —          | —                                                                                                                                                                                                          |
 | S08  | Templates and job schedules             | `planned`     | S07        | —          | —                                                                                                                                                                                                          |
 | S09  | Operational dashboards                  | `planned`     | S08        | —          | —                                                                                                                                                                                                          |
 | S10  | Offline employee job completion         | `planned`     | S09        | —          | Membership-scoped IndexedDB work packs and outbox, idempotent foreground sync, evidence recovery, conflict states, and offline mobile coverage.                                                            |
@@ -452,7 +452,7 @@ An owner can create, inspect, filter, assign, and reassign jobs through a fixed 
 - Shared-step overlap: S04's minimal `roster_shifts` table, overlap constraint, and read RLS remain as S06 prerequisites but are no longer queried to arrange the Jobs board. S04 also publishes the shared Realtime topic/event contract for S05–S09. Roster writes, calendar ranges, calendar UI, roster mutation behaviour, and future domain-specific Realtime triggers remain owned by their respective steps.
 - Test infrastructure: Playwright now accepts an isolated `PLAYWRIGHT_BASE_URL` port, preventing unrelated development servers from being reused during deterministic verification.
 - Environment variable names changed: none. `.env.example` and `.env.local` require no S04 changes. Hosted environments must enforce private Realtime channels in project settings.
-- Deferred work: employee execution, evidence, review, and lifecycle actions remain S05; roster/calendar views and mutations remain S06/S07; templates and schedules remain S08; dashboard composition remains S09.
+- Deferred work: employee execution, evidence, review, and lifecycle actions remain S05; roster views and mutations remain S06/S07; templates and schedules remain S08; dashboard composition remains S09.
 
 ### Implementation prompt
 
@@ -596,12 +596,12 @@ Reuse suitable reference action, upload, mutation, and UI patterns while cleanin
 Update S05 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete desktop/mobile job journey and all S05 checks pass.
 ```
 
-## S06 — Roster data and calendar views
+## S06 — Roster data and views
 
 ### PRD references
 
-- CAL-01 and CAL-02
-- Section 6.4 and `/dashboard/calendar`
+- CAL-01, CAL-02, and CAL-04
+- Section 6.4 and `/dashboard/roster`
 - Sequential implementation Step 6
 
 ### Outcome
@@ -610,33 +610,61 @@ Owners can view accurate employee week and organisation day rosters, and employe
 
 ### Tasks
 
-- Extend the S04 prerequisite roster-shift schema/RLS with calendar query contracts.
-- Add server-side overlap prevention.
-- Add organisation-timezone and calendar-range helpers.
-- Implement selected-employee seven-day view.
-- Implement all-rostered-employees single-day view.
-- Implement read-only employee current/upcoming shift query.
-- Port and clean calendar layout, slot positioning, responsive styling, and date controls.
-- Expose working-now and today-roster aggregates for dashboards.
+- [x] Extend the S04 prerequisite roster-shift schema/RLS with calendar query contracts.
+- [x] Add server-side overlap prevention.
+- [x] Add organisation-timezone and calendar-range helpers.
+- [x] Implement selected-employee seven-day view.
+- [x] Implement all-rostered-employees single-day view.
+- [x] Implement read-only employee current/upcoming shift query.
+- [x] Port and clean calendar layout, slot positioning, responsive styling, and date controls.
+- [x] Expose working-now and today-roster aggregates for dashboards.
+- [x] Provide owner-only shift creation and exact editing in the employee directory sheet as the accessible form entry point shared with S07.
+- [x] Detect and validate the viewer's browser timezone for roster date ranges, labels, positioning, and navigation.
+- [x] Show a live current-time line on today, expanding visible hours when needed and updating on minute/visibility boundaries.
+- [x] Publish current/upcoming rostered-shift choices to the S04 job form so an owner can schedule a task from the selected employee's roster.
 
 ### Tests
 
-- Timezone and date-range calculations.
-- Shift overlap prevention.
-- Owner/employee/cross-organisation RLS.
-- Week/day placement and responsive rendering.
-- Employee shift summary.
+- [x] Timezone and date-range calculations.
+- [x] Shift overlap prevention.
+- [x] Owner/employee/cross-organisation RLS.
+- [x] Week/day placement and responsive rendering.
+- [x] Employee shift summary.
+- [x] Browser-timezone synchronisation and current-line timing.
 
 ### Completion gate
 
-- Read-only roster views are correct before direct manipulation is added.
-- Shifts cannot overlap for the same employee.
-- Dashboard aggregate contracts are stable.
+- [x] Roster views are viewport-contained and exact employee-sheet forms are correct before direct roster manipulation is added.
+- [x] Shifts cannot overlap for the same employee.
+- [x] Dashboard aggregate contracts are stable.
+
+### S06 checkpoint
+
+- PRD stories verified: CAL-01, CAL-02, CAL-04, section 6.4, and the owner-only `/dashboard/roster` route.
+- Delivered Team day and Employee week route state, safe date/employee fallbacks, Monday–Sunday range loading, mobile single-day snapping and adjacent-week gestures, a sticky time rail/header, fixed readable Team day employee labels, stable accessible colours, overnight clipping, a complete 24-hour grid fitted to the available height, and shift-detail access. Redundant date/timezone metadata is omitted from the page header.
+- Roster rendering now detects the viewer's browser IANA timezone, validates it server-side through route state, and uses it consistently for local dates, week boundaries, labels, shift placement, and navigation. The organisation timezone remains the safe initial fallback.
+- Added the CAL-04 current-time line ahead of S07: it appears only on the viewer-local today, spans all Team-day lanes or today's Employee-week column, updates at the next minute and on visibility restore, and remains visible within the complete fitted 24-hour day.
+- Replaced S02 roster placeholders in the employee directory, profile sheet, employee detail, and employee dashboard with current/upcoming self-scoped summaries.
+- Added owner-only, minute-precision shift creation and exact editing beneath the employee-sheet Shifts area. Shift changes remain independent from profile dirty state and saving. Active same-organisation employees are enforced in both the Server Action and RLS; inactive employees remain read-only, overnight shifts are supported, and overlap/stale/invalid errors remain specific and safe.
+- Published repository-native `RosterShift`, calendar, lane, summary, working-now, and today-roster contracts. Today totals clip overnight shifts to the requested organisation-local range.
+- Cross-step overlap: S06 additively extends the completed S04 job form with
+  assignee-filtered rostered-shift choices. The server resolves the selected
+  shift inside the active organisation and employee boundary before using its
+  start and end as the task schedule and due time; manual job scheduling
+  remains supported.
+- Migration `20260727105446_roster_calendar_reads.sql` makes archived shifts fail closed in SELECT RLS and adds owner-only INSERT/UPDATE policies and column grants while preserving employee read-only access, database overlap enforcement, and the established organisation boundaries. The existing overlap exclusion and partial organisation/start index were retained; `EXPLAIN` confirmed an index scan for the Team week intersection query, so no redundant index was added.
+- Verification passed: lint, type-check, generated Supabase types, 116 unit/component tests, 188 pgTAP checks, production build, and the prior 63 runnable desktop/mobile Playwright suite with 3 intentional mobile skips. A focused desktop/mobile browser regression additionally verifies browser-timezone route state and the visible live line.
+- Roster-to-job scheduling verification passed: 8 focused validation/component
+  checks, lint, type-check, diff validation, and the 3-check Chromium owner jobs
+  journey including assignee-filtered shift selection and manual override.
+- Project skills and references used: `supabase`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and `playwright-best-practices`; Next.js 16 page/search-param and client-boundary guidance; current Supabase RLS/query-optimisation guidance; `components/ref-files/roster-calendar.tsx` and `components/ref-files/roster-time.ts`.
+- Reference disposition: the useful vertical grid, sticky header/time rail, viewport fill, mobile snapping, and timezone conversion patterns were ported into repository-native roster modules. The reference calendar remains for S07 pointer/optimistic interaction consumption; its unrelated automation/task domain is not imported into production.
+- Environment contract: no variables were added, renamed, or removed.
 
 ### Implementation prompt
 
 ```text
-Implement S06 Roster Data and Calendar Views from FEATURES.md against PRD stories CAL-01 and CAL-02.
+Implement S06 Roster Data and Views from FEATURES.md against PRD stories CAL-01 and CAL-02.
 
 Build roster schema/RLS, overlap protection, timezone helpers, selected-employee week view, all-employees day view, employee shift summary, and dashboard aggregate queries.
 
@@ -645,25 +673,23 @@ Inspect the reference calendar, roster time helpers, and styling first. Preserve
 Update S06 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after roster data, RLS, rendering, lint, type-check, test, and build checks pass.
 ```
 
-## S07 — Calendar interactions
+## S07 — Roster interactions
 
 ### PRD references
 
-- CAL-03 and CAL-04
+- CAL-03; CAL-04 was completed early in S06
 - Sequential implementation Step 7
 
 ### Outcome
 
-Owners can manage shifts directly on the calendar with precise, safe, and accessible interactions.
+Owners can manage shifts directly on the roster with precise, safe, and accessible interactions.
 
 ### Tasks
 
 - Add slot-based shift creation.
-- Add exact edit form.
 - Add drag, resize, copy, and confirmed delete.
 - Snap changes to 15-minute increments.
 - Add optimistic updates and rollback.
-- Add current-time indicator with minute updates.
 - Provide non-drag alternatives.
 
 ### Tests
@@ -671,22 +697,21 @@ Owners can manage shifts directly on the calendar with precise, safe, and access
 - Create, edit, move, resize, copy, and delete.
 - Invalid ranges and overlap rejection.
 - Optimistic rollback.
-- Current-time visibility and positioning.
 - Keyboard-accessible alternatives.
 - Complete owner roster-management E2E journey.
 
 ### Completion gate
 
-- All calendar manipulation works against the S06 server contracts.
+- All roster manipulation works against the S06 server contracts.
 - Failed mutations restore the prior visible roster.
-- Reference calendar code consumed by this step is cleaned or documented for removal.
+- Reference roster code consumed by this step is cleaned or documented for removal.
 
 ### Implementation prompt
 
 ```text
-Implement S07 Calendar Interactions from FEATURES.md against PRD stories CAL-03 and CAL-04.
+Implement S07 Roster Interactions from FEATURES.md against PRD story CAL-03 while preserving the completed S06 CAL-04 contract.
 
-Extend the verified S06 calendar with create/edit/move/resize/copy/delete, 15-minute snapping, optimistic rollback, current-time indicator, accessible non-drag controls, and tests.
+Extend the verified S06 roster with direct slot creation, move/resize/copy/delete, 15-minute snapping, optimistic rollback, accessible non-drag controls, and tests. Preserve the exact employee-sheet forms and live current-time indicator already delivered in S06.
 
 Clean and reuse suitable reference calendar interactions and styling without reintroducing obsolete task/automation domain behaviour. Update S07 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete roster-management journey and all S07 checks pass.
 ```
@@ -932,22 +957,22 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 - Do not mark it resolved until the integrated behaviour and relevant regression test pass.
 - If resolution changes product behaviour, update `PRD.md` first.
 
-| ID       | Introduced in   | Target step | Deferred work                                                                                                                                                    | Status     | Resolution/checkpoint                                                                                                                         |
-| -------- | --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                                                                         | `planned`  | —                                                                                                                                             |
-| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                                                                      | `planned`  | Jobs consumption completed in S04; roster consumption remains for S06.                                                                        |
-| TODO-003 | Schema steps    | S11         | Regenerate and verify final combined Supabase types.                                                                                                             | `planned`  | —                                                                                                                                             |
-| TODO-004 | All steps       | S11         | Reconcile final dependencies and remove unused packages.                                                                                                         | `planned`  | —                                                                                                                                             |
-| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `planned`  | S04 published job aggregate and employee-summary contracts; roster aggregates remain S06 and composition remains S09.                         |
-| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                                                                     | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite.   |
-| TODO-007 | All steps       | S11         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                                                                                 | `planned`  | —                                                                                                                                             |
-| TODO-008 | S04/S07         | S11         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified.                                                    | `planned`  | —                                                                                                                                             |
-| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `planned`  | —                                                                                                                                             |
-| TODO-010 | All steps       | S11         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.                                                               | `planned`  | —                                                                                                                                             |
-| TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S01 Supabase duplicates removed; S04 Kanban patterns consumed into repository-native modules; remaining disposition continues in S06/S07/S11. |
-| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                                                                                | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                  |
-| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.                                                           | `planned`  | S02 renders explicit S06 deferred states.                                                                                                     |
-| TODO-014 | S03/S05         | S10         | Extend the install-only PWA and online employee job lifecycle with the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries. | `planned`  | S03 deliberately stopped at the installable shell; S05 remains the authoritative online job and evidence contract consumed by S10.            |
+| ID       | Introduced in   | Target step | Deferred work                                                                                                                                                    | Status     | Resolution/checkpoint                                                                                                                       |
+| -------- | --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                                                                         | `planned`  | —                                                                                                                                           |
+| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                                                                      | `complete` | Jobs consumption completed in S04; S06 now consumes `ActiveEmployeeOption` for employee lanes and the week selector.                        |
+| TODO-003 | Schema steps    | S11         | Regenerate and verify final combined Supabase types.                                                                                                             | `planned`  | —                                                                                                                                           |
+| TODO-004 | All steps       | S11         | Reconcile final dependencies and remove unused packages.                                                                                                         | `planned`  | —                                                                                                                                           |
+| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `planned`  | S04 job aggregates and S06 working-now/today-roster contracts are published; dashboard composition remains S09.                             |
+| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                                                                     | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite. |
+| TODO-007 | All steps       | S11         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                                                                                 | `planned`  | —                                                                                                                                           |
+| TODO-008 | S04/S07         | S11         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified.                                                    | `planned`  | S06 established the exact employee-sheet form alternative; S07 still owns optimistic roster manipulation and rollback.                      |
+| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `planned`  | —                                                                                                                                           |
+| TODO-010 | All steps       | S11         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.                                                               | `planned`  | —                                                                                                                                           |
+| TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S06 ported roster grid/time patterns without reference imports; S07 still owns pointer and optimistic interaction consumption.              |
+| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                                                                                | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                |
+| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.                                                           | `complete` | S06 supplies current/upcoming summaries in the directory, profile sheet, detail page, and employee dashboard.                               |
+| TODO-014 | S03/S05         | S10         | Extend the install-only PWA and online employee job lifecycle with the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries. | `planned`  | S03 deliberately stopped at the installable shell; S05 remains the authoritative online job and evidence contract consumed by S10.          |
 
 ### New TODO template
 

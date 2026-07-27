@@ -4,6 +4,7 @@ import { updateEmployeeAction } from "@/app/dashboard/employees/actions"
 import { EmployeeAccessActions } from "@/components/employee-access-actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeForm } from "@/components/employee-form"
+import { EmployeeShiftSummary } from "@/components/employee-shift-summary"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/card"
 import { getEmployee } from "@/lib/employees/data"
 import { getEmployeeJobSummary } from "@/lib/jobs/data"
+import { getEmployeeShiftSummary } from "@/lib/roster/data"
+import { requireOwner } from "@/lib/auth/membership"
 
 export default async function Page({
   params,
@@ -27,9 +30,11 @@ export default async function Page({
   const { access } = await searchParams
   const membershipId = Number(rawMembershipId)
   if (!Number.isSafeInteger(membershipId)) notFound()
-  const [employee, jobSummary] = await Promise.all([
+  const [employee, jobSummary, shiftSummary, owner] = await Promise.all([
     getEmployee(membershipId),
     getEmployeeJobSummary(membershipId),
+    getEmployeeShiftSummary(membershipId),
+    requireOwner(),
   ])
   if (!employee) notFound()
   const updateAction = updateEmployeeAction.bind(null, membershipId)
@@ -107,9 +112,15 @@ export default async function Page({
           <CardHeader>
             <CardTitle>Upcoming shifts</CardTitle>
             <CardDescription>
-              Roster information will be connected in S06.
+              Current and next scheduled roster entries.
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <EmployeeShiftSummary
+              summary={shiftSummary}
+              timezone={owner.timezone}
+            />
+          </CardContent>
         </Card>
       </div>
 

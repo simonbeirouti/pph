@@ -7,6 +7,7 @@ import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import { DashboardRealtimeProvider } from "@/components/dashboard-realtime-provider"
 import { PwaInstallCard } from "@/components/pwa-install-card"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
+import { ViewerTimezoneSync } from "@/components/viewer-timezone-sync"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
           role: membership.role,
         }}
       >
+        <ViewerTimezoneSync timezone={membership.timezone} />
         <AppSidebar avatarUrl={avatarUrl} membership={membership} />
         <SidebarInset>
           <ServiceWorkerRegistration />
@@ -56,7 +58,9 @@ export default async function DashboardLayout({
               <DashboardBreadcrumb />
             </div>
           </header>
-          <main className="flex flex-1 flex-col p-4 md:p-6">{children}</main>
+          <main className="flex min-w-0 flex-1 flex-col p-4 md:p-6">
+            {children}
+          </main>
         </SidebarInset>
       </DashboardRealtimeProvider>
     </SidebarProvider>

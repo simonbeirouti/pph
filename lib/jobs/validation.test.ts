@@ -14,6 +14,7 @@ const validJob = {
   minimumCompletionPhotos: "0",
   priority: "normal",
   requiresCompletionNote: false,
+  rosterShiftId: "",
   scheduledAt: "",
   title: "Inspect loading bay",
 }

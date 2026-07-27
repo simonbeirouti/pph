@@ -49,6 +49,7 @@ import type {
   JobBoardColumn,
   JobBoardEmployee,
   JobCard,
+  JobRosterShiftOption,
   JobView,
   JobWorkflowColumnKey,
 } from "@/lib/jobs/types"
@@ -91,10 +92,12 @@ function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
 export function JobWorkspace({
   employees,
   initialJobs,
+  rosterShifts = [],
   timezone,
 }: {
   employees: readonly JobBoardEmployee[]
   initialJobs: readonly JobCard[]
+  rosterShifts?: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const [view, setView] = useState<JobView>("workflow")
@@ -261,6 +264,7 @@ export function JobWorkspace({
             <JobCreateDialog
               employees={assignmentTargets}
               onCreated={addCreatedJob}
+              rosterShifts={rosterShifts}
               timezone={timezone}
             />
           </div>
@@ -351,6 +355,7 @@ export function JobWorkspace({
                 onAssign={persistAssignment}
                 onUpdated={updateSavedJob}
                 pendingIds={pendingIds}
+                rosterShifts={rosterShifts}
                 timezone={timezone}
               />
             ))}
@@ -383,6 +388,7 @@ function JobColumn({
   onAssign,
   onUpdated,
   pendingIds,
+  rosterShifts,
   timezone,
 }: {
   assignmentTargets: readonly JobBoardEmployee[]
@@ -395,6 +401,7 @@ function JobColumn({
   ) => Promise<void>
   onUpdated: (job: JobCard) => void
   pendingIds: ReadonlySet<number>
+  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const { isDropTarget, ref } = useDroppable({
@@ -445,6 +452,7 @@ function JobColumn({
               onAssign={onAssign}
               onUpdated={onUpdated}
               pending={pendingIds.has(job.id)}
+              rosterShifts={rosterShifts}
               timezone={timezone}
             />
           ))
@@ -486,6 +494,7 @@ function JobCardView({
   onAssign,
   onUpdated,
   pending,
+  rosterShifts,
   timezone,
 }: {
   assignee: JobBoardEmployee | null
@@ -498,6 +507,7 @@ function JobCardView({
   ) => Promise<void>
   onUpdated: (job: JobCard) => void
   pending: boolean
+  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const { handleRef, isDragging, ref } = useSortable({
@@ -646,6 +656,7 @@ function JobCardView({
             employees={assignmentTargets}
             job={job}
             onUpdated={onUpdated}
+            rosterShifts={rosterShifts}
             timezone={timezone}
           />
         </div>

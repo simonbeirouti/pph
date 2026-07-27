@@ -51,12 +51,59 @@ const job: JobCard = {
   updatedAt: "2026-07-27T00:00:00.000Z",
 }
 
+const rosterShifts = [
+  {
+    employeeMembershipId: 1103,
+    endsAt: "2026-07-28T07:00:00.000Z",
+    id: 1501,
+    startsAt: "2026-07-27T23:07:00.000Z",
+  },
+]
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
 
 describe("JobWorkspace", () => {
+  it("schedules a job from the selected employee's rostered shift", async () => {
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[]}
+        rosterShifts={rosterShifts}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create job" }))
+    const dialog = screen.getByRole("dialog", { name: "Create job" })
+    expect(
+      within(dialog).getByRole("combobox", { name: "Rostered shift" })
+    ).toBeDisabled()
+
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Assignee" })
+    )
+    await user.click(await screen.findByRole("option", { name: "Alex Employee" }))
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Rostered shift" })
+    )
+    await user.click(
+      await screen.findByRole("option", {
+        name: /Tue, 28 July · 9:07 am–5:00 pm/,
+      })
+    )
+
+    expect(
+      within(dialog).getByRole("button", { name: "Scheduled" })
+    ).toHaveTextContent("28 July 2026 at 09:07")
+    expect(
+      within(dialog).getByRole("button", { name: "Due" })
+    ).toHaveTextContent("28 July 2026 at 17:00")
+  })
+
   it("shows the fixed workflow, assignee identity, and archived view", async () => {
     const user = userEvent.setup()
     const { container } = render(

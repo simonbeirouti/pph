@@ -5,6 +5,7 @@ import { CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
 
 import { EmployeeProfileFields, FieldErrors } from "@/components/employee-form"
 import { EmployeeAvatar } from "@/components/employee-avatar"
+import { EmployeeRosterShiftManager } from "@/components/employee-roster-shift-manager"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/sheet"
 import type { EmployeeSummary } from "@/lib/employees/data"
 import type { EmployeeJobSummary } from "@/lib/jobs/types"
+import type { EmployeeShiftSummary as EmployeeShiftSummaryModel } from "@/lib/roster/types"
 import {
   INITIAL_ACTION_STATE,
   type ActionState,
@@ -31,10 +33,14 @@ export function EmployeeSheetProfile({
   action,
   employee,
   jobSummary,
+  shiftSummary,
+  timezone,
 }: {
   action: EmployeeFormAction
   employee: EmployeeSummary
   jobSummary: EmployeeJobSummary
+  shiftSummary: EmployeeShiftSummaryModel
+  timezone: string
 }) {
   const [dirty, setDirty] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -75,7 +81,6 @@ export function EmployeeSheetProfile({
     <form
       action={formAction}
       className="flex min-h-0 flex-1 flex-col"
-      onChange={() => setDirty(true)}
     >
       <SheetHeader className="shrink-0 items-center border-b px-6 pb-5 text-center">
         <button
@@ -181,9 +186,15 @@ export function EmployeeSheetProfile({
                 No active jobs assigned.
               </p>
             )}
-            <p className="pt-2 text-xs text-muted-foreground">
-              Upcoming shifts will be connected in S06.
-            </p>
+            <div className="pt-3">
+              <EmployeeRosterShiftManager
+                canManage={employee.status === "active"}
+                employeeMembershipId={employee.membershipId}
+                employeeName={employee.displayName}
+                summary={shiftSummary}
+                timezone={timezone}
+              />
+            </div>
           </div>
           <div className="grid gap-3 border-t pt-5">
             <div>
@@ -192,13 +203,15 @@ export function EmployeeSheetProfile({
                 Update the employee’s name, phone number, or job title.
               </FieldDescription>
             </div>
-            <EmployeeProfileFields
-              employee={employee}
-              idPrefix={`sheet-${employee.membershipId}-`}
-              includeAvatar={false}
-              includeEmail={false}
-              state={state}
-            />
+            <div onChange={() => setDirty(true)}>
+              <EmployeeProfileFields
+                employee={employee}
+                idPrefix={`sheet-${employee.membershipId}-`}
+                includeAvatar={false}
+                includeEmail={false}
+                state={state}
+              />
+            </div>
             {dirty ? (
               <Button disabled={pending} type="submit">
                 {pending ? "Saving…" : "Save profile"}

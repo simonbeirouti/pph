@@ -49,6 +49,7 @@ export default async function Page({
       <JobWorkspace
         employees={data.employees}
         initialJobs={data.jobs}
+        rosterShifts={data.rosterShifts}
         timezone={data.timezone}
       />
       <OwnerJobDetail

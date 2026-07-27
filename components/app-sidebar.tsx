@@ -4,6 +4,7 @@ import Link from "next/link"
 import {
   BriefcaseBusinessIcon,
   Building2Icon,
+  CalendarDaysIcon,
   LayoutDashboardIcon,
   UsersIcon,
 } from "lucide-react"
@@ -115,6 +116,20 @@ export function AppSidebar({
                   >
                     <UsersIcon />
                     <span>Employees</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    aria-current={
+                      isRouteActive("/dashboard/roster") ? "page" : undefined
+                    }
+                    isActive={isRouteActive("/dashboard/roster")}
+                    tooltip="Roster"
+                    onClick={closeMobileSidebar}
+                    render={<Link href="/dashboard/roster" />}
+                  >
+                    <CalendarDaysIcon />
+                    <span>Roster</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </>

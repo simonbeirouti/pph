@@ -15,6 +15,7 @@ import type {
   JobBoardEmployee,
   JobCard,
   JobDetail,
+  JobRosterShiftOption,
   OwnerJobAggregates,
 } from "@/lib/jobs/types"
 import { sortJobsByUrgency } from "@/lib/jobs/board"
@@ -44,16 +45,26 @@ export function toJobCard(row: JobRow): JobCard {
 export const getOwnerJobBoardData = cache(async () => {
   const owner = await requireOwner()
   const supabase = await createClient()
-  const [employees, jobsResult] = await Promise.all([
+  const [employees, jobsResult, shiftsResult] = await Promise.all([
     listEmployees(),
     supabase
       .from("jobs")
       .select(JOB_FIELDS)
       .eq("organisation_id", owner.organisationId)
       .order("updated_at", { ascending: false }),
+    supabase
+      .from("roster_shifts")
+      .select("id, employee_membership_id, starts_at, ends_at")
+      .eq("organisation_id", owner.organisationId)
+      .is("archived_at", null)
+      .gt("ends_at", new Date().toISOString())
+      .order("starts_at", { ascending: true })
+      .limit(500),
   ])
 
-  if (jobsResult.error) throw new Error("Unable to load jobs")
+  if (jobsResult.error || shiftsResult.error) {
+    throw new Error("Unable to load jobs")
+  }
 
   return {
     employees: employees.map((employee): JobBoardEmployee => ({
@@ -64,6 +75,14 @@ export const getOwnerJobBoardData = cache(async () => {
       membershipId: employee.membershipId,
     })),
     jobs: (jobsResult.data ?? []).map((row) => toJobCard(row as JobRow)),
+    rosterShifts: (shiftsResult.data ?? []).map(
+      (shift): JobRosterShiftOption => ({
+        employeeMembershipId: shift.employee_membership_id,
+        endsAt: shift.ends_at,
+        id: shift.id,
+        startsAt: shift.starts_at,
+      })
+    ),
     timezone: owner.timezone,
   }
 })

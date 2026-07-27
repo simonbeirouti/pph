@@ -19,13 +19,19 @@ import {
 } from "@/components/ui/table"
 import type { EmployeeSummary } from "@/lib/employees/data"
 import type { EmployeeJobSummary } from "@/lib/jobs/types"
+import type { EmployeeShiftSummary } from "@/lib/roster/types"
+import { formatLocalTime } from "@/lib/roster/time"
 
 export function EmployeeDirectoryTable({
   employees,
   jobSummaries,
+  shiftSummaries,
+  timezone,
 }: {
   employees: EmployeeSummary[]
   jobSummaries: Record<number, EmployeeJobSummary>
+  shiftSummaries: Record<number, EmployeeShiftSummary>
+  timezone: string
 }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
     null
@@ -98,7 +104,18 @@ export function EmployeeDirectoryTable({
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground">
-                Roster available in S06
+                {shiftSummaries[employee.membershipId]?.current
+                  ? `Working until ${formatLocalTime(
+                      shiftSummaries[employee.membershipId].current!.endsAt,
+                      timezone
+                    )}`
+                  : shiftSummaries[employee.membershipId]?.upcoming[0]
+                    ? `Next ${formatLocalTime(
+                        shiftSummaries[employee.membershipId].upcoming[0]
+                          .startsAt,
+                        timezone
+                      )}`
+                    : "Not rostered"}
               </TableCell>
             </TableRow>
           ))}
@@ -120,6 +137,13 @@ export function EmployeeDirectoryTable({
                   archived: [],
                 }
               }
+              shiftSummary={
+                shiftSummaries[selectedEmployee.membershipId] ?? {
+                  current: null,
+                  upcoming: [],
+                }
+              }
+              timezone={timezone}
               key={`profile-${selectedEmployee.membershipId}`}
             />
             <div className="grid shrink-0 gap-2 border-t p-4">

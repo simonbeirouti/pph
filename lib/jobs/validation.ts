@@ -32,6 +32,10 @@ export const jobSchema = z
       .max(10, "Use between 0 and 10 photos."),
     priority: z.enum(JOB_PRIORITIES),
     requiresCompletionNote: z.boolean(),
+    rosterShiftId: z
+      .string()
+      .trim()
+      .regex(/^$|^\d+$/, "Choose a valid rostered shift."),
     scheduledAt: optionalDateTime,
     title: z
       .string()

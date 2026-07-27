@@ -29,6 +29,13 @@ export type JobBoardEmployee = {
   membershipId: number
 }
 
+export type JobRosterShiftOption = {
+  employeeMembershipId: number
+  endsAt: string
+  id: number
+  startsAt: string
+}
+
 export type JobBoardColumn = {
   description: string
   dropTarget: boolean

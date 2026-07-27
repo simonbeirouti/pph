@@ -33,6 +33,7 @@ describe("mapMembershipContext", () => {
       membershipId: 1103,
       organisationId: 1001,
       organisationName: "Harbour Operations",
+      organisationTimezone: "Australia/Melbourne",
       role: "employee",
       status: "active",
       timezone: "Australia/Melbourne",

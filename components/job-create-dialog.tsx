@@ -40,6 +40,7 @@ import type {
   JobActionState,
   JobBoardEmployee,
   JobCard,
+  JobRosterShiftOption,
 } from "@/lib/jobs/types"
 import { INITIAL_JOB_ACTION_STATE } from "@/lib/jobs/types"
 import { isoToLocalDateTime } from "@/lib/jobs/validation"
@@ -52,10 +53,12 @@ type JobFormAction = (
 export function JobCreateDialog({
   employees,
   onCreated,
+  rosterShifts,
   timezone,
 }: {
   employees: readonly JobBoardEmployee[]
   onCreated: (job: JobCard) => void
+  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
@@ -81,6 +84,7 @@ export function JobCreateDialog({
               onCreated(job)
               setOpen(false)
             }}
+            rosterShifts={rosterShifts}
             submitLabel="Create job"
             timezone={timezone}
           />
@@ -95,12 +99,14 @@ export function JobEditDialog({
   employees,
   job,
   onUpdated,
+  rosterShifts,
   timezone,
 }: {
   currentAssigneeName?: string
   employees: readonly JobBoardEmployee[]
   job: JobCard
   onUpdated: (job: JobCard) => void
+  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
@@ -137,6 +143,7 @@ export function JobEditDialog({
               onUpdated(updatedJob)
               setOpen(false)
             }}
+            rosterShifts={rosterShifts}
             submitLabel="Save changes"
             timezone={timezone}
           />
@@ -153,6 +160,7 @@ function JobForm({
   idPrefix,
   initialJob,
   onSaved,
+  rosterShifts,
   submitLabel,
   timezone,
 }: {
@@ -162,6 +170,7 @@ function JobForm({
   idPrefix: string
   initialJob?: JobCard
   onSaved: (job: JobCard) => void
+  rosterShifts: readonly JobRosterShiftOption[]
   submitLabel: string
   timezone: string
 }) {
@@ -183,6 +192,14 @@ function JobForm({
       ? String(initialJob.assigneeMembershipId)
       : "unassigned"
   )
+  const [rosterShiftId, setRosterShiftId] = useState("none")
+  const availableRosterShifts =
+    assigneeMembershipId === "unassigned"
+      ? []
+      : rosterShifts.filter(
+          (shift) =>
+            String(shift.employeeMembershipId) === assigneeMembershipId
+        )
   const selectedAssigneeName =
     assigneeMembershipId === "unassigned"
       ? "Unassigned"
@@ -279,6 +296,11 @@ function JobForm({
           <Select
             name="assigneeMembershipId"
             onValueChange={(value) => {
+              if (rosterShiftId !== "none") {
+                setDueAt("")
+                setScheduledAt("")
+              }
+              setRosterShiftId("none")
               setAssigneeMembershipId(value ?? "unassigned")
             }}
             value={assigneeMembershipId}
@@ -304,13 +326,72 @@ function JobForm({
           </Select>
           <FieldErrors errors={state.errors?.assigneeMembershipId} />
         </Field>
+        <Field>
+          <FieldLabel htmlFor={fieldId("roster-shift")}>
+            Rostered shift
+          </FieldLabel>
+          <Select
+            disabled={assigneeMembershipId === "unassigned"}
+            name="rosterShiftId"
+            onValueChange={(value) => {
+              const nextValue = value ?? "none"
+              setRosterShiftId(nextValue)
+              const shift = rosterShifts.find(
+                (option) => String(option.id) === nextValue
+              )
+              if (shift) {
+                setScheduledAt(isoToLocalDateTime(shift.startsAt, timezone))
+                setDueAt(isoToLocalDateTime(shift.endsAt, timezone))
+              }
+            }}
+            value={rosterShiftId}
+          >
+            <SelectTrigger
+              aria-invalid={Boolean(state.errors?.rosterShiftId)}
+              className="w-full"
+              id={fieldId("roster-shift")}
+            >
+              <SelectValue>
+                {rosterShiftId === "none"
+                  ? assigneeMembershipId === "unassigned"
+                    ? "Choose an assignee first"
+                    : "No rostered shift"
+                  : formatRosterShift(
+                      availableRosterShifts.find(
+                        (shift) => String(shift.id) === rosterShiftId
+                      ),
+                      timezone
+                    )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No rostered shift</SelectItem>
+              {availableRosterShifts.map((shift) => (
+                <SelectItem key={shift.id} value={String(shift.id)}>
+                  {formatRosterShift(shift, timezone)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            {assigneeMembershipId === "unassigned"
+              ? "Select an employee to see their roster."
+              : availableRosterShifts.length
+                ? "Choosing a shift sets the job start and due time from the shift."
+                : "This employee has no current or upcoming shifts."}
+          </FieldDescription>
+          <FieldErrors errors={state.errors?.rosterShiftId} />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <DateTimePicker
             error={state.errors?.scheduledAt}
             id={fieldId("scheduled-at")}
             label="Scheduled"
             name="scheduledAt"
-            onChange={setScheduledAt}
+            onChange={(value) => {
+              setRosterShiftId("none")
+              setScheduledAt(value)
+            }}
             value={scheduledAt}
           />
           <DateTimePicker
@@ -318,7 +399,10 @@ function JobForm({
             id={fieldId("due-at")}
             label="Due"
             name="dueAt"
-            onChange={setDueAt}
+            onChange={(value) => {
+              setRosterShiftId("none")
+              setDueAt(value)
+            }}
             value={dueAt}
           />
         </div>
@@ -466,4 +550,25 @@ function formatLocalDateTime(value: string) {
     month: "short",
     year: "numeric",
   }).format(date)} at ${timePart}`
+}
+
+function formatRosterShift(
+  shift: JobRosterShiftOption | undefined,
+  timezone: string
+) {
+  if (!shift) return "No rostered shift"
+  const start = new Date(shift.startsAt)
+  const end = new Date(shift.endsAt)
+  const date = new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    timeZone: timezone,
+    weekday: "short",
+  }).format(start)
+  const time = new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone,
+  })
+  return `${date} · ${time.format(start)}–${time.format(end)}`
 }

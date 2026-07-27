@@ -39,6 +39,10 @@ function jobFormValues(formData: FormData) {
     ),
     priority: String(formData.get("priority") ?? "normal"),
     requiresCompletionNote: formData.has("requiresCompletionNote"),
+    rosterShiftId:
+      String(formData.get("rosterShiftId") ?? "") === "none"
+        ? ""
+        : String(formData.get("rosterShiftId") ?? ""),
     scheduledAt: String(formData.get("scheduledAt") ?? ""),
     title: String(formData.get("title") ?? ""),
   }
@@ -48,6 +52,34 @@ function preservedJobValues(values: ReturnType<typeof jobFormValues>) {
   return Object.fromEntries(
     Object.entries(values).map(([key, value]) => [key, String(value)])
   )
+}
+
+async function resolveRosteredSchedule(input: {
+  assigneeMembershipId: number | null
+  dueAt: string | null
+  organisationId: number
+  rosterShiftId: string
+  scheduledAt: string | null
+}) {
+  if (!input.rosterShiftId) {
+    return { dueAt: input.dueAt, scheduledAt: input.scheduledAt }
+  }
+  if (!input.assigneeMembershipId) return null
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("roster_shifts")
+    .select("starts_at, ends_at")
+    .eq("id", Number(input.rosterShiftId))
+    .eq("organisation_id", input.organisationId)
+    .eq("employee_membership_id", input.assigneeMembershipId)
+    .is("archived_at", null)
+    .gt("ends_at", new Date().toISOString())
+    .maybeSingle()
+
+  return error || !data
+    ? null
+    : { dueAt: data.ends_at, scheduledAt: data.starts_at }
 }
 
 export async function createJobAction(
@@ -72,16 +104,37 @@ export async function createJobAction(
     ? Number(parsed.data.assigneeMembershipId)
     : null
   const dueAt = localDateTimeToIso(parsed.data.dueAt, owner.timezone)
-  const scheduledAt = localDateTimeToIso(
+  const requestedScheduledAt = localDateTimeToIso(
     parsed.data.scheduledAt,
     owner.timezone
   )
+  const rosteredSchedule = await resolveRosteredSchedule({
+    assigneeMembershipId,
+    dueAt,
+    organisationId: owner.organisationId,
+    rosterShiftId: parsed.data.rosterShiftId,
+    scheduledAt: requestedScheduledAt,
+  })
+  if (!rosteredSchedule) {
+    return {
+      errors: {
+        rosterShiftId: [
+          "Choose a current or upcoming shift for this employee.",
+        ],
+      },
+      message: "Check the highlighted fields.",
+      ok: false,
+      values: preservedJobValues(values),
+    }
+  }
+  const scheduledAt = rosteredSchedule.scheduledAt
+  const resolvedDueAt = rosteredSchedule.dueAt
   const { data, error } = await supabase.rpc("create_job", {
     ...(assigneeMembershipId
       ? { p_assignee_membership_id: assigneeMembershipId }
       : {}),
     p_description: parsed.data.description,
-    ...(dueAt ? { p_due_at: dueAt } : {}),
+    ...(resolvedDueAt ? { p_due_at: resolvedDueAt } : {}),
     p_location: parsed.data.location,
     p_minimum_completion_photos: parsed.data.minimumCompletionPhotos,
     p_priority: parsed.data.priority,
@@ -130,16 +183,37 @@ export async function updateJobAction(
     ? Number(parsed.data.assigneeMembershipId)
     : null
   const dueAt = localDateTimeToIso(parsed.data.dueAt, owner.timezone)
-  const scheduledAt = localDateTimeToIso(
+  const requestedScheduledAt = localDateTimeToIso(
     parsed.data.scheduledAt,
     owner.timezone
   )
+  const rosteredSchedule = await resolveRosteredSchedule({
+    assigneeMembershipId,
+    dueAt,
+    organisationId: owner.organisationId,
+    rosterShiftId: parsed.data.rosterShiftId,
+    scheduledAt: requestedScheduledAt,
+  })
+  if (!rosteredSchedule) {
+    return {
+      errors: {
+        rosterShiftId: [
+          "Choose a current or upcoming shift for this employee.",
+        ],
+      },
+      message: "Check the highlighted fields.",
+      ok: false,
+      values: preservedJobValues(values),
+    }
+  }
+  const scheduledAt = rosteredSchedule.scheduledAt
+  const resolvedDueAt = rosteredSchedule.dueAt
   const { data, error } = await supabase.rpc("update_job", {
     ...(assigneeMembershipId
       ? { p_assignee_membership_id: assigneeMembershipId }
       : {}),
     p_description: parsed.data.description,
-    ...(dueAt ? { p_due_at: dueAt } : {}),
+    ...(resolvedDueAt ? { p_due_at: resolvedDueAt } : {}),
     p_job_id: jobId,
     p_location: parsed.data.location,
     p_minimum_completion_photos: parsed.data.minimumCompletionPhotos,

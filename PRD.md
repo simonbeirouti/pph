@@ -32,10 +32,10 @@ The owner experience has four primary pages:
 
 1. Dashboard
 2. Jobs
-3. Calendar
+3. Roster
 4. Employees
 
-Employees receive a role-specific dashboard and job experience. They do not have access to the owner calendar, employee directory, templates, schedules, or other employees' work.
+Employees receive a role-specific dashboard and job experience. They do not have access to the owner roster, employee directory, templates, schedules, or other employees' work.
 
 ### 1.1 Problem statement
 
@@ -195,7 +195,7 @@ The dashboard displays:
 Acceptance criteria:
 
 - Counts are scoped to the active organisation.
-- Time calculations use the organisation timezone.
+- Viewer-facing time calculations use the signed-in user's validated browser timezone.
 - Statistics link to the relevant filtered page.
 - Empty statistics show zero rather than an error or blank state.
 
@@ -222,7 +222,7 @@ Acceptance criteria:
 - A current shift is shown before a future shift.
 - Upcoming shifts are ordered chronologically.
 - Employees only receive their own roster data.
-- Times are formatted in the organisation timezone.
+- Times are formatted in the signed-in user's validated browser timezone.
 
 #### EDASH-02: Personal work queue
 
@@ -318,6 +318,7 @@ Job fields:
 - Location
 - Priority: `low`, `normal`, `high`, or `urgent`
 - Optional assignee
+- Optional rostered shift for the selected assignee
 - Optional scheduled date and time
 - Optional due date and time
 - Whether a completion note is required
@@ -329,6 +330,12 @@ Acceptance criteria:
 - Title is required.
 - Due time cannot precede scheduled time.
 - An assignee must be an active employee in the organisation.
+- After an assignee is selected, the owner can choose from that employee's
+  current and upcoming rostered shifts.
+- Choosing a rostered shift sets the job's scheduled and due date/times from
+  the server-authoritative shift start and end. Manual changes to either
+  boundary remain available and clear the rostered-shift selection.
+- Changing or clearing the assignee clears any selected rostered shift.
 - An unassigned job is stored with status `assigned` and a null assignee.
 - Creation produces an audit update.
 - The new job appears without a full-page refresh.
@@ -464,7 +471,11 @@ Acceptance criteria:
 - Updating a schedule affects only future occurrences.
 - A failed occurrence can be retried without producing duplicates.
 
-### 3.7 Calendar and roster
+### 3.7 Roster
+
+Roster dates and times are displayed in the viewer's current browser timezone.
+The validated IANA timezone is retained in route state so server-rendered ranges
+and client-side positioning use the same local-day boundaries.
 
 #### CAL-01: Employee week view
 
@@ -490,11 +501,13 @@ Acceptance criteria:
 
 #### CAL-03: Shift management
 
-As an owner, I want to edit shifts directly from the calendar so that roster maintenance is quick.
+As an owner, I want to edit shifts directly from the roster so that roster maintenance is quick.
 
 Acceptance criteria:
 
-- Owners can create a shift from an empty calendar slot.
+- Owners can create a shift from an empty roster slot.
+- Owners can also create and exactly edit an employee's shifts from the employee directory sheet.
+- Exact shift forms accept start and end times to the minute.
 - Dragging changes the shift time or employee where the current view permits it.
 - Resizing changes start or end in 15-minute increments.
 - Owners can open a form to edit exact values and notes.
@@ -511,9 +524,9 @@ As an owner, I want to see the current time on today's roster so that I can unde
 Acceptance criteria:
 
 - A horizontal line is shown only when the displayed date range contains today.
-- Its position reflects the organisation-local current time.
-- It updates at least once per minute while the page is open.
-- It is hidden outside the visible hour range.
+- Its position reflects the viewer's browser-local current time.
+- It updates on the next minute boundary, at least once per minute afterward, and immediately when the tab becomes visible again.
+- The roster always fits the complete 24-hour day into the available calendar height.
 
 ### 3.8 Progressive Web App
 
@@ -683,7 +696,7 @@ Acceptance criteria:
 - Employees receive their own active and review jobs in a mobile-friendly list.
 - Job detail may use a nested route or route-addressable drawer, but direct linking and refresh must preserve the selected job.
 
-### `/dashboard/calendar`
+### `/dashboard/roster`
 
 - Owner-only route.
 - Contains employee week and organisation day views.
@@ -993,7 +1006,7 @@ Each implementation step should inspect the relevant reference implementation be
 
 Future implementation may port:
 
-- Calendar slot positioning and drag interactions.
+- Roster slot positioning and drag interactions.
 - Timezone conversion helpers.
 - Resend sender abstractions.
 
@@ -1177,13 +1190,13 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 - Implement start/resume, notes, evidence, submission, comments, review, reopen/reassign, and archive.
 
-### Step 6: Roster data and calendar views
+### Step 6: Roster data and views
 
 - Implement shift schema, RLS, overlap protection, employee week view, organisation day view, and employee shift summary.
 
-### Step 7: Calendar interactions
+### Step 7: Roster interactions
 
-- Add shift creation, exact editing, drag, resize, copy, delete, optimistic rollback, and current-time indicator.
+- Add direct slot creation, drag, resize, copy, delete, and optimistic rollback on top of the exact forms and live current-time indicator delivered with Step 6.
 
 ### Step 8: Templates and schedules
 
