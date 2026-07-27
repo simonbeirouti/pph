@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -96,9 +97,19 @@ describe("PWA install guidance", () => {
   it("shows browser-independent guidance without requiring an install event", async () => {
     render(<PwaInstallCard />)
 
-    expect(
-      await screen.findByRole("region", { name: "Install Employee Ops" })
-    ).toBeVisible()
+    const guidance = await screen.findByRole("region", {
+      name: "Install Employee Ops",
+    })
+
+    expect(guidance).toBeVisible()
+    expect(guidance).toHaveClass(
+      "fixed",
+      "inset-x-4",
+      "bottom-4",
+      "mx-auto",
+      "max-w-md",
+      "sm:left-auto"
+    )
     expect(screen.getByText(/from your browser menu/i)).toBeVisible()
     expect(
       screen.queryByRole("button", { name: "Install app" })
@@ -148,6 +159,27 @@ describe("PWA install guidance", () => {
         screen.queryByRole("region", { name: "Install Employee Ops" })
       ).not.toBeInTheDocument()
     )
+  })
+
+  it("gently reminds the employee every 30 seconds while visible", async () => {
+    vi.useFakeTimers()
+    render(<PwaInstallCard />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    const guidance = screen.getByRole("region", {
+      name: "Install Employee Ops",
+    })
+
+    expect(guidance).not.toHaveClass("motion-safe:animate-bounce")
+
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(guidance).toHaveClass("motion-safe:animate-bounce")
+
+    act(() => vi.advanceTimersByTime(1_000))
+    expect(guidance).not.toHaveClass("motion-safe:animate-bounce")
+    vi.useRealTimers()
   })
 
   it("offers and completes the captured browser install prompt", async () => {

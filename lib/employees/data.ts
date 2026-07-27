@@ -174,38 +174,34 @@ export const getEmployee = cache(
   }
 )
 
-export const getCurrentEmployee = cache(
-  async (): Promise<EmployeeSummary> => {
-    const membership = await requireEmployee()
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from("memberships")
-      .select(EMPLOYEE_FIELDS)
-      .eq("organisation_id", membership.organisationId)
-      .eq("id", membership.membershipId)
-      .eq("role", "employee")
-      .single()
+export const getCurrentEmployee = cache(async (): Promise<EmployeeSummary> => {
+  const membership = await requireEmployee()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("memberships")
+    .select(EMPLOYEE_FIELDS)
+    .eq("organisation_id", membership.organisationId)
+    .eq("id", membership.membershipId)
+    .eq("role", "employee")
+    .single()
 
-    if (error) throw new Error("Unable to load your profile")
-    return mapEmployee(data as unknown as EmployeeQueryRow)
-  }
-)
+  if (error) throw new Error("Unable to load your profile")
+  return mapEmployee(data as unknown as EmployeeQueryRow)
+})
 
-export const getCurrentProfile = cache(
-  async (): Promise<EmployeeSummary> => {
-    const membership = await requireActiveMembership()
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from("memberships")
-      .select(EMPLOYEE_FIELDS)
-      .eq("organisation_id", membership.organisationId)
-      .eq("id", membership.membershipId)
-      .single()
+export const getCurrentProfile = cache(async (): Promise<EmployeeSummary> => {
+  const membership = await requireActiveMembership()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("memberships")
+    .select(EMPLOYEE_FIELDS)
+    .eq("organisation_id", membership.organisationId)
+    .eq("id", membership.membershipId)
+    .single()
 
-    if (error) throw new Error("Unable to load your profile")
-    return mapEmployee(data as unknown as EmployeeQueryRow)
-  }
-)
+  if (error) throw new Error("Unable to load your profile")
+  return mapEmployee(data as unknown as EmployeeQueryRow)
+})
 
 export async function listActiveEmployeeOptions(): Promise<
   ActiveEmployeeOption[]

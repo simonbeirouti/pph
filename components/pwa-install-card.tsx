@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Download, Share, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
 
 export const PWA_INSTALL_DISMISSAL_KEY =
   "employee-operations:pwa-install-guidance:v1"
@@ -58,6 +58,7 @@ export function PwaInstallCard() {
   const [standalone, setStandalone] = useState(false)
   const [ios, setIos] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [reminding, setReminding] = useState(false)
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null)
 
@@ -95,6 +96,21 @@ export function PwaInstallCard() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!ready || standalone || dismissed) return
+
+    let reminderTimeout: ReturnType<typeof setTimeout> | undefined
+    const reminderInterval = setInterval(() => {
+      setReminding(true)
+      reminderTimeout = setTimeout(() => setReminding(false), 1_000)
+    }, 30_000)
+
+    return () => {
+      clearInterval(reminderInterval)
+      if (reminderTimeout) clearTimeout(reminderTimeout)
+    }
+  }, [dismissed, ready, standalone])
+
   if (!ready || standalone || dismissed) return null
 
   const dismiss = () => {
@@ -114,7 +130,9 @@ export function PwaInstallCard() {
   return (
     <Card
       aria-labelledby="install-app-title"
-      className="relative"
+      className={`fixed inset-x-4 bottom-4 z-40 mx-auto w-auto max-w-md shadow-lg sm:left-auto sm:mx-0 sm:w-full ${
+        reminding ? "motion-safe:animate-bounce" : ""
+      }`}
       role="region"
     >
       <Button
@@ -126,32 +144,33 @@ export function PwaInstallCard() {
       >
         <X aria-hidden="true" />
       </Button>
-      <CardHeader className="pr-12">
-        <CardTitle
-          className="flex items-center gap-2 text-base"
-          id="install-app-title"
-        >
-          <Download aria-hidden="true" className="size-4" />
-          Install Employee Ops
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col items-start gap-3 text-sm">
-        {ios ? (
-          <p className="text-muted-foreground">
-            Tap Share <Share aria-hidden="true" className="inline size-4" />,
-            then choose Add to Home Screen.
-          </p>
-        ) : (
-          <p className="text-muted-foreground">
-            Install this dashboard from your browser menu for app-like access
-            from this device.
-          </p>
-        )}
-        {installPrompt ? (
-          <Button onClick={install} size="sm">
-            Install app
-          </Button>
-        ) : null}
+      <CardContent className="grid grid-cols-[auto_1fr] items-start gap-4 text-left text-sm">
+        <Download
+          aria-hidden="true"
+          className="size-9 shrink-0 self-center text-foreground"
+          strokeWidth={1.75}
+        />
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <CardTitle className="pr-8 text-base" id="install-app-title">
+            Install Employee Ops
+          </CardTitle>
+          {ios ? (
+            <p className="text-muted-foreground">
+              Tap Share <Share aria-hidden="true" className="inline size-4" />,
+              then choose Add to Home Screen.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Install this dashboard from your browser menu for app-like access
+              from this device.
+            </p>
+          )}
+          {installPrompt ? (
+            <Button className="mt-1" onClick={install} size="sm">
+              Install app
+            </Button>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   )

@@ -44,6 +44,55 @@ export type JobActionState = {
   values?: Record<string, string>
 }
 
+export type JobParticipantIdentity = {
+  displayName: string
+  membershipId: number
+  role: "employee" | "owner"
+}
+
+export type JobEvidence = {
+  createdAt: string
+  id: number
+  mimeType: string
+  removable: boolean
+  signedUrl: string
+  sizeBytes: number
+  uploadedByMembershipId: number
+}
+
+export type JobTimelineItem = {
+  authorMembershipId: number | null
+  body: string | null
+  createdAt: string
+  id: number
+  metadata: Record<string, unknown>
+  type: Database["public"]["Enums"]["job_update_type"]
+}
+
+export type JobNotificationDelivery = {
+  attemptCount: number
+  errorMessage: string | null
+  id: number
+  lastAttemptedAt: string | null
+  recipientEmail: string | null
+  sentAt: string | null
+  status: Database["public"]["Enums"]["job_notification_status"]
+}
+
+export type JobDetail = JobCard & {
+  archivedAt: string | null
+  createdByMembershipId: number
+  evidence: JobEvidence[]
+  identities: JobParticipantIdentity[]
+  latestReopenFeedback: string | null
+  noteCount: number
+  notification: JobNotificationDelivery | null
+  startedAt: string | null
+  submissionVersion: number
+  submittedAt: string | null
+  timeline: JobTimelineItem[]
+}
+
 export type EmployeeJobSummary = {
   active: JobCard[]
   archived: JobCard[]

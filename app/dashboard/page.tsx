@@ -1,6 +1,4 @@
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PwaInstallCard } from "@/components/pwa-install-card"
 import { requireActiveMembership } from "@/lib/auth/membership"
 
 export default async function Page() {
@@ -9,9 +7,6 @@ export default async function Page() {
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Badge className="w-fit capitalize" variant="secondary">
-          {membership.role}
-        </Badge>
         <h1 className="text-2xl font-semibold tracking-tight">
           Welcome, {membership.displayName}
         </h1>
@@ -34,7 +29,6 @@ export default async function Page() {
           </div>
         </CardContent>
       </Card>
-      {membership.role === "employee" ? <PwaInstallCard /> : null}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import { DashboardRealtimeProvider } from "@/components/dashboard-realtime-provider"
+import { PwaInstallCard } from "@/components/pwa-install-card"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -41,6 +42,7 @@ export default async function DashboardLayout({
         <AppSidebar avatarUrl={avatarUrl} membership={membership} />
         <SidebarInset>
           <ServiceWorkerRegistration />
+          {membership.role === "employee" ? <PwaInstallCard /> : null}
           <header className="flex h-16 shrink-0 items-center gap-2 border-b">
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger

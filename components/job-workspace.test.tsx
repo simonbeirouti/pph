@@ -94,10 +94,15 @@ describe("JobWorkspace", () => {
     ).getByRole("article", { name: "Job Inspect loading bay" })
     expect(
       within(assignedCard).getByRole("combobox", { name: "Assign to" })
-    ).toHaveTextContent("Alex Employee")
+    ).toHaveTextContent("Alex Employee - Operator")
     expect(
       within(assignedCard).getByRole("combobox", { name: "Assign to" })
     ).not.toHaveTextContent("1103")
+    expect(
+      within(assignedCard).getByLabelText("Drag Inspect loading bay")
+    ).not.toContainElement(
+      within(assignedCard).getByRole("combobox", { name: "Assign to" })
+    )
     expect(
       screen.getByRole("region", { name: "To review jobs" })
     ).toHaveTextContent("Casey Inactive")
@@ -108,8 +113,17 @@ describe("JobWorkspace", () => {
       "snap-mandatory",
       "h-full"
     )
+    expect(container.firstElementChild).toHaveClass(
+      "h-full",
+      "min-h-0",
+      "overflow-hidden"
+    )
     for (const column of screen.getAllByRole("region")) {
       expect(column).toHaveClass("h-full", "snap-start")
+      expect(column.querySelector("[data-card-list]")).toHaveClass(
+        "min-h-0",
+        "overflow-y-auto"
+      )
     }
 
     await user.click(screen.getByRole("tab", { name: "Archived" }))
@@ -176,7 +190,7 @@ describe("JobWorkspace", () => {
     })
 
     await user.click(within(card).getByRole("combobox", { name: "Assign to" }))
-    await user.click(await screen.findByRole("option", { name: "Unassigned" }))
+    await user.click(await screen.findByRole("option", { name: "Unassign" }))
 
     await waitFor(() =>
       expect(
@@ -216,7 +230,7 @@ describe("JobWorkspace", () => {
     await user.click(
       within(originalCard).getByRole("combobox", { name: "Assign to" })
     )
-    await user.click(await screen.findByRole("option", { name: "Unassigned" }))
+    await user.click(await screen.findByRole("option", { name: "Unassign" }))
     expect(
       within(screen.getByRole("region", { name: "Unassigned jobs" })).getByRole(
         "article",

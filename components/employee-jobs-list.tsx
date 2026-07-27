@@ -1,6 +1,8 @@
 import { CalendarClockIcon, CheckCircle2Icon, MapPinIcon } from "lucide-react"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -87,6 +89,12 @@ export function EmployeeJobsList({
                     Submitted and waiting for owner review.
                   </p>
                 ) : null}
+                <Button
+                  nativeButton={false}
+                  render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
+                >
+                  Open job
+                </Button>
               </CardContent>
             </Card>
           ))}

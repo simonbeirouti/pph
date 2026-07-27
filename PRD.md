@@ -3,8 +3,8 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.6
-- Last updated: 26 July 2026
+- Version: 1.7
+- Last updated: 27 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui, Playwright
 
@@ -53,6 +53,8 @@ The product should provide a single, simple workflow from employee invitation th
 - Let owners build and maintain a seven-day roster.
 - Provide reusable job templates and daily or weekly job schedules.
 - Make the application installable as a Progressive Web App on supported desktop and mobile browsers.
+- Let employees continue assigned job work during temporary connectivity loss
+  with explicit local and synchronisation states.
 - Establish automated tests that support fast progression from development to prototype and production.
 
 ### 1.3 Success criteria
@@ -66,6 +68,10 @@ V1 is successful when:
 - An owner can review, comment on, reopen, reassign, and archive submitted work.
 - The jobs board clearly separates unassigned, assigned, and review-ready work.
 - The roster accurately represents shifts in both week and day views.
+- An employee can reopen a cached work pack, start work, add notes and photos,
+  and queue submission during temporary connectivity loss.
+- Retried offline operations do not create duplicate notes, assets, audit
+  events, or transitions.
 - The application exposes a valid manifest, install icons, and a securely served service worker so supported browsers can install it.
 - Organisation and role boundaries are enforced by application checks and Supabase Row Level Security.
 - Critical owner and employee journeys pass in automated tests.
@@ -362,7 +368,13 @@ As an employee, I want to document progress so that the owner can verify the wor
 Acceptance criteria:
 
 - The assignee can add multiple timestamped progress notes.
-- The assignee can upload JPEG, PNG, and WebP images.
+- The assignee can upload JPEG, PNG, WebP, HEIC, and HEIF images, including
+  files selected directly from supported iPhone and Android photo libraries.
+- Evidence photos larger than 1 MiB are optimized in the browser before
+  upload; HEIC and HEIF photos are always converted for browser compatibility.
+- Optimization preserves orientation, removes embedded metadata, limits the
+  long edge to 2,048 pixels, and targets no more than half the source byte size
+  without blocking a valid upload when that target cannot be reached safely.
 - Each evidence image is limited to 10 MB.
 - A job can contain no more than 10 evidence images.
 - Evidence is stored in the private `job-evidence` bucket under an organisation/job path.
@@ -383,6 +395,10 @@ Acceptance criteria:
 - Successful submission changes status to `in_review` and records `submitted_at`.
 - Failed validation identifies the missing evidence.
 - The job becomes read-only to the employee except for comments.
+- A successful distinct submission emails the active owner who created the job
+  with a direct link to the route-addressed review sheet.
+- Email-delivery failure does not roll back submission; the failed delivery is
+  recorded for owner visibility and retry.
 
 #### JOB-07: Owner review
 
@@ -501,7 +517,11 @@ Acceptance criteria:
 
 ### 3.8 Progressive Web App
 
-V1 provides an installable application shell. Offline data access, offline mutations, background sync, and push notifications remain outside V1 because they require additional data consistency, subscription, and notification product decisions.
+V1 provides an installable application shell plus narrowly scoped offline job
+execution for employees. Supabase remains authoritative; IndexedDB stores a
+membership-scoped read cache, pending photo blobs, and an operation outbox.
+Owner mutations, roster/calendar data, administration, push notifications, and
+background-only synchronisation remain online-only or outside V1.
 
 The implementation follows the [Next.js Progressive Web App guide](https://nextjs.org/docs/app/guides/progressive-web-apps).
 
@@ -516,7 +536,7 @@ Acceptance criteria:
 - The application includes valid 192×192 and 512×512 PNG icons, including a maskable icon, plus an Apple touch icon.
 - Production and staging serve the application over HTTPS.
 - Supported browsers recognise the deployed application as installable.
-- The employee dashboard provides non-blocking installation guidance when the application is not already running in standalone mode.
+- Authenticated employee pages provide non-blocking floating installation guidance when the application is not already running in standalone mode.
 - iOS guidance explains the Share → Add to Home Screen flow.
 - The UI does not depend exclusively on the non-standard `beforeinstallprompt` event.
 
@@ -530,7 +550,7 @@ Acceptance criteria:
 - Registration uses `updateViaCache: "none"`.
 - The service worker has explicit install and activate lifecycle handling.
 - The service worker does not cache authenticated API responses, Supabase requests, uploaded evidence, signed asset URLs, or mutation responses.
-- V1 does not claim that jobs, rosters, evidence, or mutations work offline.
+- Offline employee data is stored in membership-scoped IndexedDB rather than CacheStorage.
 - Service-worker registration failure does not block normal browser use.
 - A new application version can activate without requiring users to clear browser storage manually.
 
@@ -546,6 +566,83 @@ Acceptance criteria:
 - Installation guidance is hidden when running in standalone mode.
 - Unsupported browsers receive the standard responsive web application without errors or blocked workflows.
 - Push permission is never requested in V1.
+
+#### PWA-04: Offline employee work pack
+
+As an employee, I want my assigned work available during temporary connectivity
+loss so that I can continue completing a job in the field.
+
+Acceptance criteria:
+
+- While online, the application persists a minimal work pack containing the
+  employee's assigned and in-progress jobs, evidence requirements, relevant
+  notes, and the canonical version of each job.
+- The cache is scoped to the current membership and organisation and is purged
+  on logout, membership change, or successful online detection of deactivation.
+- Cached work packs expire 24 hours after the last successful online refresh,
+  show the last-updated timestamp, and are not presented as usable current work
+  after expiry.
+- An offline reload opens a generic application shell and then renders the
+  available cached work pack without caching authenticated HTML or Supabase
+  responses in the service worker.
+- The interface clearly shows Offline, last updated, pending-change count, and
+  per-operation `pending`, `syncing`, `failed`, or `needs_attention` state.
+- Before offline storage is enabled, the employee is told that cached job data
+  and pending photos remain readable to anyone who can use the unlocked device;
+  V1 assumes a personally controlled, device-lock-protected browser profile and
+  does not add a separate application PIN.
+- Owner, employee administration, roster/calendar, templates, schedules,
+  review, and archive mutations remain online-only.
+
+#### PWA-05: Offline job actions and evidence
+
+As an employee, I want to record job progress while offline so that notes and
+photos are not lost when a worksite has poor connectivity.
+
+Acceptance criteria:
+
+- Starting an assigned job, adding a progress note, adding a completion photo,
+  and requesting submission can be queued offline.
+- Each queued operation receives a permanent client-generated UUID and records
+  the job version it was based on.
+- Operations are applied optimistically to the local view and persisted in an
+  IndexedDB outbox before the UI reports them as queued.
+- Photo blobs are stored separately from operation metadata, checked against
+  available browser storage, and retain the existing image type, size, and
+  per-job count limits.
+- The application may request persistent browser storage where supported, but
+  denial cannot block normal online operation.
+- Signed evidence URLs are never cached; pending local blobs are discarded only
+  after authoritative upload acknowledgement or explicit user-approved removal.
+- A queued submission remains dependent on every required note and photo being
+  acknowledged and is revalidated server-side before transition.
+
+#### PWA-06: Idempotent foreground synchronisation
+
+As an employee, I want queued work to synchronise safely when connectivity
+returns so that retries do not duplicate or corrupt my job history.
+
+Acceptance criteria:
+
+- Foreground synchronisation runs on application launch, focus, a successful
+  connectivity probe, and an explicit Sync now action.
+- Synchronisation refreshes the Supabase session and revalidates active
+  membership, organisation, current assignment, and job state before replay.
+- Operations replay in dependency order through idempotent, transactional
+  Supabase RPCs using `(membership_id, client_operation_id)` receipts.
+- A repeated acknowledged operation returns its prior result without creating
+  duplicate notes, assets, audit events, or state changes.
+- Notes merge when the employee remains authorised; an already-started job
+  treats a repeated start as success; photos use deterministic,
+  non-overwriting paths.
+- Version conflicts return a typed result. Reassigned or archived jobs and
+  inactive memberships stop replay and preserve local work as Needs attention.
+- Submission runs only after dependent evidence has synchronised and the server
+  confirms all evidence requirements.
+- Failed operations remain visible with a safe retry path; the application never
+  claims queued work has reached the server before acknowledgement.
+- Browser Background Sync may be added later as progressive enhancement but is
+  not the primary or required synchronisation mechanism.
 
 ## 4. Navigation and route acceptance
 
@@ -707,6 +804,7 @@ Overlapping non-archived ranges for the same employee are prohibited.
 - `submitted_at`
 - `archived_at`
 - `created_by`
+- `version`, incremented by every authoritative job mutation
 - `created_at`
 - `updated_at`
 
@@ -769,6 +867,25 @@ Updates are append-only in V1.
 - `created_at`
 - `archived_at`
 
+### 6.10 `job_operation_receipts`
+
+- `id`
+- `organisation_id`
+- `membership_id`
+- `job_id`
+- `client_operation_id`
+- `operation_type`
+- `result`
+- `created_at`
+
+Constraints:
+
+- `(membership_id, client_operation_id)` is unique.
+- Receipts are written atomically with the authoritative job mutation, audit
+  update, and asset metadata they acknowledge.
+- Employees can access receipts only for their own membership and assigned jobs;
+  owners can inspect organisation receipts for support and audit purposes.
+
 ## 7. Storage and uploads
 
 Supabase Storage buckets:
@@ -785,6 +902,10 @@ Requirements:
 - Do not store public URLs in application tables.
 - Clean up a newly uploaded object if the related database mutation fails.
 - Archiving a database record does not immediately delete its object.
+- Offline photo uploads use deterministic, non-overwriting storage paths derived
+  from the operation UUID.
+- Verify current Supabase upload guidance during S10 and use resumable uploads
+  where required by the supported evidence size and network conditions.
 
 ## 8. Architecture and security
 
@@ -815,23 +936,43 @@ Requirements:
 - Employee policies allow only their membership, roster, assigned jobs, related updates, and related assets.
 - Storage policies mirror the database permissions.
 - Cross-organisation identifiers must fail closed.
+- Offline-capable employee mutations use idempotent RPCs that lock the job,
+  verify membership and assignment, compare the expected job version, apply the
+  mutation, append audit data, and record the operation receipt atomically.
+- Receipt lookup never substitutes for current authorisation checks.
 
 ### 8.3 Email
 
 - Resend is configured as Supabase Auth SMTP.
-- V1 application email is limited to initial employee invitations.
-- Assignment, feedback, roster, and completion notification emails are post-V1 work.
+- Initial employee invitations continue to use Supabase Auth SMTP.
+- The application uses the Resend API to notify the active job-creator owner
+  after each distinct employee submission.
+- Submission email includes job and submitter context plus a direct review
+  link, but never attaches private evidence or embeds signed evidence URLs.
+- Submission remains successful when delivery fails; delivery state is
+  persisted and owners can retry failed notification email.
+- Assignment, feedback, reopen, roster, and other completion notification
+  emails remain post-V1 work.
 - Tests must not send real email.
 
 ### 8.4 Progressive Web App
 
 - Use the App Router `app/manifest.ts` metadata convention.
 - Register the service worker from a small client-only component mounted by the application shell.
-- Keep service-worker behaviour deliberately minimal in V1: lifecycle and update handling only, with no authenticated data caching.
+- Precache only versioned public application assets, icons, and a generic
+  offline entry shell; never cache authenticated HTML, Supabase responses,
+  signed URLs, or mutation responses in CacheStorage.
+- Store employee work packs, outbox metadata, and pending photo blobs in
+  versioned, membership-scoped IndexedDB stores.
+- Purge local operational data on logout or membership change and after online
+  confirmation that the employee is inactive.
+- Use foreground/manual synchronisation as the reliable baseline. Treat browser
+  Background Sync as a future progressive enhancement.
 - Serve production and staging over HTTPS.
 - Configure global and `/sw.js` security headers through `next.config.ts`.
 - Treat install guidance as progressive enhancement; the web application remains fully usable without PWA support.
-- Keep push subscriptions, VAPID keys, background sync, and offline application data outside the V1 implementation.
+- Keep push subscriptions, VAPID keys, offline owner/admin/roster mutations,
+  and background-only synchronisation outside V1.
 
 ### 8.5 Environment configuration
 
@@ -933,6 +1074,10 @@ Use Vitest and React Testing Library for:
 - Root Proxy cookie propagation, redirect, public-route, and matcher behaviour.
 - PWA standalone-mode detection and installation-guidance visibility.
 - Service-worker registration feature detection and failure handling.
+- IndexedDB schema migration, work-pack expiry, outbox dependency ordering, and
+  membership-scoped purge behaviour.
+- Offline operation states, storage-quota handling, and typed conflict
+  presentation.
 
 ### 11.2 Database tests
 
@@ -946,6 +1091,9 @@ Use Supabase local development and database tests for:
 - Schedule occurrence uniqueness.
 - Job transition constraints where implemented in SQL.
 - Private avatar and evidence storage policies.
+- Job version increments and transactional operation receipts.
+- Idempotent replay, concurrent-version conflicts, deactivation, reassignment,
+  archive, and cross-organisation rejection.
 
 ### 11.3 End-to-end tests
 
@@ -962,9 +1110,19 @@ Use the installed `@playwright/test` package and the project `playwright-best-pr
 9. Owner archives the job.
 10. Owner creates, moves, resizes, copies, and deletes roster shifts.
 11. A template schedule produces exactly one job per occurrence.
-12. Manifest, icons, and service worker are available with the required metadata and response headers.
-13. The application remains usable when service workers are unavailable.
-14. Signed-out dashboard requests redirect to login, signed-in login/root requests redirect to the dashboard, and public Auth/PWA resources remain reachable.
+12. Employee loads a work pack online, goes offline, reloads, starts work, adds
+    a note and photo, and queues submission with visible pending state.
+13. Connectivity returns and queued operations synchronise exactly once in
+    dependency order before submission reaches review.
+14. Reassignment, archive, deactivation, and version-conflict scenarios retain
+    unsynchronised work as Needs attention without forcing a mutation.
+15. Manifest, icons, generic offline shell, and service worker are available
+    with the required metadata and response headers.
+16. The application remains usable when service workers or persistent browser
+    storage are unavailable.
+17. Signed-out dashboard requests redirect to login, signed-in login/root
+    requests redirect to the dashboard, and public Auth/PWA resources remain
+    reachable.
 
 Outbound email is mocked while the invitation request, recipient, and callback URL are asserted.
 
@@ -1008,7 +1166,8 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 ### Step 3: Progressive Web App shell
 
 - Add the manifest, install assets and guidance, minimal service-worker lifecycle, and security headers.
-- Verify installability and graceful degradation without offline application data or push notifications.
+- Verify installability and graceful degradation; offline operational behaviour
+  is added separately in Step 10.
 
 ### Step 4: Owner jobs and Kanban
 
@@ -1034,7 +1193,16 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 - Compose the verified employee, job, and roster query contracts into owner and employee dashboards.
 
-### Step 10: Integration and production hardening
+### Step 10: Offline employee job completion
+
+- Add the membership-scoped IndexedDB work pack, pending-photo store, operation
+  outbox, generic offline shell, and visible synchronisation states.
+- Add versioned, idempotent Supabase RPCs and operation receipts for offline
+  start, note, photo, and submission replay.
+- Verify foreground/manual sync, conflict handling, logout/deactivation purge,
+  storage-pressure failure, reload recovery, and exactly-once behaviour.
+
+### Step 11: Integration and production hardening
 
 - Resolve all deferred cross-step TODOs.
 - Complete end-to-end coverage, responsive QA, accessibility checks, security verification, and staging readiness.
@@ -1046,6 +1214,8 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 - Critical owner and employee Playwright journeys pass.
 - Owner pages work at desktop width.
 - Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
+- Employee offline start, notes, photos, queued submission, foreground sync, and
+  Needs attention recovery work at a mobile viewport.
 - RLS tests demonstrate role and organisation isolation.
 - No real email is sent by automated tests.
 - The deployed application passes manifest, icon, service-worker, and installability checks.
@@ -1060,6 +1230,8 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 - Error monitoring and server-side mutation logging are configured.
 - Schedule processing has failure visibility and a safe retry path.
 - HTTPS, PWA security headers, service-worker update behaviour, and installability are verified in staging.
+- Offline work-pack expiry, logout purge, storage-pressure handling, and
+  exactly-once replay are verified in staging on supported mobile browsers.
 - A staging smoke test passes before deployment.
 
 ## 14. Deferred work
@@ -1071,9 +1243,12 @@ The following are explicitly outside V1:
 - Payroll and timesheets.
 - Clock-in and clock-out.
 - Leave requests and availability management.
-- Offline job, roster, evidence, and mutation support.
+- Offline roster/calendar, owner, review, administration, template, and
+  schedule support.
+- Background-only synchronisation.
 - Push notifications.
-- Job and roster email notifications beyond Auth invitations.
+- Job email notifications beyond submission-to-review, and all roster email
+  notifications.
 - Non-image job attachments.
 - Employee-to-employee profile or job visibility.
 - Advanced recurrence rules.
@@ -1082,8 +1257,11 @@ The following are explicitly outside V1:
 
 ## 15. Open work after V1
 
-- Add email or push notifications for assignment, reassignment, owner feedback, reopened jobs, and roster changes.
+- Add email or push notifications for assignment, reassignment, owner
+  feedback, reopened jobs, and roster changes.
 - Add platform-admin and multi-organisation support.
 - Add configurable company onboarding and owner self-service signup.
 - Add richer reporting, exports, and employee workload analytics.
 - Add leave, availability, time tracking, and payroll integrations as separate product areas.
+- Add Background Sync as a progressive enhancement where browser support and
+  product policy permit it.

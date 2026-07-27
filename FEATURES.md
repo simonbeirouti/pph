@@ -47,12 +47,12 @@ At most one row may be `in_progress`.
 
 The following checked-in skills are required parts of development:
 
-| Skill                              | Required for                                                                                                    | Primary steps               |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `playwright-best-practices`        | Playwright architecture, configuration, fixtures, Auth, mobile, drag/drop, upload, time, PWA, debugging, and CI | S01–S10                     |
-| `supabase`                         | Supabase Auth, SSR, clients, CLI, migrations, RLS, Storage, and Cron                                            | S01, S02, S04–S06, S08, S10 |
-| `supabase-postgres-best-practices` | Schema, constraints, indexes, RLS performance, queries, locking, and database review                            | Every schema/query step     |
-| `vercel-react-best-practices`      | React/Next.js rendering, data fetching, server actions, bundle size, and client performance                     | Every UI step               |
+| Skill                              | Required for                                                                                                    | Primary steps                   |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `playwright-best-practices`        | Playwright architecture, configuration, fixtures, Auth, mobile, drag/drop, upload, time, PWA, debugging, and CI | S01–S11                         |
+| `supabase`                         | Supabase Auth, SSR, clients, CLI, migrations, RLS, Storage, and Cron                                            | S01, S02, S04–S06, S08, S10–S11 |
+| `supabase-postgres-best-practices` | Schema, constraints, indexes, RLS performance, queries, locking, and database review                            | Every schema/query step         |
+| `vercel-react-best-practices`      | React/Next.js rendering, data fetching, server actions, bundle size, and client performance                     | Every UI step                   |
 
 For each active step:
 
@@ -63,19 +63,20 @@ For each active step:
 
 ## Implementation status
 
-| Step | Capability                              | Status     | Depends on | Checkpoint | Verification notes                                                                                                                                                                                         |
-| ---- | --------------------------------------- | ---------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline     | `complete` | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                                                  |
-| S01  | Platform foundation                     | `complete` | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass                          |
-| S02  | Authentication and employees            | `complete` | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
-| S03  | Progressive Web App shell               | `complete` | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
-| S04  | Owner jobs and Kanban                   | `complete` | S03        | —          | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
-| S05  | Employee job execution and owner review | `planned`  | S04        | —          | —                                                                                                                                                                                                          |
-| S06  | Roster data and calendar views          | `planned`  | S05        | —          | —                                                                                                                                                                                                          |
-| S07  | Calendar interactions                   | `planned`  | S06        | —          | —                                                                                                                                                                                                          |
-| S08  | Templates and job schedules             | `planned`  | S07        | —          | —                                                                                                                                                                                                          |
-| S09  | Operational dashboards                  | `planned`  | S08        | —          | —                                                                                                                                                                                                          |
-| S10  | Integration and production hardening    | `planned`  | S09        | —          | —                                                                                                                                                                                                          |
+| Step | Capability                              | Status        | Depends on | Checkpoint | Verification notes                                                                                                                                                                                         |
+| ---- | --------------------------------------- | ------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline     | `complete`    | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                                                  |
+| S01  | Platform foundation                     | `complete`    | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass                          |
+| S02  | Authentication and employees            | `complete`    | S01        | —          | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
+| S03  | Progressive Web App shell               | `complete`    | S02        | —          | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
+| S04  | Owner jobs and Kanban                   | `complete`    | S03        | —          | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
+| S05  | Employee job execution and owner review | `in_progress` | S04        | —          | Submission email to the active job-creator owner is now included in S05; implementation and verification are in progress.                                                                                  |
+| S06  | Roster data and calendar views          | `planned`     | S05        | —          | —                                                                                                                                                                                                          |
+| S07  | Calendar interactions                   | `planned`     | S06        | —          | —                                                                                                                                                                                                          |
+| S08  | Templates and job schedules             | `planned`     | S07        | —          | —                                                                                                                                                                                                          |
+| S09  | Operational dashboards                  | `planned`     | S08        | —          | —                                                                                                                                                                                                          |
+| S10  | Offline employee job completion         | `planned`     | S09        | —          | Membership-scoped IndexedDB work packs and outbox, idempotent foreground sync, evidence recovery, conflict states, and offline mobile coverage.                                                            |
+| S11  | Integration and production hardening    | `planned`     | S10        | —          | —                                                                                                                                                                                                          |
 
 ## Rules that apply to every step
 
@@ -109,7 +110,7 @@ For each active step:
 | `app/layout.tsx`, dashboard shell, navigation | Establish incrementally; avoid placeholders that imply unavailable features work |
 | `next.config.ts`                              | Reconcile Proxy, PWA, and security requirements when S03 changes it              |
 | Supabase migrations                           | Append-only after the owning step is complete                                    |
-| Generated Supabase types                      | Regenerate after every schema step and verify again in S10                       |
+| Generated Supabase types                      | Regenerate after every schema step and verify again in S11                       |
 | Shared test fixtures                          | Extend without weakening prior role or organisation isolation                    |
 | `components/ref-files/**`                     | Reusable source material; clean and absorb relevant code during the owning step  |
 
@@ -327,7 +328,7 @@ The authenticated application can be installed on supported devices and degrades
 - [x] Add 192×192, 512×512, maskable, and Apple touch icons.
 - [x] Add minimal same-origin service-worker install/activate lifecycle.
 - [x] Register with feature detection and `updateViaCache: "none"`.
-- [x] Add standalone detection and non-blocking installation guidance.
+- [x] Add standalone detection and non-blocking floating installation guidance across authenticated employee pages.
 - [x] Add iOS Share → Add to Home Screen guidance.
 - [x] Add global and service-worker-specific security headers.
 - [x] Verify Proxy excludes `/sw.js` and `/manifest.webmanifest`.
@@ -366,8 +367,11 @@ The authenticated application can be installed on supported devices and degrades
 - Commands passed: `pnpm check` (`pnpm lint`, `pnpm typecheck`, 43 unit/component tests, 66 database tests, and production build), `pnpm test:e2e` (50 desktop/mobile checks), the complete S03 Playwright suite repeated twice (36 checks), the repaired sidebar persistence journey repeated twice on both projects (4 checks), icon MIME/dimension inspection, and `git diff --check`.
 - Project skills and references used: `playwright-best-practices` with service-worker, locator, assertion, and test-structure guidance; `vercel-react-best-practices`; the bundled Next.js 16 Progressive Web App, manifest, and app-icon documentation.
 - Shared-step overlap: S03 verification repaired stale S01/S02 Playwright contracts by scoping duplicate navigation locators, waiting for the sidebar cookie before reload, closing the mobile modal before breadcrumb assertions, selecting generated employees by their unique email, and confirming deactivation. The mobile sidebar close trigger also received the missing stacking priority so its visible control owns its pointer target.
+- Post-checkpoint refinement during S05: employee install guidance now mounts in the authenticated dashboard layout as a floating viewport card, so it persists across employee pages until dismissed or installed instead of occupying dashboard page content. Its mobile presentation uses equal viewport gutters up to a desktop cap, a vertically centred left-hand install icon, left-aligned copy, and a reduced-motion-safe reminder bounce every 30 seconds.
 - Environment variable names changed: none. `.env.example` and `.env.local` require no S03 changes.
-- Deferred work: none. Offline data, offline mutations, background sync, push subscriptions, and notification permissions remain explicitly outside V1.
+- Deferred work: offline employee job data and mutations are now assigned to
+  S10. Background-only sync, push subscriptions, and notification permissions
+  remain outside V1.
 
 ### Implementation prompt
 
@@ -376,7 +380,10 @@ Implement S03 Progressive Web App Shell from FEATURES.md against PRD stories PWA
 
 Add the typed manifest, install icons, Apple touch icon, lifecycle-only service worker, feature-detected registration, standalone/install guidance, iOS instructions, Proxy exclusions, security headers, and tests.
 
-Do not cache authenticated data, Supabase requests, API responses, mutations, signed asset URLs, or uploaded evidence. Do not implement background sync, push notifications, or offline product claims.
+Do not cache authenticated data, Supabase requests, API responses, mutations,
+signed asset URLs, or uploaded evidence in S03. Do not implement background
+sync, push notifications, or offline product claims here; the approved
+IndexedDB-based employee workflow is owned by S10.
 
 Update S03 status, verification notes, checkpoint, and TODOs. Finish only after PWA, Auth-routing, degradation, lint, type-check, test, and build checks pass.
 ```
@@ -438,7 +445,7 @@ An owner can create, inspect, filter, assign, and reassign jobs through a fixed 
 - Project skills and references used: `supabase`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and `playwright-best-practices`; Next.js 16 server/client component and form guides; React server-serialization and derived-state guidance; Playwright locator, waiting, drag/drop, and mobile guidance; Supabase July 2026 changelog reviewed with no applicable breaking change.
 - Migration disposition: no schema change was required; the existing job status, assignment RPC, RLS, audit, Realtime, and roster contracts remain unchanged.
 - Reference disposition: consumed the column layout, muted card treatment, sortable grouping, filter controls, optimistic movement, and rollback patterns from `components/ref-files/dashboard-workspace.tsx`; replaced the reference grip treatment with a functional edit action and shadcn form controls, then removed the consumed duplicate. Shared helper references still needed by the future roster/calendar steps remain in place. Production code has only repository-native imports and contracts.
-- S04 refinement: the owner board has fixed Unassigned, Assigned, and To review columns; Assigned includes `assigned` and `in_progress`; only employee submission can enter To review; Archived is a separate single-column view matching one Workflow column's desktop width. Columns fill the remaining viewport and scroll cards internally; mobile columns occupy the board width and snap horizontally. The Workflow/Archived tabs sit left of Create job on desktop and span the row beneath the button on mobile, without a redundant workflow explainer. Cards and every assignment Select show active or inactive historical assignee names rather than membership IDs, while only active employees appear as assignment targets. Dropping into Assigned opens a required employee picker, cancellation preserves Unassigned, and pointer/keyboard/mobile assignment paths are verified. The final layout-only refinement was not retested at the user's request.
+- S04 refinement: the owner board has fixed Unassigned, Assigned, and To review columns; Assigned includes `assigned` and `in_progress`; only employee submission can enter To review; Archived is a separate single-column view matching one Workflow column's desktop width. The owner route establishes the remaining live-viewport height, including the desktop inset margins, while the workspace and columns consume that bounded height and scroll cards internally without document scrolling; mobile columns occupy the board width and snap horizontally. The Workflow/Archived tabs sit left of Create job on desktop and span the row beneath the button on mobile, without a redundant workflow explainer. Cards and every assignment Select show active or inactive historical assignee names rather than membership IDs, while only active employees appear as assignment targets. Card assignment Select values and options present the assignee compactly as `name - title` on one line, use the concise `Unassign` action to return work to the Unassigned queue, and retain stacked presentation for non-interactive historical assignee summaries. The assignment control uses the standard compact Select trigger and option spacing without the temporary padded identity-card treatment. Sortable cards use a full-card drag layer beneath their interactive controls, allowing pointer movement from any non-interactive card area while moving and styling the entire card as one unit. Dropping into Assigned opens a required employee picker, cancellation preserves Unassigned, and pointer/keyboard/mobile assignment paths are verified. This S05 follow-on refinement passes all 74 unit/component checks, lint, type-check, and the isolated two-check owner-jobs Playwright journey. The later viewport-boundary correction passes the focused four-check workspace test, lint, type-check, `git diff --check`, and the isolated no-document-scroll Playwright check on desktop Chromium and Pixel 7; the mutation-heavy owner journey reached and passed the new desktop overflow assertion before its pre-existing Archived-tab refresh race failed later in the flow.
 - Employee handoff: active employees can open Jobs from their sidebar and see only currently assigned, non-archived work ordered urgent-to-low, then by due time and recent activity. Start/resume, notes, evidence, submission, and review actions remain S05.
 - Realtime foundation: private `org:<organisationId>:operations` and `member:<membershipId>:work` Broadcast topics carry versioned invalidation metadata only. Existing membership, employee-profile, job, job-update, and roster tables publish through a reusable private helper; S05–S09 attach future evidence, review, template, schedule, and dashboard consumers without exposing row payloads.
 - Realtime UI: one dashboard-level subscription refreshes authoritative RLS-filtered server data, coalesces event bursts, recovers after reconnect or stale-tab focus, and shows a non-blocking degraded state only after a sustained failure. The Kanban defers refreshed snapshots while optimistic assignments are pending.
@@ -476,11 +483,47 @@ An employee can complete assigned work with evidence, and the owner can review, 
 - Add private job-evidence storage and policies.
 - Implement employee start/resume.
 - Implement progress notes and completion photos.
+- Accept JPEG, PNG, WebP, HEIC, and HEIF completion photos across the mobile
+  picker, server signature validation, Storage bucket, and database contract.
+- Optimize evidence photos above 1 MiB before upload, always convert HEIC/HEIF,
+  standardize successful results to WebP, cap the long edge at 2,048 pixels,
+  target half the source byte size on a best-effort basis, and keep decoder and
+  worker code out of the initial job-detail bundle.
 - Enforce note and minimum-photo requirements.
 - Implement submit-for-review.
 - Implement owner job detail, chronological history, evidence, and comments.
 - Implement approve/archive and reopen/reassign.
 - Preserve history and evidence through reopening.
+- Send idempotent Resend notification email to the active job-creator owner
+  after each distinct submission without coupling delivery success to the job
+  transition.
+- Persist owner-visible notification state and allow retry of failed delivery.
+- Shared-step overlap: consolidate S02's equivalent owner/self
+  `employee_profiles` UPDATE policies into one permissive policy. Allowed rows
+  and checks remain unchanged while eliminating duplicate policy evaluation.
+- Shared-step overlap: refine S03 install guidance into a floating card mounted
+  across the authenticated employee application shell.
+- Keep long mobile employee job details vertically scrollable inside the shared
+  drawer, including touch panning within the viewport.
+- Present job history in a collapsed accordion, initially rendering three
+  updates and revealing three more per request.
+- Stage employee job details so assigned work presents a Start action before
+  revealing completion controls, keep status/priority/description in the
+  surface header, keep location and due time side by side with requirements
+  beneath, and use borderless accordions for completion, history, and comments.
+- Hide employee evidence and history until work starts, omit empty evidence
+  galleries, order history newest-first, remove the duplicate employee comment
+  composer while preserving owner review comments, centre header badges, and
+  visually hide the mobile drawer scrollbar without disabling scrolling.
+- Render in-progress work notes, photo upload, and submission controls directly
+  in the employee flow without a redundant completion accordion or explainer.
+- Centre the location and due-time labels and values in their two-column row.
+- Omit the submission-requirements block when neither a completion note nor
+  completion photos are required.
+- Give the owner review sheet dedicated presentation rules: left-align badges
+  and job metadata, show the current assignee, omit employee requirements,
+  open history and comments by default with three history entries, and keep
+  uncarded owner actions in a fixed sheet footer outside the scroll region.
 
 ### Tests
 
@@ -490,6 +533,10 @@ An employee can complete assigned work with evidence, and the owner can review, 
 - Evidence and update RLS/storage policies.
 - Complete submit, review, reopen, resubmit, and archive E2E journey.
 - Mobile viewport job and upload flow.
+- Client-side optimization ratio, resolution, orientation, metadata removal,
+  fallback behavior, cancellation, and lazy-bundle boundaries.
+- Submission email recipient, payload, idempotency, failure persistence, and
+  retry without real external delivery.
 
 ### Completion gate
 
@@ -497,12 +544,43 @@ An employee can complete assigned work with evidence, and the owner can review, 
 - Evidence remains private and authorised.
 - Notes, comments, assets, and system history remain distinct.
 
+### In-progress verification
+
+- Phone-native evidence refinement: HEIC and HEIF now pass the mobile picker,
+  empty-browser-MIME normalization, server-side ISO-BMFF signature validation,
+  private Storage bucket allowlist/path policies, and job-asset constraints.
+  AVIF and malformed content remain rejected.
+- Migration disposition: the phone-native MIME, extension, bucket, policy, and
+  finalization rules are consolidated into the owning S05
+  `20260727040756_job_execution_review.sql` migration; no follow-up migration is
+  retained for the same workflow.
+- Image-optimization verification passed: 96 unit/component checks (including
+  21 focused optimizer and job-detail checks), 47 focused S05 pgTAP checks,
+  lint, TypeScript, production build, and `git diff --check`. The production
+  output emits the pinned `heic-to@1.4.2` decoder as a separate 2.6 MB lazy
+  chunk which is absent from the job route's initial client manifest.
+- The Chromium Pixel 7 lifecycle uploads a generated large JPEG at no more than
+  half its source byte size and a valid primary-still HEIC fixture as WebP,
+  asserting the reduced TUS `Upload-Length` and encoded WebP metadata before
+  completing submit, review, reopen, resubmit, and archive. The full
+  desktop/mobile Playwright run passed 54 checks and skipped three
+  project-filtered checks; three unrelated mutation/realtime checks failed
+  under parallel shared local state, while the isolated S05 lifecycle passed.
+- The prescribed single final local database reset restored canonical seed
+  data, after which all 170 pgTAP checks passed.
+- Project skills and references used for this refinement:
+  `playwright-best-practices` file-upload guidance, `supabase`,
+  `supabase-postgres-best-practices`, `vercel-react-best-practices`, the
+  bundled Next.js 16 forms guide, and current Supabase Storage bucket/TUS
+  documentation. No applicable Storage breaking change was found.
+- Environment variable names changed: none.
+
 ### Implementation prompt
 
 ```text
 Implement S05 Employee Job Execution and Owner Review from FEATURES.md against PRD stories JOB-04–JOB-08.
 
-Extend the verified S04 job contracts with employee start/resume, progress notes, private photo evidence, requirement validation, submission, owner review, comments, reopen/reassign, archive, preserved history, RLS, and tests.
+Extend the verified S04 job contracts with employee start/resume, progress notes, private photo evidence, requirement validation, submission, creator-owner Resend notification, owner review, comments, reopen/reassign, archive, preserved history, RLS, and tests.
 
 Reuse suitable reference action, upload, mutation, and UI patterns while cleaning them into repository-native modules. Do not implement templates, schedules, roster, or dashboards.
 
@@ -695,7 +773,107 @@ Compose the verified employee, job, and roster query contracts into role-specifi
 Do not duplicate feature domain rules inside dashboard components. Update S09 status, verification notes, checkpoint, and TODOs. Finish only after desktop/mobile dashboard journeys and all S09 checks pass.
 ```
 
-## S10 — Integration and production hardening
+## S10 — Offline employee job completion
+
+### PRD references
+
+- PWA-04 through PWA-06
+- Sections 6.5, 6.8–6.10, 7, and 8.2–8.4
+- Sequential implementation Step 10
+
+### Outcome
+
+Employees can safely read and progress assigned jobs during temporary
+connectivity loss, then synchronise acknowledged work exactly once when the
+application returns online.
+
+### Tasks
+
+- Add a versioned, membership-scoped IndexedDB schema for the employee work
+  pack, operation outbox, and pending photo blobs.
+- Persist only assigned/in-progress job data, requirements, relevant notes, and
+  canonical job versions; never cache signed evidence URLs.
+- Expire work packs 24 hours after the last successful online refresh and add
+  the personal-device/device-lock disclosure before offline storage is enabled;
+  do not add a separate application PIN in V1.
+- Add a generic offline navigation shell without caching authenticated HTML,
+  Supabase responses, or mutation responses in CacheStorage.
+- Add Offline/last-updated presentation, pending count, Sync now, and
+  `pending`, `syncing`, `failed`, and `needs_attention` operation states.
+- Queue employee start, progress note, completion photo, and submission request
+  operations with permanent client UUIDs and dependency ordering.
+- Check available browser storage, request persistence where supported, preserve
+  existing evidence limits, and handle quota or persistence denial safely.
+- Add `jobs.version` and an organisation-scoped operation-receipt table with a
+  unique `(membership_id, client_operation_id)` contract.
+- Extend the verified S05 RPCs with job locking, current authorisation checks,
+  expected-version handling, atomic audit/asset/receipt writes, and repeated
+  result lookup.
+- Use deterministic non-overwriting evidence paths and verify current Supabase
+  resumable-upload guidance for supported large images.
+- Add foreground synchronisation on launch, focus, successful connectivity
+  probe, and Sync now; refresh the Supabase session before replay.
+- Replay in dependency order and replace optimistic state with canonical server
+  responses only after acknowledgement.
+- Hold submission until dependent note/photo operations are acknowledged, then
+  revalidate evidence requirements server-side.
+- Treat repeat start as success, merge authorised notes, and deduplicate photos
+  and audit events by operation receipt.
+- Stop replay for deactivation, reassignment, archive, or incompatible version
+  and retain the unsynchronised local record as Needs attention.
+- Purge cached operational data on logout, membership change, and successful
+  online confirmation of deactivation.
+- Keep owner, review, roster/calendar, employee administration, template, and
+  schedule mutations online-only; do not require Background Sync.
+- Inspect and either consume or explicitly retain
+  `components/ref-files/query-provider.tsx` while implementing repository-native
+  query persistence and offline state.
+
+### Tests
+
+- IndexedDB schema upgrades, cache lifetime, membership isolation, and purge.
+- Outbox ordering, persistence across reload, retry, and acknowledged cleanup.
+- Browser storage availability, quota exhaustion, and persistence denial.
+- Unit tests for operation state transitions and typed conflict handling.
+- Database tests for job version increments, receipt uniqueness, RLS,
+  cross-organisation rejection, and atomic idempotent replay.
+- Lost-response retry creates no duplicate note, asset, audit event, submission,
+  or owner submission email.
+- Playwright employee journey: load online, go offline, reload, start, add note
+  and photo, queue submission, return online, and reach review exactly once.
+- Playwright Needs attention journeys for reassignment, archive, deactivation,
+  and version conflict.
+- Mobile viewport, service-worker unavailable, persistent-storage unavailable,
+  logout purge, and stale-cache behaviour.
+- No arbitrary sleeps; use Playwright network/offline controls, web-first
+  assertions, and observable sync state.
+
+### Completion gate
+
+- The employee can complete the approved offline workflow without data loss or
+  a false claim of server acknowledgement.
+- Replayed operations are authorised, transactional, version-aware, and
+  idempotent.
+- Cached data is membership-scoped, visibly stale when applicable, and purged at
+  defined security boundaries.
+- Online owner, employee, evidence, PWA, roster, template, and dashboard
+  regressions pass.
+- Reference-file disposition, generated types, verification evidence, and TODOs
+  are recorded before S11 begins.
+
+### Implementation prompt
+
+```text
+Implement S10 Offline Employee Job Completion from FEATURES.md against PRD stories PWA-04–PWA-06.
+
+Build a membership-scoped IndexedDB work pack, operation outbox, pending-photo storage, generic offline shell, visible sync states, foreground/manual sync, job versions, operation receipts, and idempotent transactional Supabase replay for employee start, note, photo, and queued submission.
+
+Use the existing S05 permissions and job lifecycle. Revalidate membership, organisation, assignment, state, evidence, and expected version during replay. Preserve conflicts as Needs attention. Do not cache authenticated responses or signed URLs, do not make owner/roster/admin flows offline, and do not depend on Background Sync.
+
+Inspect components/ref-files/query-provider.tsx and preserve useful persistence patterns in repository-native modules. Use the checked-in Playwright, Supabase, Postgres, and Vercel React skills and the bundled Next.js PWA guide. Update S10 status, generated types, verification notes, checkpoint, reference disposition, and TODOs. Finish only after database, unit/component, desktop/mobile offline Playwright, regression, lint, type-check, and build checks pass.
+```
+
+## S11 — Integration and production hardening
 
 ### PRD references
 
@@ -728,11 +906,11 @@ The complete V1 is verified as one secure, accessible, responsive, deployable pr
 ### Implementation prompt
 
 ```text
-Implement S10 Integration and Production Hardening from FEATURES.md and PRD sections 9–15.
+Implement S11 Integration and Production Hardening from FEATURES.md and PRD sections 9–15.
 
 Resolve every open cross-step TODO, reconcile navigation/dependencies/headers/fixtures/shared UI, regenerate final Supabase types, remove superseded reference code, complete cross-feature Playwright coverage, run accessibility and responsive QA, and verify staging Auth email, storage, scheduler, PWA, and security behaviour.
 
-Do not silently reduce product scope. Update PRD.md first if a product decision is required. Update S10 status, verification evidence, checkpoint, and TODO resolution. Finish only when all CI gates and prototype/production readiness checks pass.
+Do not silently reduce product scope. Update PRD.md first if a product decision is required. Update S11 status, verification evidence, checkpoint, and TODO resolution. Finish only when all CI gates and prototype/production readiness checks pass.
 ```
 
 ## Deferred integration TODO ledger
@@ -745,21 +923,22 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 - Do not mark it resolved until the integrated behaviour and relevant regression test pass.
 - If resolution changes product behaviour, update `PRD.md` first.
 
-| ID       | Introduced in   | Target step | Deferred work                                                                                                 | Status     | Resolution/checkpoint                                                                                                                         |
-| -------- | --------------- | ----------- | ------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                      | `planned`  | —                                                                                                                                             |
-| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                   | `planned`  | Jobs consumption completed in S04; roster consumption remains for S06.                                                                        |
-| TODO-003 | Schema steps    | S10         | Regenerate and verify final combined Supabase types.                                                          | `planned`  | —                                                                                                                                             |
-| TODO-004 | All steps       | S10         | Reconcile final dependencies and remove unused packages.                                                      | `planned`  | —                                                                                                                                             |
-| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                     | `planned`  | S04 published job aggregate and employee-summary contracts; roster aggregates remain S06 and composition remains S09.                         |
-| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                  | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite.   |
-| TODO-007 | All steps       | S10         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                              | `planned`  | —                                                                                                                                             |
-| TODO-008 | S04/S07         | S10         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified. | `planned`  | —                                                                                                                                             |
-| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.               | `planned`  | —                                                                                                                                             |
-| TODO-010 | All steps       | S10         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.            | `planned`  | —                                                                                                                                             |
-| TODO-011 | S01/S04/S06/S07 | S10         | Remove superseded reference duplicates and verify repository-native production imports.                       | `planned`  | S01 Supabase duplicates removed; S04 Kanban patterns consumed into repository-native modules; remaining disposition continues in S06/S07/S10. |
-| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                             | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                  |
-| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.        | `planned`  | S02 renders explicit S06 deferred states.                                                                                                     |
+| ID       | Introduced in   | Target step | Deferred work                                                                                                                                                    | Status     | Resolution/checkpoint                                                                                                                         |
+| -------- | --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                                                                         | `planned`  | —                                                                                                                                             |
+| TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                                                                      | `planned`  | Jobs consumption completed in S04; roster consumption remains for S06.                                                                        |
+| TODO-003 | Schema steps    | S11         | Regenerate and verify final combined Supabase types.                                                                                                             | `planned`  | —                                                                                                                                             |
+| TODO-004 | All steps       | S11         | Reconcile final dependencies and remove unused packages.                                                                                                         | `planned`  | —                                                                                                                                             |
+| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `planned`  | S04 published job aggregate and employee-summary contracts; roster aggregates remain S06 and composition remains S09.                         |
+| TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                                                                     | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite.   |
+| TODO-007 | All steps       | S11         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                                                                                 | `planned`  | —                                                                                                                                             |
+| TODO-008 | S04/S07         | S11         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified.                                                    | `planned`  | —                                                                                                                                             |
+| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `planned`  | —                                                                                                                                             |
+| TODO-010 | All steps       | S11         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.                                                               | `planned`  | —                                                                                                                                             |
+| TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S01 Supabase duplicates removed; S04 Kanban patterns consumed into repository-native modules; remaining disposition continues in S06/S07/S11. |
+| TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                                                                                | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                  |
+| TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.                                                           | `planned`  | S02 renders explicit S06 deferred states.                                                                                                     |
+| TODO-014 | S03/S05         | S10         | Extend the install-only PWA and online employee job lifecycle with the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries. | `planned`  | S03 deliberately stopped at the installable shell; S05 remains the authoritative online job and evidence contract consumed by S10.            |
 
 ### New TODO template
 

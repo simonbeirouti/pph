@@ -2,7 +2,11 @@ import "server-only"
 
 import { cache } from "react"
 
-import { requireEmployee, requireOwner } from "@/lib/auth/membership"
+import {
+  requireActiveMembership,
+  requireEmployee,
+  requireOwner,
+} from "@/lib/auth/membership"
 import { listEmployees } from "@/lib/employees/data"
 import type { Tables } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
@@ -10,6 +14,7 @@ import type {
   EmployeeJobSummary,
   JobBoardEmployee,
   JobCard,
+  JobDetail,
   OwnerJobAggregates,
 } from "@/lib/jobs/types"
 import { sortJobsByUrgency } from "@/lib/jobs/board"
@@ -77,6 +82,135 @@ export const getEmployeeAssignedJobs = cache(async (): Promise<JobCard[]> => {
 
   return sortJobsByUrgency((data ?? []).map((row) => toJobCard(row as JobRow)))
 })
+
+export const getJobDetail = cache(
+  async (jobId: number): Promise<JobDetail | null> => {
+    const membership = await requireActiveMembership()
+    const supabase = await createClient()
+    const { data: job, error: jobError } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("organisation_id", membership.organisationId)
+      .eq("id", jobId)
+      .maybeSingle()
+
+    if (jobError || !job) return null
+
+    const [assetsResult, updatesResult, identitiesResult, notificationResult] =
+      await Promise.all([
+        supabase
+          .from("job_assets")
+          .select("*")
+          .eq("job_id", jobId)
+          .is("archived_at", null)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("job_updates")
+          .select("*")
+          .eq("job_id", jobId)
+          .order("created_at", { ascending: true }),
+        supabase.rpc("list_job_participant_identities", { p_job_id: jobId }),
+        membership.role === "owner"
+          ? supabase
+              .from("job_notification_deliveries")
+              .select("*")
+              .eq("job_id", jobId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ])
+
+    if (
+      assetsResult.error ||
+      updatesResult.error ||
+      identitiesResult.error ||
+      notificationResult.error
+    ) {
+      throw new Error("Unable to load job details")
+    }
+
+    const assets = assetsResult.data ?? []
+    const signedResult = assets.length
+      ? await supabase.storage.from("job-evidence").createSignedUrls(
+          assets.map((asset) => asset.storage_path),
+          5 * 60
+        )
+      : { data: [], error: null }
+
+    if (signedResult.error) throw new Error("Unable to load job evidence")
+
+    const signedByPath = new Map(
+      (signedResult.data ?? []).map((signed) => [signed.path, signed.signedUrl])
+    )
+    const timeline = (updatesResult.data ?? []).map((update) => ({
+      authorMembershipId: update.author_membership_id,
+      body: update.body,
+      createdAt: update.created_at,
+      id: update.id,
+      metadata:
+        update.metadata &&
+        typeof update.metadata === "object" &&
+        !Array.isArray(update.metadata)
+          ? (update.metadata as Record<string, unknown>)
+          : {},
+      type: update.type,
+    }))
+    const notification = notificationResult.data
+
+    return {
+      ...toJobCard(job as JobRow),
+      archivedAt: job.archived_at,
+      createdByMembershipId: job.created_by,
+      evidence: assets.flatMap((asset) => {
+        const signedUrl = signedByPath.get(asset.storage_path)
+        return signedUrl
+          ? [
+              {
+                createdAt: asset.created_at,
+                id: asset.id,
+                mimeType: asset.mime_type,
+                removable:
+                  membership.role === "employee" &&
+                  (job.status === "assigned" || job.status === "in_progress") &&
+                  asset.uploaded_by_membership_id === membership.membershipId &&
+                  asset.submission_version === job.submission_version,
+                signedUrl,
+                sizeBytes: asset.size_bytes,
+                uploadedByMembershipId: asset.uploaded_by_membership_id,
+              },
+            ]
+          : []
+      }),
+      identities: (identitiesResult.data ?? []).map((identity) => ({
+        displayName: identity.display_name,
+        membershipId: identity.membership_id,
+        role: identity.role,
+      })),
+      latestReopenFeedback:
+        [...timeline]
+          .reverse()
+          .find((item) => item.metadata.event === "reopen_feedback")?.body ??
+        null,
+      noteCount: timeline.filter((item) => item.type === "note").length,
+      notification: notification
+        ? {
+            attemptCount: notification.attempt_count,
+            errorMessage: notification.error_message,
+            id: notification.id,
+            lastAttemptedAt: notification.last_attempted_at,
+            recipientEmail: notification.recipient_email,
+            sentAt: notification.sent_at,
+            status: notification.status,
+          }
+        : null,
+      startedAt: job.started_at,
+      submissionVersion: job.submission_version,
+      submittedAt: job.submitted_at,
+      timeline,
+    }
+  }
+)
 
 export async function getEmployeeJobSummary(
   membershipId: number

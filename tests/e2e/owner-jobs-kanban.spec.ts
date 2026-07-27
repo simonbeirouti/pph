@@ -21,8 +21,8 @@ async function dragWithPointer(page: Page, source: Locator, target: Locator) {
   expect(sourceBox).not.toBeNull()
   expect(targetBox).not.toBeNull()
 
-  const startX = sourceBox!.x + sourceBox!.width / 2
-  const startY = sourceBox!.y + sourceBox!.height / 2
+  const startX = sourceBox!.x + 20
+  const startY = sourceBox!.y + sourceBox!.height * 0.65
   const endX = targetBox!.x + targetBox!.width / 2
   const endY = targetBox!.y + Math.min(targetBox!.height / 2, 180)
 
@@ -73,6 +73,36 @@ test("employee sees only their assigned jobs ranked by urgency", async ({
   ).toHaveCount(0)
 })
 
+test("owner board confines vertical overflow to its columns", async ({
+  ownerPage,
+}) => {
+  await ownerPage.goto("/dashboard/jobs")
+  await expect(
+    ownerPage.getByRole("heading", { name: "Jobs", level: 1 })
+  ).toBeVisible()
+  await expect(ownerPage.locator("[data-column]")).toHaveCount(3)
+
+  await expect
+    .poll(() =>
+      ownerPage.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight
+      )
+    )
+    .toBeLessThanOrEqual(1)
+
+  const overflow = await ownerPage
+    .locator("[data-card-list]")
+    .evaluateAll((lists) =>
+      lists.map((list) => ({
+        clientHeight: list.clientHeight,
+        scrollHeight: list.scrollHeight,
+      }))
+    )
+  expect(
+    overflow.some(({ clientHeight, scrollHeight }) => scrollHeight > clientHeight)
+  ).toBe(true)
+})
+
 test("owner creates, filters, and reassigns a job", async ({
   browser,
   ownerPage,
@@ -92,6 +122,13 @@ test("owner creates, filters, and reassigns a job", async ({
     ownerPage.getByRole("region", { name: "Assigned jobs", exact: true })
   ).toBeVisible()
   await expect(ownerPage.locator("[data-column]")).toHaveCount(3)
+  await expect
+    .poll(() =>
+      ownerPage.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight
+      )
+    )
+    .toBeLessThanOrEqual(1)
   await expect(
     ownerPage.getByRole("region", { name: "To review jobs", exact: true })
   ).toContainText("Review submitted checklist")
@@ -104,6 +141,7 @@ test("owner creates, filters, and reassigns a job", async ({
       (desktopAssignedBox!.y + desktopAssignedBox!.height)
   ).toBeLessThan(48)
   await ownerPage.waitForLoadState("networkidle")
+  expect(pageErrors).toEqual([])
   await ownerPage.getByRole("tab", { name: "Archived" }).click()
   await expect(
     ownerPage.getByRole("region", { name: "Archived jobs", exact: true })
@@ -112,7 +150,7 @@ test("owner creates, filters, and reassigns a job", async ({
   await expect(ownerPage.locator("[data-column]")).toHaveCount(3)
 
   await ownerPage.getByRole("button", { name: "Create job" }).click()
-  const dialog = ownerPage.getByRole("dialog")
+  const dialog = ownerPage.getByRole("dialog", { name: "Create job" })
   expect(pageErrors).toEqual([])
   await expect(dialog).toBeVisible()
   await dialog.getByLabel("Title").fill(title)
@@ -160,7 +198,7 @@ test("owner creates, filters, and reassigns a job", async ({
   await expect(card.getByText("1 completion photo")).toBeVisible()
 
   await card.getByRole("button", { name: `Edit ${title}` }).click()
-  const editDialog = ownerPage.getByRole("dialog")
+  const editDialog = ownerPage.getByRole("dialog", { name: "Edit job" })
   await expect(editDialog.getByLabel("Assignee")).toContainText("Alex Employee")
   await editDialog
     .getByLabel("Description")
@@ -175,7 +213,7 @@ test("owner creates, filters, and reassigns a job", async ({
       response.url().includes("/dashboard/jobs")
   )
   await card.getByRole("combobox", { name: "Assign to" }).click()
-  await ownerPage.getByRole("option", { name: "Unassigned" }).click()
+  await ownerPage.getByRole("option", { name: "Unassign" }).click()
   await unassignResponse
   const unassigned = ownerPage.getByRole("region", {
     name: "Unassigned jobs",
@@ -187,16 +225,15 @@ test("owner creates, filters, and reassigns a job", async ({
   await expect(
     unassigned
       .getByRole("article", { name: `Job ${title}` })
-      .getByRole("button", { name: `Drag ${title}` })
-      .getByText("Unassigned", { exact: true })
-  ).toBeVisible()
+      .getByRole("combobox", { name: "Assign to" })
+  ).toContainText("Unassign")
   await expect(
     unassigned
       .getByRole("article", { name: `Job ${title}` })
       .getByLabel("Assign to")
   ).toBeEnabled()
 
-  const dragHandle = unassigned.getByRole("button", {
+  const fullCardDragSurface = unassigned.getByRole("button", {
     name: `Drag ${title}`,
   })
   const destination = ownerPage.getByRole("region", {
@@ -207,7 +244,7 @@ test("owner creates, filters, and reassigns a job", async ({
     name: `Assign ${title}`,
   })
   await expect(async () => {
-    await dragWithPointer(ownerPage, dragHandle, destination)
+    await dragWithPointer(ownerPage, fullCardDragSurface, destination)
     await expect(assignmentDialog).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 10_000 })
   await assignmentDialog.getByRole("button", { name: "Cancel" }).click()
@@ -222,10 +259,10 @@ test("owner creates, filters, and reassigns a job", async ({
     ownerPage.getByRole("region", { name: "Archived jobs", exact: true })
   ).toBeVisible()
   await ownerPage.getByRole("tab", { name: "Workflow" }).click()
-  const keyboardDragHandle = ownerPage
+  const keyboardFullCardDragSurface = ownerPage
     .getByRole("region", { name: "Unassigned jobs", exact: true })
     .getByRole("button", { name: `Drag ${title}` })
-  await keyboardDragHandle.focus()
+  await keyboardFullCardDragSurface.focus()
   await ownerPage.keyboard.press("Space")
   await ownerPage.keyboard.press("ArrowRight")
   await ownerPage.keyboard.press("Space")
@@ -305,6 +342,11 @@ test("owner creates, filters, and reassigns a job", async ({
   expect(
     mobilePage.viewportSize()!.height - mobileSizes!.columnBottom
   ).toBeLessThan(32)
+  expect(
+    await mobilePage.evaluate(
+      () => document.documentElement.scrollHeight - window.innerHeight
+    )
+  ).toBeLessThanOrEqual(1)
   await mobileAssigned.evaluate((column) =>
     column.scrollIntoView({ behavior: "auto", inline: "start" })
   )
@@ -322,7 +364,7 @@ test("owner creates, filters, and reassigns a job", async ({
       response.url().includes("/dashboard/jobs")
   )
   await mobileCard.getByRole("combobox", { name: "Assign to" }).click()
-  await mobilePage.getByRole("option", { name: "Unassigned" }).click()
+  await mobilePage.getByRole("option", { name: "Unassign" }).click()
   await mobileUnassignResponse
   await expect(
     mobileUnassigned.getByRole("article", { name: `Job ${title}` })

@@ -110,7 +110,7 @@ export function JobEditDialog({
     <>
       <Button
         aria-label={`Edit ${job.title}`}
-        className="absolute top-2 right-2"
+        className="absolute top-2 right-2 z-10"
         onClick={() => setOpen(true)}
         onPointerDown={(event) => event.stopPropagation()}
         size="icon-sm"

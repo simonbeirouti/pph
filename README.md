@@ -84,11 +84,16 @@ For a hosted Supabase project:
 1. Set the Auth site URL to the deployed application origin.
 2. Add `<application-origin>/auth/confirm` to the Auth redirect allow-list.
 3. Configure Resend SMTP in Supabase Auth using the project’s Resend SMTP
-   credentials. The application does not send invitation email directly and
-   therefore has no Resend application environment variables.
-4. Copy `supabase/templates/invite.html` into the corresponding Supabase Auth
-   invite template. Keep the `token_hash` and `type=invite` callback parameters
-   intact.
+   credentials. Supabase Auth sends invitation and account emails; the
+   application does not send those messages directly.
+
+Job-submission review emails are sent directly by the application through the
+Resend API. Add `RESEND_API_KEY` and `RESEND_APP_FROM_EMAIL` to `.env.local`.
+The from address must use a domain verified in Resend. A missing or rejected
+Resend configuration never rolls back a job submission: the owner sees the
+failed delivery in the review sheet and can retry it. 4. Copy `supabase/templates/invite.html` into the corresponding Supabase Auth
+invite template. Keep the `token_hash` and `type=invite` callback parameters
+intact.
 
 Local Supabase loads those checked-in templates from `supabase/config.toml`.
 Template changes require a local stack restart:

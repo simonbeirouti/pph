@@ -14,6 +14,7 @@ import {
   UserRoundCheckIcon,
   UserRoundXIcon,
 } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -239,7 +240,7 @@ export function JobWorkspace({
   }
 
   return (
-    <div className="grid h-[calc(100svh-6rem)] min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-5 md:h-[calc(100svh-8rem)]">
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-5 overflow-hidden">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Jobs</h1>
@@ -416,7 +417,10 @@ function JobColumn({
           {items.length}
         </span>
       </header>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-y-contain p-2">
+      <div
+        className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-y-contain p-2"
+        data-card-list
+      >
         {items.length ? (
           items.map((job, index) => (
             <JobCardView
@@ -487,33 +491,40 @@ function JobCardView({
   pending: boolean
   timezone: string
 }) {
-  const { isDragging, ref } = useSortable({
-    accept: "job",
+  const { handleRef, isDragging, ref } = useSortable({
+    accept:
+      job.status === "assigned" || job.status === "in_progress"
+        ? "job"
+        : "read-only-job",
     group: "workflow-jobs",
     id: job.id,
     index,
     transition: null,
-    type: "job",
+    type:
+      job.status === "assigned" || job.status === "in_progress"
+        ? "job"
+        : "read-only-job",
   })
-  const selectedAssigneeName = job.assigneeMembershipId
-    ? (assignee?.displayName ?? "Former employee")
-    : "Unassigned"
+  const editable = job.status === "assigned" || job.status === "in_progress"
 
   return (
     <article
       aria-label={`Job ${job.title}`}
       className={cn(
-        "relative rounded-md border bg-background p-3 shadow-xs",
-        isDragging && "opacity-70",
+        "relative rounded-md border bg-background p-3 shadow-xs transition-[box-shadow,opacity] will-change-transform",
+        isDragging &&
+          "z-20 rotate-[0.5deg] opacity-95 shadow-xl ring-2 ring-primary/20",
         pending && "pointer-events-none opacity-60"
       )}
       data-dragging={isDragging ? "true" : undefined}
+      ref={ref}
     >
       <div
         aria-label={`Drag ${job.title}`}
-        className="cursor-grab rounded-sm pr-8 active:cursor-grabbing"
-        ref={ref}
-      >
+        className="absolute inset-0 z-0 cursor-grab rounded-md active:cursor-grabbing"
+        ref={handleRef}
+      />
+      <div className="pointer-events-none relative z-[1] rounded-sm pr-8">
         <h4 className="min-w-0 text-sm font-medium">{job.title}</h4>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <PriorityBadge priority={job.priority} />
@@ -525,119 +536,189 @@ function JobCardView({
               : job.status.replace("_", " ")}
           </Badge>
         </div>
-        {assignee || job.assigneeMembershipId ? (
-          <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/60 p-2">
-            <EmployeeAvatar
-              className="size-7"
-              name={assignee?.displayName ?? "Former employee"}
-              url={assignee?.avatarUrl ?? null}
-            />
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium">
-                {assignee?.displayName ?? "Former employee"}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {assignee
-                  ? assignee.active
-                    ? assignee.jobTitle
-                    : `${assignee.jobTitle} · Inactive`
-                  : "No longer in the directory"}
-              </p>
-            </div>
-          </div>
-        ) : null}
-        {job.description ? (
-          <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-            {job.description}
-          </p>
-        ) : null}
-        <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
-          {job.location ? (
-            <span className="flex items-center gap-1.5">
-              <MapPinIcon className="size-3.5" />
-              {job.location}
-            </span>
-          ) : null}
-          {job.scheduledAt ? (
-            <span className="flex items-center gap-1.5">
-              <BriefcaseBusinessIcon className="size-3.5" />
-              Scheduled {formatDateTime(job.scheduledAt, timezone)}
-            </span>
-          ) : null}
-          {job.dueAt ? (
-            <span className="flex items-center gap-1.5">
-              <ClockIcon className="size-3.5" />
-              Due {formatDateTime(job.dueAt, timezone)}
-            </span>
-          ) : null}
-          {job.requiresCompletionNote ? (
-            <span className="flex items-center gap-1.5">
-              <FileTextIcon className="size-3.5" />
-              Completion note required
-            </span>
-          ) : null}
-          {job.minimumCompletionPhotos > 0 ? (
-            <span className="flex items-center gap-1.5">
-              <CameraIcon className="size-3.5" />
-              {job.minimumCompletionPhotos} completion{" "}
-              {job.minimumCompletionPhotos === 1 ? "photo" : "photos"}
-            </span>
-          ) : null}
-        </div>
       </div>
-      <JobEditDialog
-        currentAssigneeName={
-          assignee?.displayName ??
-          (job.assigneeMembershipId ? "Former employee" : undefined)
-        }
-        employees={assignmentTargets}
-        job={job}
-        onUpdated={onUpdated}
-        timezone={timezone}
-      />
-      <div className="mt-3" onPointerDown={(event) => event.stopPropagation()}>
-        <label
-          className="mb-1 block text-xs font-medium"
-          htmlFor={`job-${job.id}-assignee`}
+      {editable ? (
+        <div
+          className="relative z-10 mt-3"
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          Assign to
-        </label>
-        <Select
-          disabled={pending}
-          onValueChange={(value) => {
-            void onAssign(
-              job.id,
-              !value || value === "unassigned" ? null : Number(value)
-            )
-          }}
-          value={
-            job.assigneeMembershipId
-              ? String(job.assigneeMembershipId)
-              : "unassigned"
-          }
-        >
-          <SelectTrigger
-            aria-label="Assign to"
-            className="w-full"
-            id={`job-${job.id}-assignee`}
-            size="sm"
+          <Select
+            disabled={pending}
+            onValueChange={(value) => {
+              void onAssign(
+                job.id,
+                !value || value === "unassigned" ? null : Number(value)
+              )
+            }}
+            value={
+              job.assigneeMembershipId
+                ? String(job.assigneeMembershipId)
+                : "unassigned"
+            }
           >
-            <SelectValue>{selectedAssigneeName}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {assignmentTargets.map((employee) => (
-              <SelectItem
-                key={employee.membershipId}
-                value={String(employee.membershipId)}
-              >
-                {employee.displayName}
+            <SelectTrigger
+              aria-label="Assign to"
+              className="w-full"
+              size="sm"
+            >
+              <SelectValue>
+                <AssigneeIdentity
+                  assignee={assignee}
+                  assigned={Boolean(job.assigneeMembershipId)}
+                  inline
+                />
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">
+                <AssigneeIdentity assignee={null} assigned={false} inline />
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {assignmentTargets.map((employee) => (
+                <SelectItem
+                  key={employee.membershipId}
+                  value={String(employee.membershipId)}
+                >
+                  <AssigneeIdentity assignee={employee} assigned inline />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : assignee || job.assigneeMembershipId ? (
+        <div className="pointer-events-none relative z-[1] mt-3 flex items-center gap-2 rounded-md bg-muted/60 p-2">
+          <AssigneeIdentity assignee={assignee} assigned />
+        </div>
+      ) : null}
+      {job.description ? (
+        <p className="pointer-events-none relative z-[1] mt-2 line-clamp-3 text-xs text-muted-foreground">
+          {job.description}
+        </p>
+      ) : null}
+      <div className="pointer-events-none relative z-[1] mt-3 grid gap-1.5 text-xs text-muted-foreground">
+        {job.location ? (
+          <span className="flex items-center gap-1.5">
+            <MapPinIcon className="size-3.5" />
+            {job.location}
+          </span>
+        ) : null}
+        {job.scheduledAt ? (
+          <span className="flex items-center gap-1.5">
+            <BriefcaseBusinessIcon className="size-3.5" />
+            Scheduled {formatDateTime(job.scheduledAt, timezone)}
+          </span>
+        ) : null}
+        {job.dueAt ? (
+          <span className="flex items-center gap-1.5">
+            <ClockIcon className="size-3.5" />
+            Due {formatDateTime(job.dueAt, timezone)}
+          </span>
+        ) : null}
+        {job.requiresCompletionNote ? (
+          <span className="flex items-center gap-1.5">
+            <FileTextIcon className="size-3.5" />
+            Completion note required
+          </span>
+        ) : null}
+        {job.minimumCompletionPhotos > 0 ? (
+          <span className="flex items-center gap-1.5">
+            <CameraIcon className="size-3.5" />
+            {job.minimumCompletionPhotos} completion{" "}
+            {job.minimumCompletionPhotos === 1 ? "photo" : "photos"}
+          </span>
+        ) : null}
+      </div>
+      {editable ? (
+        <div onPointerDown={(event) => event.stopPropagation()}>
+          <JobEditDialog
+            currentAssigneeName={
+              assignee?.displayName ??
+              (job.assigneeMembershipId ? "Former employee" : undefined)
+            }
+            employees={assignmentTargets}
+            job={job}
+            onUpdated={onUpdated}
+            timezone={timezone}
+          />
+        </div>
+      ) : null}
+      <div
+        className="relative z-10 mt-3 grid"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <Button
+          nativeButton={false}
+          render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
+          size="sm"
+          variant="outline"
+        >
+          Open job
+        </Button>
       </div>
     </article>
+  )
+}
+
+function AssigneeIdentity({
+  assignee,
+  assigned,
+  inline = false,
+}: {
+  assignee: JobBoardEmployee | null
+  assigned: boolean
+  inline?: boolean
+}) {
+  if (!assigned) {
+    return (
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-background">
+          <UserRoundXIcon className="size-3.5 text-muted-foreground" />
+        </span>
+        {inline ? (
+          <span className="min-w-0 truncate text-left text-xs">
+            <span className="font-medium">Unassign</span>
+          </span>
+        ) : (
+          <span className="min-w-0 text-left">
+            <span className="block truncate text-xs font-medium">
+              Unassigned
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              Choose an employee
+            </span>
+          </span>
+        )}
+      </span>
+    )
+  }
+
+  const name = assignee?.displayName ?? "Former employee"
+  const title = assignee
+    ? assignee.active
+      ? assignee.jobTitle
+      : `${assignee.jobTitle} · Inactive`
+    : "No longer in the directory"
+
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <EmployeeAvatar
+        className="size-7 shrink-0"
+        name={name}
+        url={assignee?.avatarUrl ?? null}
+      />
+      {inline ? (
+        <span className="min-w-0 truncate text-left text-xs">
+          <span className="font-medium">{name}</span>
+          <span className="text-muted-foreground"> - {title}</span>
+        </span>
+      ) : (
+        <span className="min-w-0 text-left">
+          <span className="block truncate text-xs font-medium">{name}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {title}
+          </span>
+        </span>
+      )}
+    </span>
   )
 }
 
