@@ -111,7 +111,16 @@ test("owner creates, filters, and reassigns a job", async ({
   )
   const title = `S04 ${testInfo.project.name} ${Date.now()}`
   const pageErrors: Error[] = []
+  const insertionEffectErrors: string[] = []
   ownerPage.on("pageerror", (error) => pageErrors.push(error))
+  ownerPage.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      message.text().includes("useInsertionEffect must not schedule updates")
+    ) {
+      insertionEffectErrors.push(message.text())
+    }
+  })
   await ownerPage.goto("/dashboard/jobs")
   await expect(
     ownerPage.getByRole("heading", { name: "Jobs", level: 1 })
@@ -225,16 +234,23 @@ test("owner creates, filters, and reassigns a job", async ({
       response.request().method() === "POST" &&
       response.url().includes("/dashboard/jobs")
   )
-  await card.getByRole("combobox", { name: "Assign to" }).click()
-  await ownerPage.getByRole("option", { name: "Unassign" }).click()
-  await unassignResponse
   const unassigned = ownerPage.getByRole("region", {
     name: "Unassigned jobs",
     exact: true,
   })
+  await dragWithPointer(
+    ownerPage,
+    card.getByRole("button", { name: `Drag ${title}` }),
+    unassigned
+  )
+  await unassignResponse
   await expect(
     unassigned.getByRole("article", { name: `Job ${title}` })
   ).toBeVisible()
+  expect(
+    insertionEffectErrors,
+    `React insertion-effect errors:\n${insertionEffectErrors.join("\n")}`
+  ).toEqual([])
   await expect(
     unassigned
       .getByRole("article", { name: `Job ${title}` })

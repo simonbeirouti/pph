@@ -1,10 +1,16 @@
 import { RosterCalendar } from "@/components/roster-calendar"
+import { requireActiveMembership } from "@/lib/auth/membership"
 import {
+  getCurrentEmployee,
+  toActiveEmployeeOption,
+} from "@/lib/employees/data"
+import { getEmployeeAssignedJobs } from "@/lib/jobs/data"
+import {
+  getEmployeeRosterCalendarData,
   getOwnerRosterCalendarData,
   getOwnerRosterContext,
 } from "@/lib/roster/data"
 import {
-  assertIanaTimezone,
   localDateForInstant,
   localDateRange,
   mondayForLocalDate,
@@ -21,42 +27,67 @@ function validLocalDate(value: string | undefined) {
     : null
 }
 
-function validTimezone(value: string | undefined) {
-  if (!value) return null
-  try {
-    return assertIanaTimezone(value)
-  } catch {
-    return null
-  }
-}
-
 export default async function RosterPage({
   searchParams,
 }: {
   searchParams: Promise<{
     date?: string
     employee?: string
-    timezone?: string
     view?: string
   }>
 }) {
   const params = await searchParams
-  const mode = params.view === "week" ? "week" : "day"
-  const context = await getOwnerRosterContext()
-  const requestedTimezone = validTimezone(params.timezone)
-  const timezone = requestedTimezone ?? context.timezone
+  const membership = await requireActiveMembership()
+  const mode = membership.role === "employee" ? "week" : "team"
+  const timezone = membership.timezone
   const now = new Date()
   const today = localDateForInstant(now, timezone)
   const selectedDate = validLocalDate(params.date) ?? today
   const weekStart = mondayForLocalDate(selectedDate)
   const range = localDateRange(weekStart, 7, timezone)
+
+  if (membership.role === "employee") {
+    const [calendar, employee, assignedJobs] = await Promise.all([
+      getEmployeeRosterCalendarData({
+        endUtc: range.endUtc,
+        startUtc: range.startUtc,
+      }),
+      getCurrentEmployee(),
+      getEmployeeAssignedJobs(),
+    ])
+    const employeeOption = toActiveEmployeeOption(employee)
+
+    return (
+      <RosterCalendar
+        dates={range.dates}
+        employees={[employeeOption]}
+        jobs={assignedJobs.map((job) => ({
+          assigneeMembershipId: job.assigneeMembershipId,
+          dueAt: job.dueAt,
+          id: job.id,
+          scheduledAt: job.scheduledAt,
+          title: job.title,
+        }))}
+        mode="week"
+        now={now.toISOString()}
+        readOnly
+        selectedDate={selectedDate}
+        selectedEmployeeId={membership.membershipId}
+        shifts={calendar.shifts}
+        timezone={timezone}
+        today={today}
+      />
+    )
+  }
+
+  const context = await getOwnerRosterContext()
   const selectedValue = Number(params.employee)
   const selectedEmployee =
     context.employees.find(
       (employee) =>
         Number.isSafeInteger(selectedValue) &&
         employee.employeeMembershipId === selectedValue
-    ) ?? context.employees[0]
+    ) ?? null
   const calendar = await getOwnerRosterCalendarData({
     endUtc: range.endUtc,
     startUtc: range.startUtc,
@@ -66,17 +97,13 @@ export default async function RosterPage({
     <RosterCalendar
       dates={range.dates}
       employees={calendar.employees}
+      jobs={calendar.jobs}
       mode={mode}
       now={now.toISOString()}
       selectedDate={selectedDate}
-      selectedEmployeeId={
-        mode === "week"
-          ? (selectedEmployee?.employeeMembershipId ?? null)
-          : null
-      }
+      selectedEmployeeId={selectedEmployee?.employeeMembershipId ?? null}
       shifts={calendar.shifts}
       timezone={timezone}
-      timezoneExplicit={Boolean(requestedTimezone)}
       today={today}
     />
   )

@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { addLocalDays } from "@/lib/roster/time"
+import { addLocalDays, assertIanaTimezone } from "@/lib/roster/time"
 
 const localDateSchema = z
   .string()
@@ -29,6 +29,27 @@ export const employeeRosterShiftSchema = z.object({
     .refine((value) => Number.isFinite(Date.parse(value)), "Invalid version.")
     .optional(),
 })
+
+export const calendarRosterShiftSchema = employeeRosterShiftSchema
+  .omit({ updatedAt: true })
+  .extend({
+    employeeMembershipId: z.coerce
+      .number()
+      .int()
+      .positive("Choose an active employee."),
+    jobIds: z
+      .array(z.coerce.number().int().positive("Choose valid jobs."))
+      .max(100, "Choose no more than 100 jobs.")
+      .transform((values) => [...new Set(values)]),
+    timezone: z.string().refine((value) => {
+      try {
+        assertIanaTimezone(value)
+        return true
+      } catch {
+        return false
+      }
+    }, "Choose a valid timezone."),
+  })
 
 export function rosterShiftLocalValues(input: {
   date: string

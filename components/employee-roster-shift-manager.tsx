@@ -1,12 +1,26 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { useActionState, useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { PencilIcon, PlusIcon } from "lucide-react"
+import { LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
 
-import { saveEmployeeRosterShiftAction } from "@/app/dashboard/employees/roster-actions"
+import {
+  archiveEmployeeRosterShiftAction,
+  saveEmployeeRosterShiftAction,
+} from "@/app/dashboard/employees/roster-actions"
 import { FieldErrors } from "@/components/employee-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -36,11 +50,13 @@ import type { EmployeeShiftSummary, RosterShift } from "@/lib/roster/types"
 function ShiftForm({
   employeeMembershipId,
   onSaved,
+  onRequestArchive,
   shift,
   timezone,
 }: {
   employeeMembershipId: number
   onSaved: () => void
+  onRequestArchive: (() => void) | null
   shift: RosterShift | null
   timezone: string
 }) {
@@ -113,9 +129,7 @@ function ShiftForm({
               )
               setSelectedStartTime(nextStart)
               if (duration !== null) {
-                setSelectedEndTime(
-                  addMinutesToClockTime(nextStart, duration)
-                )
+                setSelectedEndTime(addMinutesToClockTime(nextStart, duration))
               }
             }}
             required
@@ -162,6 +176,17 @@ function ShiftForm({
         <FieldErrors errors={state.errors?.notes} />
       </div>
       <DialogFooter>
+        {onRequestArchive ? (
+          <Button
+            className="sm:mr-auto"
+            onClick={onRequestArchive}
+            type="button"
+            variant="destructive"
+          >
+            <Trash2Icon />
+            Delete shift
+          </Button>
+        ) : null}
         <Button disabled={pending} type="submit">
           {pending ? "Saving…" : shift ? "Save shift" : "Create shift"}
         </Button>
@@ -184,6 +209,8 @@ export function EmployeeRosterShiftManager({
   timezone: string
 }) {
   const router = useRouter()
+  const [archiving, startArchive] = useTransition()
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [editingShift, setEditingShift] = useState<RosterShift | null>(null)
   const [open, setOpen] = useState(false)
   const shifts = [
@@ -201,6 +228,25 @@ export function EmployeeRosterShiftManager({
   const saved = () => {
     setOpen(false)
     router.refresh()
+  }
+  const archiveShift = () => {
+    const shift = editingShift
+    if (!shift) return
+    startArchive(async () => {
+      const result = await archiveEmployeeRosterShiftAction(
+        employeeMembershipId,
+        shift.id,
+        shift.updatedAt
+      )
+      if (result.ok) {
+        toast.success(result.message)
+        setArchiveConfirmOpen(false)
+        setOpen(false)
+        router.refresh()
+      } else {
+        toast.error(result.message)
+      }
+    })
   }
 
   return (
@@ -242,16 +288,23 @@ export function EmployeeRosterShiftManager({
                 </p>
               </div>
               {canManage ? (
-                <Button
-                  aria-label={`Edit ${employeeName} shift`}
-                  data-shift-id={shift.id}
-                  onClick={() => openEdit(shift)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <PencilIcon />
-                </Button>
+                shift.lockedAt ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <LockIcon className="size-3.5" />
+                    Locked
+                  </span>
+                ) : (
+                  <Button
+                    aria-label={`Edit ${employeeName} shift`}
+                    data-shift-id={shift.id}
+                    onClick={() => openEdit(shift)}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <PencilIcon />
+                  </Button>
+                )
               ) : null}
             </div>
           ))}
@@ -281,11 +334,41 @@ export function EmployeeRosterShiftManager({
             employeeMembershipId={employeeMembershipId}
             key={editingShift?.id ?? "create"}
             onSaved={saved}
+            onRequestArchive={
+              editingShift ? () => setArchiveConfirmOpen(true) : null
+            }
             shift={editingShift}
             timezone={timezone}
           />
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={archiveConfirmOpen}
+        onOpenChange={setArchiveConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this shift?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The shift will disappear from the roster while its historical
+              record is retained.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={archiving}
+              onClick={(event) => {
+                event.preventDefault()
+                archiveShift()
+              }}
+              variant="destructive"
+            >
+              {archiving ? "Deleting…" : "Delete shift"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

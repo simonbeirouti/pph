@@ -1,6 +1,6 @@
 import type { ActiveEmployeeOption } from "@/lib/employees/data"
 
-export type RosterCalendarMode = "day" | "week"
+export type RosterCalendarMode = "team" | "week"
 
 export type RosterShift = {
   archivedAt: string | null
@@ -9,6 +9,8 @@ export type RosterShift = {
   employeeMembershipId: number
   endsAt: string
   id: number
+  lockedAt: string | null
+  lockedByMembershipId: number | null
   notes: string
   organisationId: number
   startsAt: string
@@ -25,6 +27,22 @@ export type RosterCalendarRange = {
   dates: RosterCalendarDate[]
   endUtc: string
   startUtc: string
+}
+
+export type RosterAssignableJob = {
+  assigneeMembershipId: number | null
+  dueAt: string | null
+  id: number
+  scheduledAt: string | null
+  title: string
+}
+
+export type RosterShiftDraft = {
+  date: string
+  employeeMembershipId: number | null
+  endTime: string
+  notes?: string
+  startTime: string
 }
 
 export type RosterShiftPosition = {

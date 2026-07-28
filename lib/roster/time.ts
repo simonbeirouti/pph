@@ -219,6 +219,28 @@ export function addMinutesToClockTime(value: string, minutes: number) {
   return `${pad(Math.floor(result / 60))}:${pad(result % 60)}`
 }
 
+export function clockTimeForDayMinutes(minutes: number) {
+  const dayMinutes = 24 * 60
+  const bounded = Math.max(0, Math.min(dayMinutes, Math.round(minutes)))
+  const normalized = bounded === dayMinutes ? 0 : bounded
+  return `${pad(Math.floor(normalized / 60))}:${pad(normalized % 60)}`
+}
+
+export function calendarMinutesForOffset(
+  offset: number,
+  height: number,
+  snapMinutes = 15
+) {
+  if (!Number.isFinite(offset) || !Number.isFinite(height) || height <= 0) {
+    return 0
+  }
+  const rawMinutes = (Math.max(0, Math.min(height, offset)) / height) * 24 * 60
+  return Math.max(
+    0,
+    Math.min(24 * 60, Math.round(rawMinutes / snapMinutes) * snapMinutes)
+  )
+}
+
 export function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60)
   const remainder = minutes % 60

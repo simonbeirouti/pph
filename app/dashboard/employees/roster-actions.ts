@@ -106,14 +106,14 @@ export async function saveEmployeeRosterShiftAction(
       .eq("organisation_id", owner.organisationId)
       .eq("employee_membership_id", employeeMembershipId)
       .is("archived_at", null)
+      .is("locked_at", null)
     if (parsed.data.updatedAt) {
       query = query.eq("updated_at", parsed.data.updatedAt)
     }
     result = await query.select("*").maybeSingle()
     if (!result.error && !result.data) {
       return {
-        message:
-          "This shift changed in another session. Refresh and try again.",
+        message: "This shift changed or is locked. Refresh and try again.",
         ok: false,
       }
     }
@@ -146,4 +146,51 @@ export async function saveEmployeeRosterShiftAction(
     message: shiftId ? "Shift updated." : "Shift created.",
     ok: true,
   }
+}
+
+export async function archiveEmployeeRosterShiftAction(
+  employeeMembershipId: number,
+  shiftId: number,
+  updatedAt: string
+): Promise<{ message: string; ok: boolean }> {
+  await requireOwner()
+  if (
+    !Number.isSafeInteger(employeeMembershipId) ||
+    employeeMembershipId <= 0 ||
+    !Number.isSafeInteger(shiftId) ||
+    shiftId <= 0 ||
+    !Number.isFinite(Date.parse(updatedAt))
+  ) {
+    return { message: "Choose a valid shift.", ok: false }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("archive_roster_shift", {
+    p_expected_updated_at: updatedAt,
+    p_shift_id: shiftId,
+  })
+
+  if (error) {
+    if (error.code === "P0002") {
+      return {
+        message:
+          "This shift changed in another session. Refresh and try again.",
+        ok: false,
+      }
+    }
+    return { message: mutationError(error), ok: false }
+  }
+  if (data !== shiftId) {
+    return {
+      message: "Unable to delete the shift.",
+      ok: false,
+    }
+  }
+
+  revalidatePath("/dashboard/roster")
+  revalidatePath("/dashboard/employees")
+  revalidatePath(`/dashboard/employees/${employeeMembershipId}`)
+  revalidatePath("/dashboard/jobs")
+  revalidatePath("/dashboard")
+  return { message: "Shift deleted.", ok: true }
 }

@@ -99,9 +99,18 @@ export function EmployeeDirectoryTable({
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline" className="capitalize">
-                  {employee.inviteDeliveryStatus}
-                </Badge>
+                {employee.status === "invited" ? (
+                  <Badge variant="outline" className="capitalize">
+                    {employee.inviteDeliveryStatus}
+                  </Badge>
+                ) : (
+                  <span
+                    aria-label="Not applicable"
+                    className="text-muted-foreground"
+                  >
+                    —
+                  </span>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {shiftSummaries[employee.membershipId]?.current

@@ -1,9 +1,9 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
+import { toast } from "sonner"
 
 import { loginAction } from "@/app/login/actions"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -32,6 +32,10 @@ export function LoginForm({
     INITIAL_ACTION_STATE
   )
 
+  useEffect(() => {
+    if (state.message) toast.error(state.message)
+  }, [state])
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -48,11 +52,6 @@ export function LoginForm({
         <CardContent>
           <form action={action}>
             <FieldGroup>
-              {state.message ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{state.message}</AlertDescription>
-                </Alert>
-              ) : null}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input

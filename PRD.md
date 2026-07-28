@@ -475,30 +475,41 @@ Acceptance criteria:
 ### 3.7 Roster
 
 Roster dates and times are displayed in the viewer's current browser timezone.
-The validated IANA timezone is retained in route state so server-rendered ranges
-and client-side positioning use the same local-day boundaries.
+The validated IANA timezone is retained behind the scenes in the viewer context
+so server-rendered ranges and client-side positioning use the same local-day
+boundaries without exposing timezone in roster URLs.
 
-#### CAL-01: Employee week view
+#### CAL-01: Employee roster filter
 
-As an owner, I want a seven-day view for one employee so that I can plan their week.
+As an owner, I want to filter the Team week to one employee so that I can plan
+their week without switching calendar modes.
 
 Acceptance criteria:
 
-- The owner can select any active employee.
-- Seven consecutive dates are shown with minute-accurate placement.
+- The Team week employee selector offers All team and every active employee.
+- Selecting an employee shows only that worker's shifts across all seven dates.
+- Every date remains interactive while filtered.
+- Creating while filtered preselects that employee; creating from All team
+  requires the owner to choose the employee in the shift dialog.
 - Shifts display start time, end time, duration, and optional notes.
 - Previous week, next week, and Today controls are available.
 
-#### CAL-02: Organisation day view
+#### CAL-02: Organisation week view
 
-As an owner, I want a single-day view of all rostered employees so that I can see daily coverage.
+As an owner, I want a seven-day view of all rostered employees so that I can
+see team coverage and overlaps across the week.
 
 Acceptance criteria:
 
-- Each rostered employee has a visible lane or row.
-- Employees are ordered by first shift start and then name.
+- Seven consecutive dates are shown with one shared time canvas per date rather
+  than equal-width employee lanes.
+- Day columns have persistent vertical separators, and mobile uses one fixed
+  day width per viewport with mandatory day-to-day snapping.
+- Every shift identifies its employee and remains selectable.
+- Overlapping shifts are layered within the date: longer shifts render behind
+  shorter shifts, with progressive inset exposing each overlapping layer.
 - Multiple non-overlapping shifts for one employee can be shown.
-- The view can move to the previous day, next day, or today.
+- The view can move to the previous week, next week, or today.
 
 #### CAL-03: Shift management
 
@@ -509,19 +520,41 @@ Acceptance criteria:
 
 - On desktop, dragging across empty calendar time selects an initial range in
   15-minute increments and opens the create-shift form on release.
+- Holding Alt/Option allows desktop range selection to begin over an existing shift;
+  the gesture creates a new shift draft instead of opening shift details.
 - On mobile, tapping empty calendar time opens a one-hour shift beginning at
   the tapped quarter hour.
 - The calendar form allows the owner to change the date, exact start and end
   times, active employee, notes, and optional not-started jobs before saving.
-- The employee is inferred from the selected Team-day lane or Employee-week
-  view but remains editable in the form.
+- The employee is inferred from the Team-week employee filter. Creating from
+  All team leaves the employee unselected until the owner chooses one.
 - Owners can also create and exactly edit an employee's shifts from the
   employee directory sheet.
 - Exact shift forms accept start and end times to the minute.
 - Changing a form's start time advances the end time by the currently selected
   duration, including across midnight.
-- Existing calendar shifts open read-only details; existing-shift drag,
-  resize, and copy are not part of V1.
+- Clicking an existing calendar shift opens its details.
+- Right-clicking an existing shift as an owner opens actions to lock or unlock,
+  duplicate, edit, or delete it. Edit includes the assigned active employee,
+  date, exact times, and notes; duplicate opens a new unsaved shift with those
+  values prefilled and does not copy job allocations.
+- Owners can drag an existing shift to another date/time while preserving its
+  employee and duration.
+- Owners can drag the visible top or bottom edge handle to change only the
+  shift start or end. Move and resize gestures snap to 15-minute boundaries,
+  keep at least 15 minutes of duration, and save only on pointer release.
+- Calendar move and resize use the shift version observed by the owner; stale,
+  overlapping, invalid, cross-organisation, archived, or inactive-employee
+  changes fail safely and restore the authoritative shift.
+- Locking freezes every shift mutation except unlocking. Locked shifts remain
+  visible and selectable, and the database enforces the lock across calendar
+  and employee-profile mutation paths.
+- Historical shifts remain visible and owner-editable, duplicable, or
+  deletable unless locked. Deletion remains a confirmed soft archive so roster
+  history is retained.
+- Employee read-only calendars do not expose move or resize interactions.
+- Exact editing from the employee profile remains the keyboard-accessible
+  fallback for calendar move and resize.
 - Existing shifts are exactly edited or archived from the employee profile,
   and archive requires confirmation.
 - The calendar form can select zero or more jobs that are still in `assigned`
@@ -545,6 +578,25 @@ Acceptance criteria:
 - Its position reflects the viewer's browser-local current time.
 - It updates on the next minute boundary, at least once per minute afterward, and immediately when the tab becomes visible again.
 - The roster always fits the complete 24-hour day into the available calendar height.
+
+#### CAL-05: Employee roster
+
+As an employee, I want a read-only weekly roster with my allocated jobs so that
+I know when I am working and what work is assigned during each shift.
+
+Acceptance criteria:
+
+- Employees can open Roster from authenticated navigation.
+- Employees see only their own seven-day roster and cannot select another
+  employee or switch to the organisation Team-day view.
+- Add, drag, tap, edit, archive, employee-selection, and job-assignment controls
+  are not available to employees.
+- Shift details include currently assigned jobs whose scheduled interval
+  overlaps that shift, with links to the employee's permitted job detail.
+- Previous week, next week, Today, viewer timezone, and live-current-time
+  behaviour remain available.
+- Existing employee self-read RLS remains the authoritative roster and job
+  boundary.
 
 ### 3.8 Progressive Web App
 
@@ -716,9 +768,11 @@ Acceptance criteria:
 
 ### `/dashboard/roster`
 
-- Owner-only route.
-- Contains employee week and organisation day views.
-- Employee shift summaries remain on the employee dashboard.
+- Requires an active membership and is linked for owners and employees.
+- Owners receive one editable layered organisation-week view with an optional
+  employee filter.
+- Employees receive a self-scoped, read-only week view with currently assigned
+  jobs associated with the relevant shifts.
 
 ### `/dashboard/employees`
 
@@ -1022,11 +1076,11 @@ Requirements:
 
 Each implementation step should inspect the relevant reference implementation before rebuilding equivalent behaviour. Where it matches this PRD, preserve its useful visual treatment, interaction behaviour, and available assets rather than recreating them without reason.
 
-Future implementation may port:
-
-- Roster slot positioning and pointer range-selection interactions.
-- Timezone conversion helpers.
-- Resend sender abstractions.
+The remaining schedule prototype cluster may still inform S08 recurrence,
+occurrence positioning, optimistic schedule movement, and timezone-aware
+generation. `query-provider.tsx` remains explicitly reserved for the S10
+offline persistence audit, and `supabase/json.ts` remains as a generic JSON
+payload reference.
 
 S01 consumed and verified the Supabase browser, server, admin, environment,
 session-cookie, and thin root Proxy prototypes. Those six obsolete reference
@@ -1040,6 +1094,13 @@ S04 consumed the Kanban layout, drag/drop, filtering, optimistic movement, and
 rollback concepts from `components/ref-files/dashboard-workspace.tsx`. The
 verified production implementation now lives in the repository-native Jobs
 modules, and the obsolete reference duplicate was removed.
+
+S05–S07 established maintained production email, roster-time, calendar,
+dialog/drawer, and route implementations. The superseded Resend examples,
+duplicate roster-time helper, legacy login page, and legacy roster page wrapper
+were removed. Production email delivery remains in `lib/email/**`; roster
+timezone and calendar behaviour remain in `lib/roster/**`,
+`components/roster-calendar.tsx`, and the `/dashboard/roster` route.
 
 Feature owners may clean, edit, split, move, rename, or remove reference files as they are absorbed into the application. The expected workflow is:
 
@@ -1211,7 +1272,8 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 ### Step 6: Roster data and views
 
-- Implement shift schema, RLS, overlap protection, employee week view, organisation day view, and employee shift summary.
+- Implement shift schema, RLS, overlap protection, employee week view,
+  layered organisation week view, and employee shift summary.
 
 ### Step 7: Roster interactions
 

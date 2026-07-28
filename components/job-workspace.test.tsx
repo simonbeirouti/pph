@@ -263,13 +263,14 @@ describe("JobWorkspace", () => {
       })
     )
     const user = userEvent.setup()
-    const { rerender } = render(
+    const { container, rerender } = render(
       <JobWorkspace
         employees={employees}
         initialJobs={[job]}
         timezone="Australia/Melbourne"
       />
     )
+    const boardScroller = container.querySelector("[data-board-scroll]")
 
     const originalCard = screen.getByRole("article", {
       name: "Job Inspect loading bay",
@@ -284,6 +285,7 @@ describe("JobWorkspace", () => {
         { name: "Job Inspect loading bay" }
       )
     ).toBeVisible()
+    expect(container.querySelector("[data-board-scroll]")).toBe(boardScroller)
 
     const refreshedJob: JobCard = {
       ...job,

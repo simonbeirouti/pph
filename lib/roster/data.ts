@@ -2,7 +2,11 @@ import "server-only"
 
 import { cache } from "react"
 
-import { requireActiveMembership, requireOwner } from "@/lib/auth/membership"
+import {
+  requireActiveMembership,
+  requireEmployee,
+  requireOwner,
+} from "@/lib/auth/membership"
 import {
   listActiveEmployeeOptions,
   type ActiveEmployeeOption,
@@ -11,6 +15,7 @@ import type { Tables } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
 import type {
   EmployeeShiftSummary,
+  RosterAssignableJob,
   RosterShift,
   TodayRosterAggregate,
   WorkingNowAggregate,
@@ -19,7 +24,7 @@ import type {
 type RosterShiftRow = Tables<"roster_shifts">
 
 const SHIFT_FIELDS =
-  "id, organisation_id, employee_membership_id, starts_at, ends_at, notes, created_by, created_at, updated_at, archived_at"
+  "id, organisation_id, employee_membership_id, starts_at, ends_at, notes, created_by, created_at, updated_at, archived_at, locked_at, locked_by"
 
 export function toRosterShift(row: RosterShiftRow): RosterShift {
   return {
@@ -29,6 +34,8 @@ export function toRosterShift(row: RosterShiftRow): RosterShift {
     employeeMembershipId: row.employee_membership_id,
     endsAt: row.ends_at,
     id: row.id,
+    lockedAt: row.locked_at,
+    lockedByMembershipId: row.locked_by,
     notes: row.notes,
     organisationId: row.organisation_id,
     startsAt: row.starts_at,
@@ -67,6 +74,29 @@ async function queryIntersectingShifts(input: {
   return (data ?? []).map((row) => toRosterShift(row as RosterShiftRow))
 }
 
+async function queryAssignableJobs(
+  organisationId: number
+): Promise<RosterAssignableJob[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id, assignee_membership_id, title, scheduled_at, due_at")
+    .eq("organisation_id", organisationId)
+    .eq("status", "assigned")
+    .is("archived_at", null)
+    .order("due_at", { ascending: true, nullsFirst: false })
+    .order("title")
+
+  if (error) throw new Error("Unable to load assignable jobs")
+  return (data ?? []).map((job) => ({
+    assigneeMembershipId: job.assignee_membership_id,
+    dueAt: job.due_at,
+    id: job.id,
+    scheduledAt: job.scheduled_at,
+    title: job.title,
+  }))
+}
+
 export const getOwnerRosterCalendarData = cache(
   async (input: {
     employeeMembershipId?: number
@@ -74,18 +104,38 @@ export const getOwnerRosterCalendarData = cache(
     startUtc: string
   }): Promise<{
     employees: ActiveEmployeeOption[]
+    jobs: RosterAssignableJob[]
     shifts: RosterShift[]
     timezone: string
   }> => {
     const owner = await requireOwner()
-    const [{ employees }, shifts] = await Promise.all([
+    const [{ employees }, jobs, shifts] = await Promise.all([
       getOwnerRosterContext(),
+      queryAssignableJobs(owner.organisationId),
       queryIntersectingShifts({
         ...input,
         organisationId: owner.organisationId,
       }),
     ])
-    return { employees, shifts, timezone: owner.timezone }
+    return { employees, jobs, shifts, timezone: owner.timezone }
+  }
+)
+
+export const getEmployeeRosterCalendarData = cache(
+  async (input: {
+    endUtc: string
+    startUtc: string
+  }): Promise<{
+    shifts: RosterShift[]
+    timezone: string
+  }> => {
+    const employee = await requireEmployee()
+    const shifts = await queryIntersectingShifts({
+      ...input,
+      employeeMembershipId: employee.membershipId,
+      organisationId: employee.organisationId,
+    })
+    return { shifts, timezone: employee.timezone }
   }
 )
 

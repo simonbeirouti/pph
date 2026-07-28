@@ -103,37 +103,35 @@ export function AppSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
             {membership.role === "owner" ? (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    aria-current={
-                      isRouteActive("/dashboard/employees") ? "page" : undefined
-                    }
-                    isActive={isRouteActive("/dashboard/employees")}
-                    tooltip="Employees"
-                    onClick={closeMobileSidebar}
-                    render={<Link href="/dashboard/employees" />}
-                  >
-                    <UsersIcon />
-                    <span>Employees</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    aria-current={
-                      isRouteActive("/dashboard/roster") ? "page" : undefined
-                    }
-                    isActive={isRouteActive("/dashboard/roster")}
-                    tooltip="Roster"
-                    onClick={closeMobileSidebar}
-                    render={<Link href="/dashboard/roster" />}
-                  >
-                    <CalendarDaysIcon />
-                    <span>Roster</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-current={
+                    isRouteActive("/dashboard/employees") ? "page" : undefined
+                  }
+                  isActive={isRouteActive("/dashboard/employees")}
+                  tooltip="Employees"
+                  onClick={closeMobileSidebar}
+                  render={<Link href="/dashboard/employees" />}
+                >
+                  <UsersIcon />
+                  <span>Employees</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             ) : null}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                aria-current={
+                  isRouteActive("/dashboard/roster") ? "page" : undefined
+                }
+                isActive={isRouteActive("/dashboard/roster")}
+                tooltip="Roster"
+                onClick={closeMobileSidebar}
+                render={<Link href="/dashboard/roster" />}
+              >
+                <CalendarDaysIcon />
+                <span>Roster</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

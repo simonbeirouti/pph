@@ -459,6 +459,8 @@ export type Database = {
           employee_membership_id: number
           ends_at: string
           id: number
+          locked_at: string | null
+          locked_by: number | null
           notes: string
           organisation_id: number
           starts_at: string
@@ -471,6 +473,8 @@ export type Database = {
           employee_membership_id: number
           ends_at: string
           id?: never
+          locked_at?: string | null
+          locked_by?: number | null
           notes?: string
           organisation_id: number
           starts_at: string
@@ -483,6 +487,8 @@ export type Database = {
           employee_membership_id?: number
           ends_at?: string
           id?: never
+          locked_at?: string | null
+          locked_by?: number | null
           notes?: string
           organisation_id?: number
           starts_at?: string
@@ -502,6 +508,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "memberships"
             referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_locked_by_fkey"
+            columns: ["locked_by"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "roster_shifts_organisation_id_fkey"
@@ -611,6 +624,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      archive_roster_shift: {
+        Args: { p_expected_updated_at: string; p_shift_id: number }
+        Returns: number
+      }
       create_employee: {
         Args: {
           p_email: string
@@ -666,6 +683,35 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_roster_shift_with_jobs: {
+        Args: {
+          p_employee_membership_id: number
+          p_ends_at: string
+          p_job_ids?: number[]
+          p_notes?: string
+          p_starts_at: string
+        }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          created_by: number
+          employee_membership_id: number
+          ends_at: string
+          id: number
+          locked_at: string | null
+          locked_by: number | null
+          notes: string
+          organisation_id: number
+          starts_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "roster_shifts"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -901,7 +947,11 @@ export type Database = {
       job_priority: "low" | "normal" | "high" | "urgent"
       job_status: "assigned" | "in_progress" | "in_review" | "archived"
       job_update_type:
-        "note" | "comment" | "status_change" | "assignment_change" | "system"
+        | "note"
+        | "comment"
+        | "status_change"
+        | "assignment_change"
+        | "system"
       membership_role: "owner" | "employee"
       membership_status: "invited" | "active" | "inactive"
     }
@@ -919,12 +969,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -946,12 +996,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -970,12 +1021,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -994,12 +1046,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1012,11 +1065,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1044,3 +1097,4 @@ export const Constants = {
     },
   },
 } as const
+

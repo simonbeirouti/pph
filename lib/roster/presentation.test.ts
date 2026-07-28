@@ -17,6 +17,8 @@ const shift = (
   employeeMembershipId,
   endsAt: new Date(new Date(startsAt).getTime() + 60 * 60 * 1000).toISOString(),
   id,
+  lockedAt: null,
+  lockedByMembershipId: null,
   notes: "",
   organisationId: 1,
   startsAt,
