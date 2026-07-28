@@ -67,7 +67,7 @@ export function OwnerOperationalDashboard({
     },
   ]
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-8">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">
           Good day, {name}
@@ -85,7 +85,7 @@ export function OwnerOperationalDashboard({
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
                   <p className="text-3xl font-semibold">{stat.value}</p>
                 </div>
-                <stat.icon className="size-8 text-muted-foreground" />
+                <stat.icon className="size-10 text-muted-foreground" />
               </CardContent>
             </Card>
           </Link>

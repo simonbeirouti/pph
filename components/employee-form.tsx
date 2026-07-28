@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useEffect, useRef } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { EmployeeSummary } from "@/lib/employees/data"
 import {
   INITIAL_ACTION_STATE,
@@ -44,21 +51,77 @@ export function EmployeeProfileFields({
   includeEmail?: boolean
   state: ActionState
 }) {
+  const firstName = state.values?.firstName ?? employee?.firstName ?? ""
+  const lastName = state.values?.lastName ?? employee?.lastName ?? ""
+  const email = state.values?.email ?? employee?.email ?? ""
+  const phone = state.values?.phone ?? employee?.phone ?? ""
+  const jobTitle = state.values?.jobTitle ?? employee?.jobTitle ?? ""
+
+  return (
+    <EmployeeProfileFieldControls
+      employee={employee}
+      idPrefix={idPrefix}
+      includeAvatar={includeAvatar}
+      includeEmail={includeEmail}
+      initialValues={{
+        email,
+        firstName,
+        jobTitle,
+        lastName,
+        phone,
+      }}
+      key={JSON.stringify([firstName, lastName, email, phone, jobTitle])}
+      state={state}
+    />
+  )
+}
+
+function EmployeeProfileFieldControls({
+  employee,
+  idPrefix,
+  includeAvatar,
+  includeEmail,
+  initialValues,
+  state,
+}: {
+  employee?: EmployeeSummary
+  idPrefix: string
+  includeAvatar: boolean
+  includeEmail: boolean
+  initialValues: {
+    email: string
+    firstName: string
+    jobTitle: string
+    lastName: string
+    phone: string
+  }
+  state: ActionState
+}) {
   const editing = Boolean(employee)
   const fieldId = (name: string) => `${idPrefix}${name}`
+  const [values, setValues] = useState(initialValues)
+
+  const updateValue =
+    (field: keyof typeof values) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setValues((current) => ({
+        ...current,
+        [field]: event.target.value,
+      }))
+    }
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 pt-2 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor={fieldId("firstName")}>First name</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.firstName)}
-            defaultValue={state.values?.firstName ?? employee?.firstName}
-            key={`firstName-${state.values?.firstName ?? ""}`}
             id={fieldId("firstName")}
             name="firstName"
+            onChange={updateValue("firstName")}
             required
+            value={values.firstName}
           />
           <FieldErrors errors={state.errors?.firstName} />
         </Field>
@@ -66,11 +129,11 @@ export function EmployeeProfileFields({
           <FieldLabel htmlFor={fieldId("lastName")}>Last name</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.lastName)}
-            defaultValue={state.values?.lastName ?? employee?.lastName}
-            key={`lastName-${state.values?.lastName ?? ""}`}
             id={fieldId("lastName")}
             name="lastName"
+            onChange={updateValue("lastName")}
             required
+            value={values.lastName}
           />
           <FieldErrors errors={state.errors?.lastName} />
         </Field>
@@ -80,13 +143,13 @@ export function EmployeeProfileFields({
           <FieldLabel htmlFor={fieldId("email")}>Email</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.email)}
-            defaultValue={state.values?.email ?? employee?.email}
             disabled={editing}
-            key={`email-${state.values?.email ?? ""}`}
             id={fieldId("email")}
             name="email"
+            onChange={updateValue("email")}
             type="email"
             required={!editing}
+            value={values.email}
           />
           {editing ? (
             <FieldDescription>
@@ -101,11 +164,11 @@ export function EmployeeProfileFields({
           <FieldLabel htmlFor={fieldId("phone")}>Phone</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.phone)}
-            defaultValue={state.values?.phone ?? employee?.phone}
-            key={`phone-${state.values?.phone ?? ""}`}
             id={fieldId("phone")}
             name="phone"
+            onChange={updateValue("phone")}
             required
+            value={values.phone}
           />
           <FieldErrors errors={state.errors?.phone} />
         </Field>
@@ -113,11 +176,11 @@ export function EmployeeProfileFields({
           <FieldLabel htmlFor={fieldId("jobTitle")}>Job title</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.jobTitle)}
-            defaultValue={state.values?.jobTitle ?? employee?.jobTitle}
-            key={`jobTitle-${state.values?.jobTitle ?? ""}`}
             id={fieldId("jobTitle")}
             name="jobTitle"
+            onChange={updateValue("jobTitle")}
             required
+            value={values.jobTitle}
           />
           <FieldErrors errors={state.errors?.jobTitle} />
         </Field>
@@ -144,6 +207,7 @@ export function EmployeeProfileFields({
 
 export function EmployeeForm({
   action,
+  canChooseRole = false,
   employee,
   returnHref = "/dashboard/employees",
   returnLabel = "Back to employees",
@@ -152,6 +216,7 @@ export function EmployeeForm({
   showReturn = true,
 }: {
   action: EmployeeFormAction
+  canChooseRole?: boolean
   employee?: EmployeeSummary
   onSuccess?: (state: ActionState) => void
   returnHref?: string
@@ -196,6 +261,35 @@ export function EmployeeForm({
             <AlertDescription>{warning}</AlertDescription>
           </Alert>
         ))}
+        {!editing ? (
+          <Field>
+            <FieldLabel htmlFor="role">Role</FieldLabel>
+            {canChooseRole ? (
+              <Select
+                defaultValue={state.values?.role ?? "employee"}
+                name="role"
+              >
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <>
+                <Input name="role" type="hidden" value="employee" />
+                <Input disabled id="role" value="Employee" />
+              </>
+            )}
+            <FieldDescription>
+              Managers can manage employees and operations. Owners control roles
+              and review all submitted work.
+            </FieldDescription>
+          </Field>
+        ) : null}
         <EmployeeProfileFields employee={employee} state={state} />
         <div className="flex flex-wrap gap-3">
           <Button disabled={pending} type="submit">

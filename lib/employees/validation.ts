@@ -16,6 +16,10 @@ export const employeeSchema = z.object({
   phone: z.string().trim().min(1, "Enter a phone number.").max(50),
 })
 
+export const teamMemberSchema = employeeSchema.extend({
+  role: z.enum(["owner", "manager", "employee"]),
+})
+
 export const employeeProfileSchema = employeeSchema.omit({ email: true })
 
 export type ValidAvatar = {

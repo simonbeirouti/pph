@@ -137,18 +137,40 @@ export async function requireActiveMembership(): Promise<MembershipContext> {
   return context
 }
 
-export async function requireOwner(): Promise<MembershipContext> {
+export async function requireOwner(): Promise<
+  MembershipContext & { role: "owner" }
+> {
   const context = await requireActiveMembership()
 
   if (context.role !== "owner") notFound()
 
-  return context
+  return context as MembershipContext & { role: "owner" }
 }
 
-export async function requireEmployee(): Promise<MembershipContext> {
+export async function requireOperations(): Promise<
+  MembershipContext & { role: "owner" | "manager" }
+> {
   const context = await requireActiveMembership()
 
-  if (context.role !== "employee") notFound()
+  if (context.role !== "owner" && context.role !== "manager") notFound()
 
-  return context
+  return context as MembershipContext & { role: "owner" | "manager" }
 }
+
+export async function requirePeopleManager(): Promise<
+  MembershipContext & { role: "owner" | "manager" }
+> {
+  return requireOperations()
+}
+
+export async function requireAssignedWorker(): Promise<
+  MembershipContext & { role: "employee" | "manager" }
+> {
+  const context = await requireActiveMembership()
+
+  if (context.role !== "employee" && context.role !== "manager") notFound()
+
+  return context as MembershipContext & { role: "employee" | "manager" }
+}
+
+export const requireEmployee = requireAssignedWorker

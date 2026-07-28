@@ -128,7 +128,7 @@ select throws_like(
       'None'
     )
   $$,
-  '%owner membership required%',
+  '%team member management is not permitted%',
   'employees cannot create employees'
 );
 
@@ -398,13 +398,13 @@ select is(
   'anonymous receives no employee mutation grants'
 );
 select ok(
-  has_column_privilege(
+  not has_column_privilege(
     'authenticated',
     'public.memberships',
     'status',
     'UPDATE'
   ),
-  'authenticated owners can update membership lifecycle state'
+  'membership lifecycle writes require guarded RPCs'
 );
 select ok(
   not has_column_privilege(

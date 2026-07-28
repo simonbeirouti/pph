@@ -1,12 +1,18 @@
 "use client"
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
 
 import { EmployeeProfileFields, FieldErrors } from "@/components/employee-form"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeRosterShiftManager } from "@/components/employee-roster-shift-manager"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useEmployeeEdit } from "@/components/membership-role-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FieldDescription, FieldGroup } from "@/components/ui/field"
@@ -31,35 +37,42 @@ type EmployeeFormAction = (
 
 export function EmployeeSheetProfile({
   action,
+  canEdit,
   employee,
   jobSummary,
+  roleActions,
   shiftSummary,
   timezone,
 }: {
   action: EmployeeFormAction
+  canEdit: boolean
   employee: EmployeeSummary
   jobSummary: EmployeeJobSummary
+  roleActions?: ReactNode
   shiftSummary: EmployeeShiftSummaryModel
   timezone: string
 }) {
-  const [dirty, setDirty] = useState(false)
+  const { markProfileDirty, registerProfileSave, saveChanges } =
+    useEmployeeEdit()
+  const [state, setState] = useState<ActionState>(INITIAL_ACTION_STATE)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
-  const submitProfile = useCallback(
-    async (previousState: ActionState, formData: FormData) => {
-      const result = await action(previousState, formData)
-      if (result.ok) {
-        setDirty(false)
-        if (avatarInputRef.current) avatarInputRef.current.value = ""
-      }
-      return result
-    },
-    [action]
-  )
-  const [state, formAction, pending] = useActionState(
-    submitProfile,
-    INITIAL_ACTION_STATE
-  )
+  const formRef = useRef<HTMLFormElement>(null)
+  const submitProfile = useCallback(async () => {
+    const result = formRef.current
+      ? await action(INITIAL_ACTION_STATE, new FormData(formRef.current))
+      : { message: "The employee form is unavailable.", ok: false }
+    setState(result)
+    if (result.ok && avatarInputRef.current) {
+      avatarInputRef.current.value = ""
+    }
+    return result
+  }, [action])
+
+  useEffect(() => {
+    registerProfileSave(submitProfile)
+    return () => registerProfileSave(null)
+  }, [registerProfileSave, submitProfile])
 
   useEffect(
     () => () => {
@@ -70,7 +83,7 @@ export function EmployeeSheetProfile({
 
   const selectAvatar = () => avatarInputRef.current?.click()
   const updateAvatarPreview = (file: File | undefined) => {
-    setDirty(true)
+    markProfileDirty()
     setPreviewUrl((currentUrl) => {
       if (currentUrl) URL.revokeObjectURL(currentUrl)
       return file ? URL.createObjectURL(file) : null
@@ -79,8 +92,12 @@ export function EmployeeSheetProfile({
 
   return (
     <form
-      action={formAction}
       className="flex min-h-0 flex-1 flex-col"
+      onSubmit={(event) => {
+        event.preventDefault()
+        saveChanges()
+      }}
+      ref={formRef}
     >
       <SheetHeader className="shrink-0 items-center border-b px-6 pb-5 text-center">
         <button
@@ -116,6 +133,9 @@ export function EmployeeSheetProfile({
             {employee.status}
           </Badge>
           <Badge className="capitalize" variant="outline">
+            {employee.role}
+          </Badge>
+          <Badge className="capitalize" variant="outline">
             Invite {employee.inviteDeliveryStatus}
           </Badge>
         </div>
@@ -139,20 +159,11 @@ export function EmployeeSheetProfile({
             Call
           </Button>
         </div>
+        {roleActions}
       </SheetHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
         <FieldGroup>
-          {state.message ? (
-            <Alert variant={state.ok ? "default" : "destructive"}>
-              <AlertDescription>{state.message}</AlertDescription>
-            </Alert>
-          ) : null}
-          {state.warnings?.map((warning) => (
-            <Alert key={warning}>
-              <AlertDescription>{warning}</AlertDescription>
-            </Alert>
-          ))}
           <FieldErrors errors={state.errors?.avatar} />
           <div className="grid gap-1">
             <h3 className="font-medium">Work summary</h3>
@@ -188,7 +199,11 @@ export function EmployeeSheetProfile({
             )}
             <div className="pt-3">
               <EmployeeRosterShiftManager
-                canManage={employee.status === "active"}
+                canManage={
+                  canEdit &&
+                  employee.role !== "owner" &&
+                  employee.status === "active"
+                }
                 employeeMembershipId={employee.membershipId}
                 employeeName={employee.displayName}
                 summary={shiftSummary}
@@ -196,28 +211,25 @@ export function EmployeeSheetProfile({
               />
             </div>
           </div>
-          <div className="grid gap-3 border-t pt-5">
-            <div>
-              <h3 className="font-medium">Edit profile</h3>
-              <FieldDescription>
-                Update the employee’s name, phone number, or job title.
-              </FieldDescription>
+          {canEdit ? (
+            <div className="grid gap-3 border-t pt-5">
+              <div>
+                <h3 className="font-medium">Edit profile</h3>
+                <FieldDescription>
+                  Update the employee’s name, phone number, or job title.
+                </FieldDescription>
+              </div>
+              <div onChange={markProfileDirty}>
+                <EmployeeProfileFields
+                  employee={employee}
+                  idPrefix={`sheet-${employee.membershipId}-`}
+                  includeAvatar={false}
+                  includeEmail={false}
+                  state={state}
+                />
+              </div>
             </div>
-            <div onChange={() => setDirty(true)}>
-              <EmployeeProfileFields
-                employee={employee}
-                idPrefix={`sheet-${employee.membershipId}-`}
-                includeAvatar={false}
-                includeEmail={false}
-                state={state}
-              />
-            </div>
-            {dirty ? (
-              <Button disabled={pending} type="submit">
-                {pending ? "Saving…" : "Save profile"}
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </FieldGroup>
       </div>
     </form>

@@ -2,7 +2,10 @@ import "server-only"
 
 import { cache } from "react"
 
-import { requireEmployee, requireOwner } from "@/lib/auth/membership"
+import {
+  requireAssignedWorker,
+  requireOperations,
+} from "@/lib/auth/membership"
 import { listEmployees } from "@/lib/employees/data"
 import { sortJobsByUrgency } from "@/lib/jobs/board"
 import {
@@ -63,7 +66,7 @@ function toRosterShift(row: ShiftRow): RosterShift {
 
 export const getOwnerDashboardData = cache(
   async (): Promise<OwnerDashboardData> => {
-    const owner = await requireOwner()
+    const owner = await requireOperations()
     const supabase = await createClient()
     const today = localDateForInstant(new Date(), owner.timezone)
     const range = localDateRange(today, 1, owner.timezone)
@@ -152,7 +155,7 @@ export const getOwnerDashboardData = cache(
 
 export const getEmployeeDashboardData = cache(
   async (): Promise<EmployeeDashboardData> => {
-    const employee = await requireEmployee()
+    const employee = await requireAssignedWorker()
     const [jobs, shifts] = await Promise.all([
       getEmployeeAssignedJobs(),
       getEmployeeShiftSummary(employee.membershipId),

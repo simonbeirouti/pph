@@ -14,7 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-export function EmployeeCreateDialog() {
+export function EmployeeCreateDialog({
+  canChooseRole = false,
+}: {
+  canChooseRole?: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -32,6 +36,7 @@ export function EmployeeCreateDialog() {
           </DialogHeader>
           <EmployeeForm
             action={createEmployeeAction}
+            canChooseRole={canChooseRole}
             onSuccess={(state) => {
               setOpen(false)
               toast.success(state.message)

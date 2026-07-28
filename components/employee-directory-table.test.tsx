@@ -22,6 +22,7 @@ const baseEmployee: EmployeeSummary = {
   membershipId: 1103,
   phone: "",
   profileId: 1203,
+  role: "employee",
   status: "active",
   userId: "00000000-0000-4000-8000-000000000002",
 }
@@ -43,6 +44,7 @@ describe("EmployeeDirectoryTable", () => {
 
     render(
       <EmployeeDirectoryTable
+        actorRole="owner"
         employees={[baseEmployee, invitedEmployee]}
         jobSummaries={{}}
         shiftSummaries={{}}

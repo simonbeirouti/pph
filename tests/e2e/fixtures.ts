@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr"
+import { createClient } from "@supabase/supabase-js"
 import {
   test as base,
   expect,
@@ -9,6 +10,7 @@ import {
 type RoleFixtures = {
   employeePage: Page
   inactivePage: Page
+  managerPage: Page
   ownerPage: Page
 }
 
@@ -60,6 +62,70 @@ export const test = base.extend<RoleFixtures>({
   inactivePage: async ({ context, page }, provide) => {
     await authenticate(context, "inactive@example.test")
     await provide(page)
+  },
+  managerPage: async ({ context, page }, provide) => {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    const email = `manager-${Date.now()}@example.test`
+    const { data: authData, error: authError } =
+      await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        password,
+      })
+    expect(authError).toBeNull()
+    const { data: membership, error: membershipError } = await admin
+      .from("memberships")
+      .insert({
+        activated_at: new Date().toISOString(),
+        email,
+        organisation_id: 1001,
+        role: "manager",
+        status: "active",
+        user_id: authData.user!.id,
+      })
+      .select("id")
+      .single()
+    expect(membershipError).toBeNull()
+    const membershipId = membership!.id
+    const { error: profileError } = await admin
+      .from("employee_profiles")
+      .insert({
+        first_name: "Morgan",
+        job_title: "Operations Manager",
+        last_name: "Manager",
+        membership_id: membershipId,
+        organisation_id: 1001,
+        phone: "0400 777 777",
+      })
+    expect(profileError).toBeNull()
+    const { data: job, error: jobError } = await admin
+      .from("jobs")
+      .insert({
+        assignee_membership_id: membershipId,
+        created_by: 1101,
+        organisation_id: 1001,
+        status: "assigned",
+        title: "Manager personal work",
+      })
+      .select("id")
+      .single()
+    expect(jobError).toBeNull()
+
+    await authenticate(context, email)
+    await provide(page)
+
+    await admin.from("job_updates").delete().eq("job_id", job!.id)
+    await admin.from("jobs").delete().eq("id", job!.id)
+    await admin
+      .from("employee_profiles")
+      .delete()
+      .eq("membership_id", membershipId)
+    await admin.from("memberships").delete().eq("id", membershipId)
+    await admin.auth.admin.deleteUser(authData.user!.id)
   },
 })
 

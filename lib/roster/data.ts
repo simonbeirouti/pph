@@ -4,8 +4,8 @@ import { cache } from "react"
 
 import {
   requireActiveMembership,
-  requireEmployee,
-  requireOwner,
+  requireAssignedWorker,
+  requireOperations,
 } from "@/lib/auth/membership"
 import {
   listActiveEmployeeOptions,
@@ -44,7 +44,7 @@ export function toRosterShift(row: RosterShiftRow): RosterShift {
 }
 
 export const getOwnerRosterContext = cache(async () => {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const employees = await listActiveEmployeeOptions()
   return { employees, timezone: owner.timezone }
 })
@@ -108,7 +108,7 @@ export const getOwnerRosterCalendarData = cache(
     shifts: RosterShift[]
     timezone: string
   }> => {
-    const owner = await requireOwner()
+    const owner = await requireOperations()
     const [{ employees }, jobs, shifts] = await Promise.all([
       getOwnerRosterContext(),
       queryAssignableJobs(owner.organisationId),
@@ -129,7 +129,7 @@ export const getEmployeeRosterCalendarData = cache(
     shifts: RosterShift[]
     timezone: string
   }> => {
-    const employee = await requireEmployee()
+    const employee = await requireAssignedWorker()
     const shifts = await queryIntersectingShifts({
       ...input,
       employeeMembershipId: employee.membershipId,
@@ -185,7 +185,7 @@ export async function getEmployeeShiftSummary(
 }
 
 export async function listEmployeeShiftSummaries(now = new Date()) {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("roster_shifts")
@@ -215,7 +215,7 @@ export async function listEmployeeShiftSummaries(now = new Date()) {
 export async function getWorkingNowAggregate(
   now = new Date()
 ): Promise<WorkingNowAggregate[]> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const nowIso = now.toISOString()
   const { data, error } = await supabase
@@ -243,7 +243,7 @@ export async function getTodayRosterAggregate(input: {
   endUtc: string
   startUtc: string
 }): Promise<TodayRosterAggregate[]> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const shifts = await queryIntersectingShifts({
     ...input,
     organisationId: owner.organisationId,

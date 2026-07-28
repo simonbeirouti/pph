@@ -54,7 +54,7 @@ export type JobActionState = {
 export type JobParticipantIdentity = {
   displayName: string
   membershipId: number
-  role: "employee" | "owner"
+  role: "employee" | "manager" | "owner"
 }
 
 export type JobEvidence = {
@@ -93,8 +93,10 @@ export type JobDetail = JobCard & {
   identities: JobParticipantIdentity[]
   latestReopenFeedback: string | null
   noteCount: number
-  notification: JobNotificationDelivery | null
+  notifications: JobNotificationDelivery[]
   startedAt: string | null
+  submittedByMembershipId: number | null
+  requiredReviewerRole: "manager" | "owner" | null
   submissionVersion: number
   submittedAt: string | null
   timeline: JobTimelineItem[]

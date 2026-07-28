@@ -146,7 +146,6 @@ select results_eq(
     values
       ('employee_profiles'::information_schema.sql_identifier, 'INSERT'::information_schema.character_data),
       ('employee_profiles'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data),
-      ('memberships'::information_schema.sql_identifier, 'INSERT'::information_schema.character_data),
       ('memberships'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data),
       ('organisations'::information_schema.sql_identifier, 'SELECT'::information_schema.character_data)
   $$,

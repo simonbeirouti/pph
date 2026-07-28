@@ -40,10 +40,15 @@ select has_function('public', 'submit_job', array['bigint'], 'submit transition 
 select has_function(
   'public',
   'reopen_job',
-  array['bigint', 'text', 'bigint'],
-  'feedback-gated reopen exists'
+  array['bigint', 'text', 'bigint', 'integer'],
+  'version-aware feedback-gated reopen exists'
 );
-select has_function('public', 'archive_job', array['bigint'], 'archive transition exists');
+select has_function(
+  'public',
+  'archive_job',
+  array['bigint', 'integer'],
+  'version-aware archive transition exists'
+);
 select has_function(
   'public',
   'retry_job_notification',
@@ -292,10 +297,11 @@ select throws_like(
     select public.reopen_job(
       (select id from public.jobs where title = 'S05 database journey'),
       ' ',
-      1103
+      1103,
+      (select submission_version from public.jobs where title = 'S05 database journey')
     )
   $$,
-  '%owner feedback is required%',
+  '%review feedback is required%',
   'reopen rejects blank feedback'
 );
 select lives_ok(
@@ -303,7 +309,8 @@ select lives_ok(
     select public.reopen_job(
       (select id from public.jobs where title = 'S05 database journey'),
       'Please photograph the final label.',
-      1103
+      1103,
+      (select submission_version from public.jobs where title = 'S05 database journey')
     )
   $$,
   'owner reopens with feedback and an active assignee'
@@ -379,7 +386,8 @@ select is(
 select lives_ok(
   $$
     select public.archive_job(
-      (select id from public.jobs where title = 'S05 database journey')
+      (select id from public.jobs where title = 'S05 database journey'),
+      (select submission_version from public.jobs where title = 'S05 database journey')
     )
   $$,
   'owner approves and archives an in-review job'
@@ -387,7 +395,8 @@ select lives_ok(
 select lives_ok(
   $$
     select public.archive_job(
-      (select id from public.jobs where title = 'S05 database journey')
+      (select id from public.jobs where title = 'S05 database journey'),
+      (select submission_version from public.jobs where title = 'S05 database journey')
     )
   $$,
   'archive replay is idempotent'

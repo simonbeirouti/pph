@@ -127,10 +127,12 @@ export function EmployeeJobDetail({
 }
 
 export function OwnerJobDetail({
+  canReview = true,
   detail,
   employees,
   timezone,
 }: {
+  canReview?: boolean
   detail: JobDetail | null
   employees: readonly JobBoardEmployee[]
   timezone: string
@@ -151,11 +153,19 @@ export function OwnerJobDetail({
         <ScrollArea className="min-h-0 flex-1">
           <JobDetailBody detail={detail} role="owner" timezone={timezone} />
         </ScrollArea>
-        <OwnerJobActions
-          key={detail.id}
-          detail={detail}
-          employees={employees}
-        />
+        {canReview ? (
+          <OwnerJobActions
+            key={detail.id}
+            detail={detail}
+            employees={employees}
+          />
+        ) : detail.status === "in_review" ? (
+          <SheetFooter className="border-t">
+            <p className="text-sm text-muted-foreground">
+              Owner review required.
+            </p>
+          </SheetFooter>
+        ) : null}
       </SheetContent>
     </Sheet>
   )
@@ -393,7 +403,7 @@ function OwnerJobActions({
     detail.assigneeMembershipId ? String(detail.assigneeMembershipId) : ""
   )
   const hasActions =
-    detail.notification !== null ||
+    detail.notifications.length > 0 ||
     detail.status === "in_review" ||
     detail.status === "archived"
 
@@ -418,28 +428,28 @@ function OwnerJobActions({
   return (
     <>
       <SheetFooter className="shrink-0 border-t bg-popover">
-        {detail.notification ? (
-          <div className="text-sm">
+        {detail.notifications.map((notification) => (
+          <div className="text-sm" key={notification.id}>
             <p>
               Submission email:{" "}
               <span className="font-medium capitalize">
-                {detail.notification.status}
+                {notification.status}
               </span>
             </p>
             <p className="text-muted-foreground">
-              {detail.notification.recipientEmail ?? "No active recipient"}
+              {notification.recipientEmail ?? "No active recipient"}
             </p>
-            {detail.notification.errorMessage ? (
+            {notification.errorMessage ? (
               <p className="mt-1 text-destructive">
-                {detail.notification.errorMessage}
+                {notification.errorMessage}
               </p>
             ) : null}
-            {["queued", "failed"].includes(detail.notification.status) ? (
+            {["queued", "failed"].includes(notification.status) ? (
               <Button
                 className="mt-3"
                 disabled={pending}
                 onClick={() =>
-                  run(() => retryJobNotificationAction(detail.notification!.id))
+                  run(() => retryJobNotificationAction(notification.id))
                 }
                 size="sm"
                 type="button"
@@ -449,12 +459,16 @@ function OwnerJobActions({
               </Button>
             ) : null}
           </div>
-        ) : null}
+        ))}
         {detail.status === "in_review" ? (
           <>
             <Button
               disabled={pending}
-              onClick={() => run(() => archiveJobAction(detail.id))}
+              onClick={() =>
+                run(() =>
+                  archiveJobAction(detail.id, detail.submissionVersion)
+                )
+              }
               type="button"
             >
               <CheckIcon />
@@ -548,6 +562,7 @@ function OwnerJobActions({
                       assigneeMembershipId: Number(assignee),
                       feedback,
                       jobId: detail.id,
+                      submissionVersion: detail.submissionVersion,
                     }),
                   () => {
                     setFeedback("")

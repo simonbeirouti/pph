@@ -6,13 +6,14 @@ import { revalidatePath } from "next/cache"
 
 import type { ActionState } from "@/lib/forms/action-state"
 import {
+  requirePeopleManager,
   requireOwner,
   type MembershipContext,
 } from "@/lib/auth/membership"
 import { getEmployee } from "@/lib/employees/data"
 import {
   employeeProfileSchema,
-  employeeSchema,
+  teamMemberSchema,
   validateAvatar,
   type ValidAvatar,
 } from "@/lib/employees/validation"
@@ -34,7 +35,6 @@ async function setInvitationDelivery(
     })
     .eq("id", membershipId)
     .eq("organisation_id", organisationId)
-    .eq("role", "employee")
   if (error) throw new Error("Unable to update invitation state")
 }
 
@@ -42,8 +42,20 @@ async function sendInvitation(input: {
   email: string
   membershipId: number
 }): Promise<"sent" | "failed"> {
-  const owner = await requireOwner()
+  const owner = await requirePeopleManager()
   const admin = createAdminClient()
+  const { data: target } = await admin
+    .from("memberships")
+    .select("role")
+    .eq("id", input.membershipId)
+    .eq("organisation_id", owner.organisationId)
+    .maybeSingle()
+  if (
+    !target ||
+    (owner.role === "manager" && target.role !== "employee")
+  ) {
+    return "failed"
+  }
   await setInvitationDelivery(
     owner.organisationId,
     input.membershipId,
@@ -112,15 +124,16 @@ export async function createEmployeeAction(
   _state: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireOwner()
+  const actor = await requirePeopleManager()
   const values = {
     email: formData.get("email"),
     firstName: formData.get("firstName"),
     jobTitle: formData.get("jobTitle"),
     lastName: formData.get("lastName"),
     phone: formData.get("phone"),
+    role: formData.get("role") ?? "employee",
   }
-  const parsed = employeeSchema.safeParse(values)
+  const parsed = teamMemberSchema.safeParse(values)
   const avatarResult = await validateAvatar(
     formData.get("avatar") as File | null
   )
@@ -140,35 +153,39 @@ export async function createEmployeeAction(
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc("create_employee", {
+  const { data, error } = await supabase.rpc("create_team_member", {
     p_email: parsed.data.email,
     p_first_name: parsed.data.firstName,
     p_job_title: parsed.data.jobTitle,
     p_last_name: parsed.data.lastName,
     p_phone: parsed.data.phone,
+    p_role: parsed.data.role,
   })
   const result = data?.[0]
   if (error || !result) {
-    return { message: "Unable to create the employee.", ok: false }
+    return {
+      message: error?.message ?? "Unable to create the team member.",
+      ok: false,
+    }
   }
   if (!result.created) {
     return {
       destinationId: result.membership_id,
-      message: "An employee already uses this email address.",
+      message: "A team member already uses this email address.",
       ok: false,
     }
   }
 
   const warnings: string[] = []
   if (result.created && avatarResult.avatar) {
-    const owner = await requireOwner()
     const uploaded = await uploadAvatar({
-      actor: owner,
+      actor,
       avatar: avatarResult.avatar,
       membershipId: result.membership_id,
       profileId: result.profile_id,
     })
-    if (!uploaded) warnings.push("The employee was created without the avatar.")
+    if (!uploaded)
+      warnings.push("The team member was created without the avatar.")
   }
 
   const invitation = await sendInvitation({
@@ -183,9 +200,9 @@ export async function createEmployeeAction(
     message:
       invitation === "sent"
         ? result.created
-          ? "Employee created and invitation sent."
-          : "Employee already existed; a new invitation was sent."
-        : "Employee saved, but the invitation could not be sent.",
+          ? "Team member created and invitation sent."
+          : "Team member already existed; a new invitation was sent."
+        : "Team member saved, but the invitation could not be sent.",
     ok: invitation === "sent",
     warnings,
   }
@@ -196,8 +213,15 @@ export async function updateEmployeeAction(
   _state: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const actor = await requirePeopleManager()
   const employee = await getEmployee(membershipId)
   if (!employee) return { message: "Employee not found.", ok: false }
+  if (actor.role === "manager" && employee.role !== "employee") {
+    return {
+      message: "Managers can edit employee profiles only.",
+      ok: false,
+    }
+  }
 
   const values = {
     firstName: formData.get("firstName"),
@@ -223,7 +247,6 @@ export async function updateEmployeeAction(
     }
   }
 
-  const owner = await requireOwner()
   const supabase = await createClient()
   const { error } = await supabase
     .from("employee_profiles")
@@ -234,13 +257,13 @@ export async function updateEmployeeAction(
       phone: parsed.data.phone,
     })
     .eq("id", employee.profileId)
-    .eq("organisation_id", owner.organisationId)
+    .eq("organisation_id", actor.organisationId)
   if (error) return { message: "Unable to update the employee.", ok: false }
 
   const warnings: string[] = []
   if (avatarResult.avatar) {
     const uploaded = await uploadAvatar({
-      actor: owner,
+      actor,
       avatar: avatarResult.avatar,
       membershipId,
       oldPath: employee.avatarPath,
@@ -265,18 +288,12 @@ export async function setEmployeeActiveAction(
     return { message: "The employee state has already changed.", ok: false }
   }
 
-  const owner = await requireOwner()
+  await requirePeopleManager()
   const supabase = await createClient()
-  const { error } = await supabase
-    .from("memberships")
-    .update(
-      active
-        ? { deactivated_at: null, status: "active" }
-        : { deactivated_at: new Date().toISOString(), status: "inactive" }
-    )
-    .eq("id", membershipId)
-    .eq("organisation_id", owner.organisationId)
-    .eq("role", "employee")
+  const { error } = await supabase.rpc("set_membership_active", {
+    p_active: active,
+    p_membership_id: membershipId,
+  })
   if (error) {
     return { message: "Unable to change employee access.", ok: false }
   }
@@ -288,6 +305,23 @@ export async function setEmployeeActiveAction(
       : "Employee access deactivated.",
     ok: true,
   }
+}
+
+export async function changeMembershipRoleAction(
+  membershipId: number,
+  role: "owner" | "manager" | "employee"
+): Promise<ActionState> {
+  await requireOwner()
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("change_membership_role", {
+    p_membership_id: membershipId,
+    p_role: role,
+  })
+  revalidatePath("/dashboard/employees")
+  revalidatePath(`/dashboard/employees/${membershipId}`)
+  return error
+    ? { message: error.message, ok: false }
+    : { message: `Role changed to ${role}.`, ok: true }
 }
 
 export async function employeeAccessAction(
@@ -318,7 +352,7 @@ export async function deleteInvitedEmployeeAction(
 
   const supabase = await createClient()
   const { data: deleted, error } = await supabase.rpc(
-    "delete_invited_employee",
+    "delete_invited_team_member",
     { p_membership_id: membershipId }
   )
   if (error || !deleted) {
@@ -332,7 +366,7 @@ export async function deleteInvitedEmployeeAction(
   }
 
   revalidatePath("/dashboard/employees")
-  return { message: "Employee deleted.", ok: true }
+  return { message: "Team member deleted.", ok: true }
 }
 
 export async function resendEmployeeInvitationAction(

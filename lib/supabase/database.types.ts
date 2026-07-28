@@ -213,7 +213,7 @@ export type Database = {
           {
             foreignKeyName: "job_notification_submission_update_fkey"
             columns: ["submission_update_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "job_updates"
             referencedColumns: ["id"]
           },
@@ -513,7 +513,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -521,6 +529,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -537,7 +546,15 @@ export type Database = {
           minimum_completion_photos?: number
           organisation_id: number
           priority?: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role?:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note?: boolean
+          reviewed_at?: string | null
+          reviewed_by_membership_id?: number | null
+          reviewed_by_role?:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id?: number | null
           schedule_occurrence_at?: string | null
           scheduled_at?: string | null
@@ -545,6 +562,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           submission_version?: number
           submitted_at?: string | null
+          submitted_by_membership_id?: number | null
           template_id?: number | null
           title: string
           updated_at?: string
@@ -561,7 +579,15 @@ export type Database = {
           minimum_completion_photos?: number
           organisation_id?: number
           priority?: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role?:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note?: boolean
+          reviewed_at?: string | null
+          reviewed_by_membership_id?: number | null
+          reviewed_by_role?:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id?: number | null
           schedule_occurrence_at?: string | null
           scheduled_at?: string | null
@@ -569,6 +595,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           submission_version?: number
           submitted_at?: string | null
+          submitted_by_membership_id?: number | null
           template_id?: number | null
           title?: string
           updated_at?: string
@@ -596,10 +623,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "jobs_reviewer_organisation_fkey"
+            columns: ["reviewed_by_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
             foreignKeyName: "jobs_schedule_organisation_fkey"
             columns: ["schedule_id", "organisation_id"]
             isOneToOne: false
             referencedRelation: "job_schedules"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "jobs_submitter_organisation_fkey"
+            columns: ["submitted_by_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
             referencedColumns: ["id", "organisation_id"]
           },
           {
@@ -608,6 +649,58 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "job_templates"
             referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
+      membership_role_audit: {
+        Row: {
+          actor_membership_id: number | null
+          created_at: string
+          id: number
+          membership_id: number
+          new_role: Database["public"]["Enums"]["membership_role"]
+          organisation_id: number
+          previous_role: Database["public"]["Enums"]["membership_role"] | null
+        }
+        Insert: {
+          actor_membership_id?: number | null
+          created_at?: string
+          id?: never
+          membership_id: number
+          new_role: Database["public"]["Enums"]["membership_role"]
+          organisation_id: number
+          previous_role?: Database["public"]["Enums"]["membership_role"] | null
+        }
+        Update: {
+          actor_membership_id?: number | null
+          created_at?: string
+          id?: never
+          membership_id?: number
+          new_role?: Database["public"]["Enums"]["membership_role"]
+          organisation_id?: number
+          previous_role?: Database["public"]["Enums"]["membership_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_role_audit_actor_organisation_fkey"
+            columns: ["actor_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "membership_role_audit_membership_organisation_fkey"
+            columns: ["membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "membership_role_audit_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -810,7 +903,7 @@ export type Database = {
         }
       }
       archive_job: {
-        Args: { p_job_id: number }
+        Args: { p_expected_submission_version: number; p_job_id: number }
         Returns: {
           archived_at: string | null
           assignee_membership_id: number | null
@@ -823,7 +916,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -831,6 +932,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -867,6 +969,33 @@ export type Database = {
       archive_roster_shift: {
         Args: { p_expected_updated_at: string; p_shift_id: number }
         Returns: number
+      }
+      change_membership_role: {
+        Args: {
+          p_membership_id: number
+          p_role: Database["public"]["Enums"]["membership_role"]
+        }
+        Returns: {
+          activated_at: string | null
+          created_at: string
+          deactivated_at: string | null
+          email: string
+          id: number
+          invite_delivery_status: Database["public"]["Enums"]["invite_delivery_status"]
+          invite_last_attempted_at: string | null
+          invited_at: string | null
+          organisation_id: number
+          role: Database["public"]["Enums"]["membership_role"]
+          status: Database["public"]["Enums"]["membership_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "memberships"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_employee: {
         Args: {
@@ -909,7 +1038,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -917,6 +1054,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -1025,7 +1163,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_team_member: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_job_title: string
+          p_last_name: string
+          p_phone: string
+          p_role: Database["public"]["Enums"]["membership_role"]
+        }
+        Returns: {
+          created: boolean
+          membership_id: number
+          profile_id: number
+        }[]
+      }
       delete_invited_employee: {
+        Args: { p_membership_id: number }
+        Returns: boolean
+      }
+      delete_invited_team_member: {
         Args: { p_membership_id: number }
         Returns: boolean
       }
@@ -1106,7 +1263,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1114,6 +1279,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -1128,6 +1294,7 @@ export type Database = {
       reopen_job: {
         Args: {
           p_assignee_membership_id: number
+          p_expected_submission_version: number
           p_feedback: string
           p_job_id: number
         }
@@ -1143,7 +1310,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1151,6 +1326,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -1247,6 +1423,30 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_membership_active: {
+        Args: { p_active: boolean; p_membership_id: number }
+        Returns: {
+          activated_at: string | null
+          created_at: string
+          deactivated_at: string | null
+          email: string
+          id: number
+          invite_delivery_status: Database["public"]["Enums"]["invite_delivery_status"]
+          invite_last_attempted_at: string | null
+          invited_at: string | null
+          organisation_id: number
+          role: Database["public"]["Enums"]["membership_role"]
+          status: Database["public"]["Enums"]["membership_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "memberships"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       start_job: {
         Args: { p_job_id: number }
         Returns: {
@@ -1261,7 +1461,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1269,6 +1477,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -1313,7 +1522,15 @@ export type Database = {
           minimum_completion_photos: number
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1321,6 +1538,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           submission_version: number
           submitted_at: string | null
+          submitted_by_membership_id: number | null
           template_id: number | null
           title: string
           updated_at: string
@@ -1411,8 +1629,12 @@ export type Database = {
       job_schedule_recurrence: "daily" | "weekly"
       job_status: "assigned" | "in_progress" | "in_review" | "archived"
       job_update_type:
-        "note" | "comment" | "status_change" | "assignment_change" | "system"
-      membership_role: "owner" | "employee"
+        | "note"
+        | "comment"
+        | "status_change"
+        | "assignment_change"
+        | "system"
+      membership_role: "owner" | "manager" | "employee"
       membership_status: "invited" | "active" | "inactive"
     }
     CompositeTypes: {
@@ -1429,12 +1651,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1456,12 +1678,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1480,12 +1703,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1504,12 +1728,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1522,11 +1747,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1551,7 +1776,7 @@ export const Constants = {
         "assignment_change",
         "system",
       ],
-      membership_role: ["owner", "employee"],
+      membership_role: ["owner", "manager", "employee"],
       membership_status: ["invited", "active", "inactive"],
     },
   },

@@ -47,7 +47,7 @@ export function DashboardRealtimeProvider({
   membership: {
     membershipId: number
     organisationId: number
-    role: "employee" | "owner"
+    role: "employee" | "manager" | "owner"
   }
 }) {
   const router = useRouter()

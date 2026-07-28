@@ -6,8 +6,8 @@ import { z } from "zod"
 
 import {
   requireActiveMembership,
-  requireEmployee,
-  requireOwner,
+  requireAssignedWorker,
+  requireOperations,
 } from "@/lib/auth/membership"
 import { deliverJobSubmissionEmail } from "@/lib/email/job-submission"
 import { getRequestOrigin } from "@/lib/http/origin"
@@ -90,7 +90,7 @@ export async function createJobAction(
   _state: JobActionState,
   formData: FormData
 ): Promise<JobActionState> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const values = jobFormValues(formData)
   const parsed = jobSchema.safeParse(values)
 
@@ -172,7 +172,7 @@ export async function updateJobAction(
   _state: JobActionState,
   formData: FormData
 ): Promise<JobActionState> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const values = jobFormValues(formData)
   const parsed = jobSchema.safeParse(values)
 
@@ -249,7 +249,7 @@ export async function reassignJobAction(
   jobId: number,
   assigneeMembershipId: number | null
 ): Promise<{ job?: JobCard; message: string; ok: boolean }> {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("reassign_job", {
     ...(assigneeMembershipId
@@ -290,7 +290,7 @@ function refreshJobViews(assigneeMembershipId?: number | null) {
 export async function startJobAction(
   jobId: number
 ): Promise<SimpleActionResult> {
-  await requireEmployee()
+  await requireAssignedWorker()
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("start_job", { p_job_id: jobId })
   if (error || !data) {
@@ -306,7 +306,7 @@ export async function addJobNoteAction(
 ): Promise<SimpleActionResult> {
   const parsed = jobTextSchema.safeParse({ body, jobId })
   if (!parsed.success) return { message: "Enter a note.", ok: false }
-  await requireEmployee()
+  await requireAssignedWorker()
   const supabase = await createClient()
   const { error } = await supabase.rpc("add_job_note", {
     p_body: parsed.data.body,
@@ -364,7 +364,7 @@ export async function prepareJobEvidenceUploadAction(input: {
     }
   | { message: string; ok: false }
 > {
-  const employee = await requireEmployee()
+  const employee = await requireAssignedWorker()
   const parsed = evidenceRequestSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -422,7 +422,7 @@ export async function finalizeJobEvidenceUploadAction(input: {
   jobId: number
   objectName: string
 }): Promise<SimpleActionResult> {
-  const employee = await requireEmployee()
+  const employee = await requireAssignedWorker()
   const expectedPrefix = `${employee.organisationId}/${input.jobId}/${employee.membershipId}/`
   if (!input.objectName.startsWith(expectedPrefix)) {
     return { message: "The uploaded photo is unavailable.", ok: false }
@@ -470,7 +470,7 @@ export async function removeJobEvidenceAction(
   jobId: number,
   assetId: number
 ): Promise<SimpleActionResult> {
-  await requireEmployee()
+  await requireAssignedWorker()
   const supabase = await createClient()
   const { error } = await supabase.rpc("archive_job_evidence", {
     p_asset_id: assetId,
@@ -486,7 +486,7 @@ export async function removeJobEvidenceAction(
 export async function submitJobAction(
   jobId: number
 ): Promise<SimpleActionResult> {
-  const employee = await requireEmployee()
+  const employee = await requireAssignedWorker()
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("submit_job", { p_job_id: jobId })
   const submission = data?.[0]
@@ -500,11 +500,18 @@ export async function submitJobAction(
   }
 
   refreshJobViews(employee.membershipId)
-  if (submission.notification_id) {
+  if (submission.submission_update_id) {
     try {
-      await deliverJobSubmissionEmail(
-        submission.notification_id,
-        await getRequestOrigin()
+      const { data: deliveries } = await createAdminClient()
+        .from("job_notification_deliveries")
+        .select("id")
+        .eq("organisation_id", employee.organisationId)
+        .eq("submission_update_id", submission.submission_update_id)
+      const origin = await getRequestOrigin()
+      await Promise.allSettled(
+        (deliveries ?? []).map((delivery) =>
+          deliverJobSubmissionEmail(delivery.id, origin)
+        )
       )
     } catch {
       // Submission is complete even when the non-transactional email fails.
@@ -517,13 +524,15 @@ export async function reopenJobAction(input: {
   assigneeMembershipId: number
   feedback: string
   jobId: number
+  submissionVersion: number
 }): Promise<SimpleActionResult> {
-  await requireOwner()
+  await requireOperations()
   const parsed = z
     .object({
       assigneeMembershipId: z.coerce.number().int().positive(),
       feedback: z.string().trim().min(1).max(4_000),
       jobId: z.coerce.number().int().positive(),
+      submissionVersion: z.coerce.number().int().nonnegative(),
     })
     .safeParse(input)
   if (!parsed.success) {
@@ -536,6 +545,7 @@ export async function reopenJobAction(input: {
   const { error } = await supabase.rpc("reopen_job", {
     p_assignee_membership_id: parsed.data.assigneeMembershipId,
     p_feedback: parsed.data.feedback,
+    p_expected_submission_version: parsed.data.submissionVersion,
     p_job_id: parsed.data.jobId,
   })
   if (error) return { message: "The job could not be reopened.", ok: false }
@@ -544,11 +554,15 @@ export async function reopenJobAction(input: {
 }
 
 export async function archiveJobAction(
-  jobId: number
+  jobId: number,
+  submissionVersion: number
 ): Promise<SimpleActionResult> {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
-  const { error } = await supabase.rpc("archive_job", { p_job_id: jobId })
+  const { error } = await supabase.rpc("archive_job", {
+    p_expected_submission_version: submissionVersion,
+    p_job_id: jobId,
+  })
   if (error) return { message: "The job could not be approved.", ok: false }
   refreshJobViews()
   return { message: "Job approved and archived.", ok: true }
@@ -557,7 +571,7 @@ export async function archiveJobAction(
 export async function retryJobNotificationAction(
   deliveryId: number
 ): Promise<SimpleActionResult> {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("retry_job_notification", {
     p_delivery_id: deliveryId,

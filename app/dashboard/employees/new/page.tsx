@@ -7,10 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requireOwner } from "@/lib/auth/membership"
+import { requirePeopleManager } from "@/lib/auth/membership"
 
 export default async function Page() {
-  await requireOwner()
+  const actor = await requirePeopleManager()
   return (
     <div className="w-full">
       <Card>
@@ -23,7 +23,10 @@ export default async function Page() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EmployeeForm action={createEmployeeAction} />
+          <EmployeeForm
+            action={createEmployeeAction}
+            canChooseRole={actor.role === "owner"}
+          />
         </CardContent>
       </Card>
     </div>

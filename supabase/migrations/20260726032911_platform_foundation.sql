@@ -1,4 +1,4 @@
-create type public.membership_role as enum ('owner', 'employee');
+create type public.membership_role as enum ('owner', 'manager', 'employee');
 create type public.membership_status as enum ('invited', 'active', 'inactive');
 
 create schema if not exists private;

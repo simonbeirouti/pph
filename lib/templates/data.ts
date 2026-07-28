@@ -2,7 +2,7 @@ import "server-only"
 
 import { cache } from "react"
 
-import { requireOwner } from "@/lib/auth/membership"
+import { requireOperations } from "@/lib/auth/membership"
 import { listActiveEmployeeOptions } from "@/lib/employees/data"
 import type { Tables } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
@@ -47,7 +47,7 @@ function toOccurrence(row: OccurrenceRow): JobScheduleOccurrence {
 }
 
 export const getTemplateScheduleData = cache(async () => {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const [employees, templatesResult, schedulesResult, occurrencesResult] =
     await Promise.all([
@@ -120,7 +120,7 @@ export const getTemplateScheduleData = cache(async () => {
 })
 
 export const getActiveJobTemplates = cache(async (): Promise<JobTemplate[]> => {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("job_templates")

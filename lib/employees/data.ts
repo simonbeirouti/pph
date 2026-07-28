@@ -6,11 +6,12 @@ import type { Database } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
 import {
   requireActiveMembership,
-  requireEmployee,
-  requireOwner,
+  requireAssignedWorker,
+  requirePeopleManager,
 } from "@/lib/auth/membership"
 
 type MembershipStatus = Database["public"]["Enums"]["membership_status"]
+type MembershipRole = Database["public"]["Enums"]["membership_role"]
 type InviteStatus = Database["public"]["Enums"]["invite_delivery_status"]
 
 type EmployeeQueryRow = {
@@ -26,6 +27,7 @@ type EmployeeQueryRow = {
   id: number
   invite_delivery_status: InviteStatus
   invite_last_attempted_at: string | null
+  role: MembershipRole
   status: MembershipStatus
   user_id: string | null
 }
@@ -43,6 +45,7 @@ export type EmployeeSummary = {
   membershipId: number
   phone: string
   profileId: number
+  role: MembershipRole
   status: MembershipStatus
   userId: string | null
 }
@@ -95,6 +98,7 @@ async function mapEmployee(row: EmployeeQueryRow): Promise<EmployeeSummary> {
     membershipId: row.id,
     phone: profile.phone,
     profileId: profile.id,
+    role: row.role,
     status: row.status,
     userId: row.user_id,
   }
@@ -107,6 +111,7 @@ const EMPLOYEE_FIELDS = `
   status,
   invite_delivery_status,
   invite_last_attempted_at,
+  role,
   employee_profiles!inner(
     id,
     first_name,
@@ -123,13 +128,12 @@ export async function listEmployees(
     status?: MembershipStatus | "all"
   } = {}
 ): Promise<EmployeeSummary[]> {
-  const owner = await requireOwner()
+  const owner = await requirePeopleManager()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("memberships")
     .select(EMPLOYEE_FIELDS)
     .eq("organisation_id", owner.organisationId)
-    .eq("role", "employee")
     .order("email")
 
   if (error) throw new Error("Unable to load employees")
@@ -159,13 +163,12 @@ export async function listEmployees(
 
 export const getEmployee = cache(
   async (membershipId: number): Promise<EmployeeSummary | null> => {
-    const owner = await requireOwner()
+    const owner = await requirePeopleManager()
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("memberships")
       .select(EMPLOYEE_FIELDS)
       .eq("organisation_id", owner.organisationId)
-      .eq("role", "employee")
       .eq("id", membershipId)
       .maybeSingle()
 
@@ -175,14 +178,14 @@ export const getEmployee = cache(
 )
 
 export const getCurrentEmployee = cache(async (): Promise<EmployeeSummary> => {
-  const membership = await requireEmployee()
+  const membership = await requireAssignedWorker()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("memberships")
     .select(EMPLOYEE_FIELDS)
     .eq("organisation_id", membership.organisationId)
     .eq("id", membership.membershipId)
-    .eq("role", "employee")
+    .in("role", ["employee", "manager"])
     .single()
 
   if (error) throw new Error("Unable to load your profile")
@@ -207,5 +210,7 @@ export async function listActiveEmployeeOptions(): Promise<
   ActiveEmployeeOption[]
 > {
   const employees = await listEmployees({ status: "active" })
-  return employees.map(toActiveEmployeeOption)
+  return employees
+    .filter((employee) => employee.role !== "owner")
+    .map(toActiveEmployeeOption)
 }

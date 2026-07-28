@@ -41,9 +41,9 @@ export function memberRealtimeTopic(membershipId: number) {
 export function realtimeTopic(input: {
   membershipId: number
   organisationId: number
-  role: "employee" | "owner"
+  role: "employee" | "manager" | "owner"
 }) {
-  return input.role === "owner"
+  return input.role === "owner" || input.role === "manager"
     ? organisationRealtimeTopic(input.organisationId)
     : memberRealtimeTopic(input.membershipId)
 }

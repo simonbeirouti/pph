@@ -103,7 +103,7 @@ export function AppSidebar({
                 <span>Jobs</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {membership.role === "owner" ? (
+            {membership.role !== "employee" ? (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   aria-current={
@@ -119,7 +119,7 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ) : null}
-            {membership.role === "owner" ? (
+            {membership.role !== "employee" ? (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   aria-current={

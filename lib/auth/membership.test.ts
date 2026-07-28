@@ -60,4 +60,32 @@ describe("mapMembershipContext", () => {
 
     expect(context.displayName).toBe("owner")
   })
+
+  it("preserves the manager role at the server session boundary", () => {
+    const context = mapMembershipContext("manager-id", {
+      email: "manager@example.test",
+      employee_profiles: [
+        {
+          avatar_path: "1001/1190/avatar.jpg",
+          first_name: "Morgan",
+          last_name: "Manager",
+        },
+      ],
+      id: 1190,
+      organisation_id: 1001,
+      organisations: {
+        id: 1001,
+        name: "Harbour Operations",
+        timezone: "Australia/Melbourne",
+      },
+      role: "manager",
+      status: "active",
+    })
+
+    expect(context).toMatchObject({
+      displayName: "Morgan Manager",
+      role: "manager",
+      userId: "manager-id",
+    })
+  })
 })

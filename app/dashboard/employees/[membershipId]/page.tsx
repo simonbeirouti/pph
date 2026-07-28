@@ -17,7 +17,7 @@ import {
 import { getEmployee } from "@/lib/employees/data"
 import { getEmployeeJobSummary } from "@/lib/jobs/data"
 import { getEmployeeShiftSummary } from "@/lib/roster/data"
-import { requireOwner } from "@/lib/auth/membership"
+import { requirePeopleManager } from "@/lib/auth/membership"
 
 export default async function Page({
   params,
@@ -34,10 +34,12 @@ export default async function Page({
     getEmployee(membershipId),
     getEmployeeJobSummary(membershipId),
     getEmployeeShiftSummary(membershipId),
-    requireOwner(),
+    requirePeopleManager(),
   ])
   if (!employee) notFound()
   const updateAction = updateEmployeeAction.bind(null, membershipId)
+  const canManage =
+    owner.role === "owner" || employee.role === "employee"
 
   return (
     <div className="grid w-full gap-6">
@@ -66,6 +68,9 @@ export default async function Page({
                 {employee.status}
               </Badge>
               <Badge className="capitalize" variant="outline">
+                {employee.role}
+              </Badge>
+              <Badge className="capitalize" variant="outline">
                 Invite {employee.inviteDeliveryStatus}
               </Badge>
             </div>
@@ -74,11 +79,13 @@ export default async function Page({
               {employee.email} · {employee.phone}
             </p>
           </div>
-          <EmployeeAccessActions
-            displayName={employee.displayName}
-            membershipId={membershipId}
-            status={employee.status}
-          />
+          {canManage ? (
+            <EmployeeAccessActions
+              displayName={employee.displayName}
+              membershipId={membershipId}
+              status={employee.status}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -124,6 +131,7 @@ export default async function Page({
         </Card>
       </div>
 
+      {canManage ? (
       <Card>
         <CardHeader>
           <CardTitle>Edit profile</CardTitle>
@@ -135,6 +143,7 @@ export default async function Page({
           <EmployeeForm action={updateAction} employee={employee} />
         </CardContent>
       </Card>
+      ) : null}
     </div>
   )
 }

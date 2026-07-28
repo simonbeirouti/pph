@@ -4,8 +4,8 @@ import { cache } from "react"
 
 import {
   requireActiveMembership,
-  requireEmployee,
-  requireOwner,
+  requireAssignedWorker,
+  requireOperations,
 } from "@/lib/auth/membership"
 import { listEmployees } from "@/lib/employees/data"
 import type { Tables } from "@/lib/supabase/database.types"
@@ -44,7 +44,7 @@ export function toJobCard(row: JobRow): JobCard {
 }
 
 export const getOwnerJobBoardData = cache(async () => {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const [employees, jobsResult, shiftsResult, templates] = await Promise.all([
     listEmployees(),
@@ -91,7 +91,7 @@ export const getOwnerJobBoardData = cache(async () => {
 })
 
 export const getEmployeeAssignedJobs = cache(async (): Promise<JobCard[]> => {
-  const employee = await requireEmployee()
+  const employee = await requireAssignedWorker()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("jobs")
@@ -118,7 +118,7 @@ export const getJobDetail = cache(
 
     if (jobError || !job) return null
 
-    const [assetsResult, updatesResult, identitiesResult, notificationResult] =
+    const [assetsResult, updatesResult, identitiesResult, notificationsResult] =
       await Promise.all([
         supabase
           .from("job_assets")
@@ -132,22 +132,20 @@ export const getJobDetail = cache(
           .eq("job_id", jobId)
           .order("created_at", { ascending: true }),
         supabase.rpc("list_job_participant_identities", { p_job_id: jobId }),
-        membership.role === "owner"
+        membership.role === "owner" || membership.role === "manager"
           ? supabase
               .from("job_notification_deliveries")
               .select("*")
               .eq("job_id", jobId)
               .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
+          : Promise.resolve({ data: [], error: null }),
       ])
 
     if (
       assetsResult.error ||
       updatesResult.error ||
       identitiesResult.error ||
-      notificationResult.error
+      notificationsResult.error
     ) {
       throw new Error("Unable to load job details")
     }
@@ -178,7 +176,7 @@ export const getJobDetail = cache(
           : {},
       type: update.type,
     }))
-    const notification = notificationResult.data
+    const notifications = notificationsResult.data ?? []
 
     return {
       ...toJobCard(job as JobRow),
@@ -193,7 +191,8 @@ export const getJobDetail = cache(
                 id: asset.id,
                 mimeType: asset.mime_type,
                 removable:
-                  membership.role === "employee" &&
+                  (membership.role === "employee" ||
+                    membership.role === "manager") &&
                   (job.status === "assigned" || job.status === "in_progress") &&
                   asset.uploaded_by_membership_id === membership.membershipId &&
                   asset.submission_version === job.submission_version,
@@ -215,18 +214,21 @@ export const getJobDetail = cache(
           .find((item) => item.metadata.event === "reopen_feedback")?.body ??
         null,
       noteCount: timeline.filter((item) => item.type === "note").length,
-      notification: notification
-        ? {
-            attemptCount: notification.attempt_count,
-            errorMessage: notification.error_message,
-            id: notification.id,
-            lastAttemptedAt: notification.last_attempted_at,
-            recipientEmail: notification.recipient_email,
-            sentAt: notification.sent_at,
-            status: notification.status,
-          }
-        : null,
+      notifications: notifications.map((notification) => ({
+        attemptCount: notification.attempt_count,
+        errorMessage: notification.error_message,
+        id: notification.id,
+        lastAttemptedAt: notification.last_attempted_at,
+        recipientEmail: notification.recipient_email,
+        sentAt: notification.sent_at,
+        status: notification.status,
+      })),
       startedAt: job.started_at,
+      submittedByMembershipId: job.submitted_by_membership_id,
+      requiredReviewerRole: job.required_reviewer_role as
+        | "manager"
+        | "owner"
+        | null,
       submissionVersion: job.submission_version,
       submittedAt: job.submitted_at,
       timeline,
@@ -237,7 +239,7 @@ export const getJobDetail = cache(
 export async function getEmployeeJobSummary(
   membershipId: number
 ): Promise<EmployeeJobSummary> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("jobs")
@@ -258,7 +260,7 @@ export async function getEmployeeJobSummary(
 export async function listEmployeeJobSummaries(): Promise<
   Record<number, EmployeeJobSummary>
 > {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("jobs")
@@ -289,7 +291,7 @@ export async function listEmployeeJobSummaries(): Promise<
 
 export const getOwnerJobAggregates = cache(
   async (): Promise<OwnerJobAggregates> => {
-    const owner = await requireOwner()
+    const owner = await requireOperations()
     const supabase = await createClient()
     const [outstanding, review, urgent] = await Promise.all([
       supabase

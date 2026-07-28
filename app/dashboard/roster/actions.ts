@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import type { ActionState } from "@/lib/forms/action-state"
-import { requireOwner } from "@/lib/auth/membership"
+import { requireOperations } from "@/lib/auth/membership"
 import {
   rosterShiftLocalValues,
   calendarRosterShiftSchema,
@@ -59,7 +59,7 @@ export async function createCalendarRosterShiftAction(
   _state: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireOwner()
+  await requireOperations()
   const values = {
     date: formData.get("date"),
     employeeMembershipId: formData.get("employeeMembershipId"),
@@ -140,7 +140,7 @@ export async function updateCalendarRosterShiftAction(input: {
   startsAt: string
   updatedAt: string
 }): Promise<{ message: string; ok: boolean; updatedAt?: string }> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const parsed = calendarShiftUpdateSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -193,7 +193,7 @@ export async function editCalendarRosterShiftAction(
   _state: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const values = {
     date: formData.get("date"),
     employeeMembershipId: formData.get("employeeMembershipId"),
@@ -297,7 +297,7 @@ export async function setCalendarRosterShiftLockAction(input: {
   shiftId: number
   updatedAt: string
 }): Promise<{ message: string; ok: boolean }> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const parsed = z
     .object({
       employeeMembershipId: z.number().int().positive(),

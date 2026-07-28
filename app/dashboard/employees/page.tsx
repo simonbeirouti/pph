@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { listEmployees } from "@/lib/employees/data"
+import { requirePeopleManager } from "@/lib/auth/membership"
 import { listEmployeeJobSummaries } from "@/lib/jobs/data"
 import {
   getOwnerRosterContext,
@@ -25,6 +26,7 @@ export default async function Page({
   searchParams: Promise<{ q?: string; status?: string }>
 }) {
   const params = await searchParams
+  const actor = await requirePeopleManager()
   const status = STATUSES.has(params.status ?? "")
     ? (params.status as "all" | "invited" | "active" | "inactive")
     : "all"
@@ -45,7 +47,7 @@ export default async function Page({
             Manage profiles, invitations, and application access.
           </p>
         </div>
-        <EmployeeCreateDialog />
+        <EmployeeCreateDialog canChooseRole={actor.role === "owner"} />
       </div>
       <Card>
         <CardContent className="grid gap-4">
@@ -76,6 +78,7 @@ export default async function Page({
           </form>
           {employees.length ? (
             <EmployeeDirectoryTable
+              actorRole={actor.role}
               employees={employees}
               jobSummaries={jobSummaries}
               shiftSummaries={shiftSummaries}
@@ -87,7 +90,7 @@ export default async function Page({
               <p className="text-sm text-muted-foreground">
                 Adjust the search or add your first employee.
               </p>
-              <EmployeeCreateDialog />
+              <EmployeeCreateDialog canChooseRole={actor.role === "owner"} />
             </div>
           )}
         </CardContent>

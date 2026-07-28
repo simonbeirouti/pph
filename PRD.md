@@ -23,9 +23,12 @@ This PRD is the central source of truth for product scope, behaviour, acceptance
 
 The Employee Operations Dashboard is a responsive web application for companies that need to roster employees, assign operational jobs, collect completion evidence, and review completed work.
 
-V1 supports one organisation per user and two roles:
+V1 supports one organisation per user and three roles:
 
-- **Owner:** manages employees, jobs, templates, recurring schedules, reviews, and rosters.
+- **Owner:** controls access and roles, manages all operations, and reviews
+  employee and manager work. Owners are not operational job assignees.
+- **Manager:** manages the employee lifecycle and operations, performs assigned
+  work, and reviews employee work.
 - **Employee:** sees their own roster and assigned jobs, records work, uploads photos, leaves notes and comments, and submits jobs for review.
 
 The owner experience has five primary pages:
@@ -36,7 +39,10 @@ The owner experience has five primary pages:
 4. Employees
 5. Templates & schedules
 
-Employees receive a role-specific dashboard and job experience. They do not have access to the owner roster, employee directory, templates, schedules, or other employees' work.
+Managers receive the organisation operations experience plus a personal assigned
+work queue. Employees receive a self-scoped dashboard and job experience. They
+do not have access to the team roster, employee directory, templates, schedules,
+or other employees' work.
 
 ### 1.1 Problem statement
 
@@ -46,11 +52,13 @@ The product should provide a single, simple workflow from employee invitation th
 
 ### 1.2 V1 goals
 
-- Let an owner create and invite employees.
+- Let owners invite employees, managers, and one backup owner, and let managers
+  manage the employee lifecycle.
 - Show who is currently working and who is rostered today.
-- Let an owner create, assign, schedule, and reassign jobs.
+- Let owners and managers create, assign, schedule, and reassign jobs.
 - Give employees a mobile-friendly way to start jobs and submit notes and photos.
-- Give owners a review queue containing the complete job history and evidence.
+- Give eligible higher-level reviewers a shared queue containing the complete
+  job history and evidence.
 - Let owners build and maintain a seven-day roster.
 - Provide reusable job templates and daily or weekly job schedules.
 - Make the application installable as a Progressive Web App on supported desktop and mobile browsers.
@@ -75,7 +83,7 @@ V1 is successful when:
   events, or transitions.
 - The application exposes a valid manifest, install icons, and a securely served service worker so supported browsers can install it.
 - Organisation and role boundaries are enforced by application checks and Supabase Row Level Security.
-- Critical owner and employee journeys pass in automated tests.
+- Critical owner, manager, and employee journeys pass in automated tests.
 
 ## 2. Users, roles, and permissions
 
@@ -84,7 +92,10 @@ V1 is successful when:
 An owner can:
 
 - View all organisation dashboard statistics.
-- Create, edit, invite, and deactivate employees.
+- Create, edit, invite, deactivate, reactivate, and remove pending employees and
+  managers, and invite one additional owner.
+- Promote and demote roles while preserving at least one and at most two
+  invited-or-active owners.
 - View all employee profiles, shifts, jobs, comments, notes, and evidence.
 - Create, edit, assign, reassign, archive, and review jobs.
 - Create and manage job templates and schedules.
@@ -92,7 +103,29 @@ An owner can:
   employee profiles, and assign not-started jobs while creating a shift.
 - Comment on any job in their organisation.
 
-### 2.2 Employee
+An owner cannot be assigned operational jobs.
+
+### 2.2 Manager
+
+A manager can:
+
+- View organisation dashboard statistics and team operations.
+- Create, invite, edit, deactivate, reactivate, resend, and remove pending
+  employee accounts.
+- View team profiles required for jobs and rosters.
+- Create, edit, assign, reassign, and archive jobs.
+- Manage rosters, templates, and schedules.
+- Perform jobs assigned to them.
+- Review employee submissions.
+
+A manager cannot:
+
+- Change any membership role.
+- Invite, edit access for, deactivate, or remove an owner or manager.
+- Review a manager submission or their own work.
+- Change organisation ownership or security settings.
+
+### 2.3 Employee
 
 An employee can:
 
@@ -113,7 +146,18 @@ An employee cannot:
 - Edit the roster.
 - Archive or approve a job.
 
-### 2.3 Organisation boundary
+### 2.4 Review hierarchy
+
+Submitted work enters a shared review queue. Review eligibility is captured at
+submission and is not weakened by later role changes:
+
+- Employee work may be approved or reopened by an active manager or owner.
+- Manager work may be approved or reopened only by an active owner.
+- Self-review is prohibited.
+- The first valid concurrent review wins under a database row lock.
+- Every active eligible reviewer receives an idempotent submission notification.
+
+### 2.5 Organisation boundary
 
 Every operational record belongs to an organisation. V1 allows a user to belong to one organisation, but the schema and policies must use `organisation_id` so multi-organisation support can be added later.
 
@@ -123,7 +167,10 @@ No authenticated user may read or mutate records belonging to another organisati
 
 ### 3.1 Authentication and employee invitations
 
-The initial organisation and owner are provisioned manually in Supabase. There is no public owner registration in V1.
+The initial organisation and owner are provisioned manually in Supabase. There
+is no public registration in V1. The initial owner may invite one additional
+owner. At least one active owner must remain, and no organisation may have more
+than two invited-or-active owners.
 
 #### AUTH-01: Owner sign-in
 
@@ -137,19 +184,25 @@ Acceptance criteria:
 - An authenticated user visiting `/login` is redirected to their permitted dashboard.
 - A signed-out user visiting an authenticated route is redirected to `/login`.
 
-#### AUTH-02: Employee invitation
+#### AUTH-02: Team invitation
 
-As an owner, I want an invitation sent when I create an employee so that the employee can activate their account.
+As an authorised team administrator, I want an invitation sent when I create a
+team member so that they can activate their account.
 
 Acceptance criteria:
 
-- The owner supplies first name, last name, email, phone, job title, and optional profile photo.
+- An owner may invite an employee, manager, or second owner.
+- A manager may invite employees only.
+- The authorised actor supplies first name, last name, email, phone, job title,
+  role, and optional profile photo.
 - Email is unique within the organisation, compared case-insensitively.
-- The application creates an `invited` membership and employee profile before requesting the Auth invitation.
+- The application creates an `invited` membership and profile before requesting
+  the Auth invitation.
 - The server calls Supabase Admin `inviteUserByEmail`.
 - Supabase Auth sends the invitation through Resend SMTP.
 - The callback returns to `/auth/confirm` and then `/set-password`.
-- A failed invite remains visible as an invited employee and can be resent.
+- A failed invite remains visible as an invited team member and can be resent by
+  an actor authorised to manage that role.
 - The employee sheet shows an invitation action whose label and pending state
   reflect whether the invitation is pending, sent, or failed; sent invitations
   can be resent and failed invitations can be retried.
@@ -834,7 +887,7 @@ Database migrations are the source of truth. Generated Supabase TypeScript types
 - `organisation_id`
 - `user_id`, nullable until invitation acceptance
 - `email`
-- `role`: `owner` or `employee`
+- `role`: `owner`, `manager`, or `employee`
 - `status`: `invited`, `active`, or `inactive`
 - `invited_at`
 - `invite_delivery_status`: `pending`, `sent`, or `failed`
@@ -848,6 +901,10 @@ Constraints:
 
 - Normalised email is unique per organisation.
 - A user can have only one V1 membership.
+- At least one active owner remains in each organisation.
+- At most two owner memberships may be invited or active.
+- Role and access transitions are performed through authorised transactional
+  functions and recorded in an immutable role audit.
 
 ### 6.3 `employee_profiles`
 
@@ -1299,7 +1356,18 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 - Compose the verified employee, job, and roster query contracts into owner and employee dashboards.
 
-### Step 10: Offline employee job completion
+### Step 10: Owner, manager, and employee access governance
+
+- Add the database-enforced role hierarchy, owner invariants, role audit, and
+  least-privilege membership transitions.
+- Let managers manage employees and operations while remaining assignable
+  workers whose submissions require owner review.
+- Add shared hierarchical review queues and per-recipient idempotent
+  notifications.
+- Verify owner, manager, employee, inactive, and cross-organisation boundaries
+  in database, server, component, and browser tests.
+
+### Step 11: Offline assigned-worker job completion
 
 - Add the membership-scoped IndexedDB work pack, pending-photo store, operation
   outbox, generic offline shell, and visible synchronisation states.
@@ -1308,7 +1376,7 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 - Verify foreground/manual sync, conflict handling, logout/deactivation purge,
   storage-pressure failure, reload recovery, and exactly-once behaviour.
 
-### Step 11: Integration and production hardening
+### Step 12: Integration and production hardening
 
 - Resolve all deferred cross-step TODOs.
 - Complete end-to-end coverage, responsive QA, accessibility checks, security verification, and staging readiness.
@@ -1317,7 +1385,7 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 ### Prototype acceptance
 
-- Critical owner and employee Playwright journeys pass.
+- Critical owner, manager, and employee Playwright journeys pass.
 - Owner pages work at desktop width.
 - Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
 - Employee offline start, notes, photos, queued submission, foreground sync, and

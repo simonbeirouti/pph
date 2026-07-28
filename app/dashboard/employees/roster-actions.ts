@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import type { ActionState } from "@/lib/forms/action-state"
-import { requireOwner } from "@/lib/auth/membership"
+import { requireOperations } from "@/lib/auth/membership"
 import { zonedLocalDateTimeToUtc } from "@/lib/roster/time"
 import {
   employeeRosterShiftSchema,
@@ -36,7 +36,7 @@ export async function saveEmployeeRosterShiftAction(
   _state: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const owner = await requireOwner()
+  const owner = await requireOperations()
   const values = {
     date: formData.get("date"),
     endTime: formData.get("endTime"),
@@ -60,12 +60,12 @@ export async function saveEmployeeRosterShiftAction(
     .select("id")
     .eq("id", employeeMembershipId)
     .eq("organisation_id", owner.organisationId)
-    .eq("role", "employee")
+    .in("role", ["employee", "manager"])
     .eq("status", "active")
     .maybeSingle()
   if (employeeError || !employee) {
     return {
-      message: "Choose an active employee in your organisation.",
+      message: "Choose an active worker in your organisation.",
       ok: false,
     }
   }
@@ -153,7 +153,7 @@ export async function archiveEmployeeRosterShiftAction(
   shiftId: number,
   updatedAt: string
 ): Promise<{ message: string; ok: boolean }> {
-  await requireOwner()
+  await requireOperations()
   if (
     !Number.isSafeInteger(employeeMembershipId) ||
     employeeMembershipId <= 0 ||

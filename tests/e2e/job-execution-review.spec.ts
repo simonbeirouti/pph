@@ -175,10 +175,10 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
     .click()
   await expect(ownerPage.getByText("Job approved and archived.")).toBeVisible()
 
-  const inaccessibleResponse = await employeePage.goto(
-    "/dashboard/jobs?job=1402"
-  )
-  expect(inaccessibleResponse?.status()).toBe(404)
+  await employeePage.goto("/dashboard/jobs?job=1402")
+  await expect(
+    employeePage.getByText("This page could not be found.")
+  ).toBeVisible()
   await employeeContext.close()
   await ownerContext.close()
 })

@@ -15,7 +15,6 @@ export async function getInvitedMembershipForCurrentUser() {
     .from("memberships")
     .select("id, email")
     .eq("user_id", userId)
-    .eq("role", "employee")
     .eq("status", "invited")
     .maybeSingle()
   if (error) throw new Error("Unable to resolve invitation")

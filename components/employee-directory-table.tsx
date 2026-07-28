@@ -6,6 +6,11 @@ import { updateEmployeeAction } from "@/app/dashboard/employees/actions"
 import { EmployeeAccessActions } from "@/components/employee-access-actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeInvitationAction } from "@/components/employee-invitation-action"
+import {
+  EmployeeEditor,
+  EmployeeSaveAction,
+  MembershipRoleSelector,
+} from "@/components/membership-role-actions"
 import { EmployeeSheetProfile } from "@/components/employee-sheet-profile"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -23,11 +28,13 @@ import type { EmployeeShiftSummary } from "@/lib/roster/types"
 import { formatLocalTime } from "@/lib/roster/time"
 
 export function EmployeeDirectoryTable({
+  actorRole,
   employees,
   jobSummaries,
   shiftSummaries,
   timezone,
 }: {
+  actorRole: "owner" | "manager"
   employees: EmployeeSummary[]
   jobSummaries: Record<number, EmployeeJobSummary>
   shiftSummaries: Record<number, EmployeeShiftSummary>
@@ -53,6 +60,7 @@ export function EmployeeDirectoryTable({
           <TableRow>
             <TableHead>Employee</TableHead>
             <TableHead>Job title</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Invitation</TableHead>
             <TableHead>Today</TableHead>
@@ -94,6 +102,11 @@ export function EmployeeDirectoryTable({
               </TableCell>
               <TableCell>{employee.jobTitle}</TableCell>
               <TableCell>
+                <Badge variant="outline" className="capitalize">
+                  {employee.role}
+                </Badge>
+              </TableCell>
+              <TableCell>
                 <Badge variant="secondary" className="capitalize">
                   {employee.status}
                 </Badge>
@@ -133,18 +146,28 @@ export function EmployeeDirectoryTable({
 
       <SheetContent className="w-full gap-0 overflow-hidden sm:max-w-2xl">
         {selectedEmployee ? (
-          <>
+          <EmployeeEditor
+            currentRole={selectedEmployee.role}
+            displayName={selectedEmployee.displayName}
+            membershipId={selectedEmployee.membershipId}
+          >
             <EmployeeSheetProfile
               action={updateEmployeeAction.bind(
                 null,
                 selectedEmployee.membershipId
               )}
               employee={selectedEmployee}
+              canEdit={
+                actorRole === "owner" || selectedEmployee.role === "employee"
+              }
               jobSummary={
                 jobSummaries[selectedEmployee.membershipId] ?? {
                   active: [],
                   archived: [],
                 }
+              }
+              roleActions={
+                actorRole === "owner" ? <MembershipRoleSelector /> : null
               }
               shiftSummary={
                 shiftSummaries[selectedEmployee.membershipId] ?? {
@@ -156,21 +179,31 @@ export function EmployeeDirectoryTable({
               key={`profile-${selectedEmployee.membershipId}`}
             />
             <div className="grid shrink-0 gap-2 border-t p-4">
-              <EmployeeInvitationAction
-                deliveryStatus={selectedEmployee.inviteDeliveryStatus}
-                key={`invitation-${selectedEmployee.membershipId}`}
-                membershipId={selectedEmployee.membershipId}
-                status={selectedEmployee.status}
-              />
-              <EmployeeAccessActions
-                displayName={selectedEmployee.displayName}
-                key={`access-${selectedEmployee.membershipId}`}
-                membershipId={selectedEmployee.membershipId}
-                onDeleted={() => setOpen(false)}
-                status={selectedEmployee.status}
-              />
+              {actorRole === "owner" ? (
+                <EmployeeSaveAction />
+              ) : selectedEmployee.role === "employee" ? (
+                <EmployeeSaveAction />
+              ) : null}
+              {actorRole === "owner" ||
+              selectedEmployee.role === "employee" ? (
+                <>
+                  <EmployeeInvitationAction
+                    deliveryStatus={selectedEmployee.inviteDeliveryStatus}
+                    key={`invitation-${selectedEmployee.membershipId}`}
+                    membershipId={selectedEmployee.membershipId}
+                    status={selectedEmployee.status}
+                  />
+                  <EmployeeAccessActions
+                    displayName={selectedEmployee.displayName}
+                    key={`access-${selectedEmployee.membershipId}`}
+                    membershipId={selectedEmployee.membershipId}
+                    onDeleted={() => setOpen(false)}
+                    status={selectedEmployee.status}
+                  />
+                </>
+              ) : null}
             </div>
-          </>
+          </EmployeeEditor>
         ) : null}
       </SheetContent>
     </Sheet>

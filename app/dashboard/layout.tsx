@@ -30,6 +30,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider
+      className="h-svh overflow-hidden overscroll-none"
       defaultOpen={sidebarOpen}
       onOpenChange={setSidebarOpenAction}
     >
@@ -42,9 +43,9 @@ export default async function DashboardLayout({
       >
         <ViewerTimezoneSync timezone={membership.timezone} />
         <AppSidebar avatarUrl={avatarUrl} membership={membership} />
-        <SidebarInset>
+        <SidebarInset className="min-h-0 overflow-hidden">
           <ServiceWorkerRegistration />
-          {membership.role === "employee" ? <PwaInstallCard /> : null}
+          {membership.role !== "owner" ? <PwaInstallCard /> : null}
           <header className="flex h-16 shrink-0 items-center gap-2 border-b">
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger
@@ -58,7 +59,7 @@ export default async function DashboardLayout({
               <DashboardBreadcrumb />
             </div>
           </header>
-          <main className="flex min-w-0 flex-1 flex-col p-4 md:p-6">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-contain p-4 md:p-6">
             {children}
           </main>
         </SidebarInset>

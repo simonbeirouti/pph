@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { requireOwner } from "@/lib/auth/membership"
+import { requireOperations } from "@/lib/auth/membership"
 import { createClient } from "@/lib/supabase/server"
 import type { TemplateActionState } from "@/lib/templates/types"
 import { scheduleSchema, templateSchema } from "@/lib/templates/validation"
@@ -29,7 +29,7 @@ export async function saveTemplateAction(
   _state: TemplateActionState,
   formData: FormData
 ): Promise<TemplateActionState> {
-  await requireOwner()
+  await requireOperations()
   const parsed = templateSchema.safeParse(templateValues(formData))
   if (!parsed.success) {
     return {
@@ -70,7 +70,7 @@ export async function setTemplateActiveAction(
   templateId: number,
   isActive: boolean
 ) {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { error } = await supabase.rpc("set_job_template_active", {
     p_is_active: isActive,
@@ -99,7 +99,7 @@ export async function saveScheduleAction(
   _state: TemplateActionState,
   formData: FormData
 ): Promise<TemplateActionState> {
-  await requireOwner()
+  await requireOperations()
   const parsed = scheduleSchema.safeParse(scheduleValues(formData))
   if (!parsed.success) {
     return {
@@ -146,7 +146,7 @@ export async function setScheduleEnabledAction(
   scheduleId: number,
   isEnabled: boolean
 ) {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { error } = await supabase.rpc("set_job_schedule_enabled", {
     p_is_enabled: isEnabled,
@@ -157,7 +157,7 @@ export async function setScheduleEnabledAction(
 }
 
 export async function deleteScheduleAction(scheduleId: number) {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { error } = await supabase.rpc("delete_job_schedule", {
     p_schedule_id: scheduleId,
@@ -167,7 +167,7 @@ export async function deleteScheduleAction(scheduleId: number) {
 }
 
 export async function retryScheduleAction(scheduleId: number) {
-  await requireOwner()
+  await requireOperations()
   const supabase = await createClient()
   const { error } = await supabase.rpc("retry_job_schedule", {
     p_schedule_id: scheduleId,

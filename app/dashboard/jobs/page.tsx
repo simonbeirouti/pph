@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation"
+import Link from "next/link"
 
 import { EmployeeJobsList } from "@/components/employee-jobs-list"
 import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
 import { JobWorkspace } from "@/components/job-workspace"
+import { Button } from "@/components/ui/button"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getEmployeeAssignedJobs,
@@ -15,6 +17,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{
     job?: string | string[]
+    mode?: string | string[]
     priority?: string | string[]
     status?: string | string[]
     view?: string | string[]
@@ -37,9 +40,16 @@ export default async function Page({
     params.view === "archived" || params.view === "workflow"
       ? params.view
       : "workflow"
+  const mode =
+    membership.role === "manager" && params.mode === "my-work"
+      ? "my-work"
+      : "team"
   if (
     (params.status !== undefined && !status) ||
     (params.priority !== undefined && !priority) ||
+    (params.mode !== undefined &&
+      params.mode !== "team" &&
+      params.mode !== "my-work") ||
     (params.view !== undefined &&
       params.view !== "workflow" &&
       params.view !== "archived")
@@ -47,7 +57,7 @@ export default async function Page({
     notFound()
   }
 
-  if (membership.role === "employee") {
+  if (membership.role === "employee" || mode === "my-work") {
     const [jobs, detail] = await Promise.all([
       getEmployeeAssignedJobs(),
       selectedJobId ? getJobDetail(selectedJobId) : null,
@@ -55,10 +65,20 @@ export default async function Page({
     if (selectedJobId && !detail) notFound()
 
     return (
-      <>
+      <div className="grid gap-4">
+        {membership.role === "manager" ? (
+          <div className="flex gap-2">
+            <Button nativeButton={false} variant="outline" render={<Link href="/dashboard/jobs" />}>
+              Team workflow
+            </Button>
+            <Button nativeButton={false} render={<Link href="/dashboard/jobs?mode=my-work" />}>
+              My work
+            </Button>
+          </div>
+        ) : null}
         <EmployeeJobsList jobs={jobs} timezone={membership.timezone} />
         <EmployeeJobDetail detail={detail} timezone={membership.timezone} />
-      </>
+      </div>
     )
   }
 
@@ -78,6 +98,16 @@ export default async function Page({
 
   return (
     <div className="flex h-[calc(100dvh-6rem)] min-h-0 w-full flex-col overflow-hidden md:h-[calc(100dvh-8rem)]">
+      {membership.role === "manager" ? (
+        <div className="mb-3 flex shrink-0 gap-2">
+          <Button nativeButton={false} render={<Link href="/dashboard/jobs" />}>
+            Team workflow
+          </Button>
+          <Button nativeButton={false} variant="outline" render={<Link href="/dashboard/jobs?mode=my-work" />}>
+            My work
+          </Button>
+        </div>
+      ) : null}
       <JobWorkspace
         employees={data.employees}
         filterActive={Boolean(status || priority)}
@@ -88,6 +118,10 @@ export default async function Page({
         timezone={data.timezone}
       />
       <OwnerJobDetail
+        canReview={
+          membership.role === "owner" ||
+          detail?.requiredReviewerRole === "manager"
+        }
         detail={detail}
         employees={data.employees}
         timezone={data.timezone}
