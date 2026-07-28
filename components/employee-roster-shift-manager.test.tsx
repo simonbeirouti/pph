@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -72,6 +78,30 @@ describe("EmployeeRosterShiftManager", () => {
     expect(
       within(dialog).getByRole("button", { name: "Create shift" })
     ).toBeEnabled()
+  })
+
+  it("moves the end time with the start while preserving duration", async () => {
+    const user = userEvent.setup()
+    render(
+      <EmployeeRosterShiftManager
+        canManage
+        employeeMembershipId={1103}
+        employeeName="Alex Employee"
+        summary={{ current: shift, upcoming: [] }}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit Alex Employee shift" })
+    )
+    const dialog = screen.getByRole("dialog", { name: "Edit shift" })
+    const start = within(dialog).getByLabelText("Start")
+    const end = within(dialog).getByLabelText("End")
+
+    fireEvent.change(start, { target: { value: "20:00" } })
+
+    expect(end).toHaveValue("02:00")
   })
 
   it("keeps inactive employee history read-only", () => {

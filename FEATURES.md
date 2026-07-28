@@ -634,7 +634,7 @@ Owners can view accurate employee week and organisation day rosters, and employe
 
 ### Completion gate
 
-- [x] Roster views are viewport-contained and exact employee-sheet forms are correct before direct roster manipulation is added.
+- [x] Roster views are viewport-contained and exact employee-sheet forms are correct before direct roster creation is added.
 - [x] Shifts cannot overlap for the same employee.
 - [x] Dashboard aggregate contracts are stable.
 
@@ -658,7 +658,7 @@ Owners can view accurate employee week and organisation day rosters, and employe
   checks, lint, type-check, diff validation, and the 3-check Chromium owner jobs
   journey including assignee-filtered shift selection and manual override.
 - Project skills and references used: `supabase`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and `playwright-best-practices`; Next.js 16 page/search-param and client-boundary guidance; current Supabase RLS/query-optimisation guidance; `components/ref-files/roster-calendar.tsx` and `components/ref-files/roster-time.ts`.
-- Reference disposition: the useful vertical grid, sticky header/time rail, viewport fill, mobile snapping, and timezone conversion patterns were ported into repository-native roster modules. The reference calendar remains for S07 pointer/optimistic interaction consumption; its unrelated automation/task domain is not imported into production.
+- Reference disposition: the useful vertical grid, sticky header/time rail, viewport fill, mobile snapping, and timezone conversion patterns were ported into repository-native roster modules. The reference calendar remains for S07 empty-range pointer interaction consumption; its unrelated automation/task domain is not imported into production.
 - Environment contract: no variables were added, renamed, or removed.
 
 ### Implementation prompt
@@ -668,7 +668,7 @@ Implement S06 Roster Data and Views from FEATURES.md against PRD stories CAL-01 
 
 Build roster schema/RLS, overlap protection, timezone helpers, selected-employee week view, all-employees day view, employee shift summary, and dashboard aggregate queries.
 
-Inspect the reference calendar, roster time helpers, and styling first. Preserve useful layout and responsive behaviour while cleaning them into repository-native modules. Do not add drag, resize, copy, templates, scheduling, or dashboards yet.
+Inspect the reference calendar, roster time helpers, and styling first. Preserve useful layout and responsive behaviour while cleaning them into repository-native modules. Do not add calendar creation, templates, scheduling, or dashboards yet.
 
 Update S06 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after roster data, RLS, rendering, lint, type-check, test, and build checks pass.
 ```
@@ -682,38 +682,55 @@ Update S06 status, verification notes, checkpoint, reference-code disposition, a
 
 ### Outcome
 
-Owners can manage shifts directly on the roster with precise, safe, and accessible interactions.
+Owners can create shifts from empty calendar time and optionally assign
+not-started jobs to that worker in the same safe transaction.
 
 ### Tasks
 
-- Add slot-based shift creation.
-- Add drag, resize, copy, and confirmed delete.
-- Snap changes to 15-minute increments.
-- Add optimistic updates and rollback.
-- Provide non-drag alternatives.
+- Add desktop drag-to-select creation with 15-minute snapping.
+- Add mobile tap-to-create with a one-hour default.
+- Open one exact-time form for employee, date, time, notes, and optional jobs.
+- Atomically create the shift and assign/schedule selected not-started jobs.
+- Preserve existing-shift details on the calendar and exact edit/archive in the
+  employee profile.
+- Provide a keyboard-accessible creation alternative.
 
 ### Tests
 
-- Create, edit, move, resize, copy, and delete.
-- Invalid ranges and overlap rejection.
-- Optimistic rollback.
-- Keyboard-accessible alternatives.
-- Complete owner roster-management E2E journey.
+- Desktop range selection, reverse drag, snapping, and overlap rejection.
+- Mobile one-hour defaults and exact form editing.
+- Active-employee, eligible-job, organisation, and atomic rollback rules.
+- Job assignment, shift-based schedule/due times, and audit history.
+- Exact employee-profile edit and confirmed archive.
+- Keyboard-accessible creation alternative.
+- Complete desktop/mobile owner roster-creation E2E journey.
 
 ### Completion gate
 
-- All roster manipulation works against the S06 server contracts.
-- Failed mutations restore the prior visible roster.
-- Reference roster code consumed by this step is cleaned or documented for removal.
+- Calendar creation works against the S06 range, timezone, overlap, and
+  employee contracts.
+- A failed transaction leaves no shift or partial job changes.
+- Existing shifts remain detail-only calendar controls.
+- Reference roster code consumed by this step is cleaned or documented for
+  removal.
 
 ### Implementation prompt
 
 ```text
 Implement S07 Roster Interactions from FEATURES.md against PRD story CAL-03 while preserving the completed S06 CAL-04 contract.
 
-Extend the verified S06 roster with direct slot creation, move/resize/copy/delete, 15-minute snapping, optimistic rollback, accessible non-drag controls, and tests. Preserve the exact employee-sheet forms and live current-time indicator already delivered in S06.
+Extend the verified S06 roster with desktop drag-to-select and mobile
+tap-to-create on empty time. Open one exact form for employee, date, start/end,
+notes, and optional not-started jobs. Save the shift plus job assignment,
+scheduled time, due time, and audit history atomically. Keep existing calendar
+shifts detail-only and preserve exact employee-profile edit/archive plus the
+live current-time indicator.
 
-Clean and reuse suitable reference calendar interactions and styling without reintroducing obsolete task/automation domain behaviour. Update S07 status, verification notes, checkpoint, reference-code disposition, and TODOs. Finish only after the complete roster-management journey and all S07 checks pass.
+Clean and reuse suitable reference empty-range pointer interactions and styling
+without reintroducing obsolete task/automation domain behaviour. Update S07
+status, verification notes, checkpoint, reference-code disposition, and TODOs.
+Finish only after the complete desktop/mobile roster-creation journey and all
+S07 checks pass.
 ```
 
 ## S08 — Templates and job schedules
@@ -966,10 +983,10 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 | TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `planned`  | S04 job aggregates and S06 working-now/today-roster contracts are published; dashboard composition remains S09.                             |
 | TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                                                                     | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite. |
 | TODO-007 | All steps       | S11         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                                                                                 | `planned`  | —                                                                                                                                           |
-| TODO-008 | S04/S07         | S11         | Consolidate repeated optimistic mutation, date control, dialog, and upload patterns where reuse is justified.                                                    | `planned`  | S06 established the exact employee-sheet form alternative; S07 still owns optimistic roster manipulation and rollback.                      |
+| TODO-008 | S04/S07         | S11         | Consolidate repeated mutation, date control, dialog, and upload patterns where reuse is justified.                                                               | `planned`  | S06 established the exact employee-sheet form alternative; S07 owns the shared calendar creation dialog and pending-state patterns.          |
 | TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `planned`  | —                                                                                                                                           |
 | TODO-010 | All steps       | S11         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.                                                               | `planned`  | —                                                                                                                                           |
-| TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S06 ported roster grid/time patterns without reference imports; S07 still owns pointer and optimistic interaction consumption.              |
+| TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S06 ported roster grid/time patterns without reference imports; S07 still owns empty-range pointer interaction consumption.                  |
 | TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                                                                                | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                |
 | TODO-013 | S02             | S06         | Replace employee directory/detail deferred roster states with roster availability and upcoming shifts.                                                           | `complete` | S06 supplies current/upcoming summaries in the directory, profile sheet, detail page, and employee dashboard.                               |
 | TODO-014 | S03/S05         | S10         | Extend the install-only PWA and online employee job lifecycle with the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries. | `planned`  | S03 deliberately stopped at the installable shell; S05 remains the authoritative online job and evidence contract consumed by S10.          |

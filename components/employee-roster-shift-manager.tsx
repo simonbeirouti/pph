@@ -23,6 +23,8 @@ import {
   type ActionState,
 } from "@/lib/forms/action-state"
 import {
+  addMinutesToClockTime,
+  clockTimeDurationMinutes,
   formatDuration,
   formatLocalTime,
   localDateForInstant,
@@ -62,6 +64,8 @@ function ShiftForm({
   const endTime =
     state.values?.endTime ??
     (shift ? localTimeInputForInstant(shift.endsAt, timezone) : "17:00")
+  const [selectedStartTime, setSelectedStartTime] = useState(startTime)
+  const [selectedEndTime, setSelectedEndTime] = useState(endTime)
 
   useEffect(() => {
     if (state.ok) onSaved()
@@ -99,13 +103,25 @@ function ShiftForm({
           </label>
           <Input
             aria-invalid={Boolean(state.errors?.startTime)}
-            defaultValue={startTime}
             id="shift-start-time"
-            key={`start-${startTime}`}
             name="startTime"
+            onChange={(event) => {
+              const nextStart = event.target.value
+              const duration = clockTimeDurationMinutes(
+                selectedStartTime,
+                selectedEndTime
+              )
+              setSelectedStartTime(nextStart)
+              if (duration !== null) {
+                setSelectedEndTime(
+                  addMinutesToClockTime(nextStart, duration)
+                )
+              }
+            }}
             required
             step={60}
             type="time"
+            value={selectedStartTime}
           />
           <FieldErrors errors={state.errors?.startTime} />
         </div>
@@ -115,13 +131,13 @@ function ShiftForm({
           </label>
           <Input
             aria-invalid={Boolean(state.errors?.endTime)}
-            defaultValue={endTime}
             id="shift-end-time"
-            key={`end-${endTime}`}
             name="endTime"
+            onChange={(event) => setSelectedEndTime(event.target.value)}
             required
             step={60}
             type="time"
+            value={selectedEndTime}
           />
           <FieldErrors errors={state.errors?.endTime} />
         </div>

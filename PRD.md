@@ -87,7 +87,8 @@ An owner can:
 - View all employee profiles, shifts, jobs, comments, notes, and evidence.
 - Create, edit, assign, reassign, archive, and review jobs.
 - Create and manage job templates and schedules.
-- Create, move, resize, copy, edit, and delete roster shifts.
+- Create shifts from the roster calendar, exactly edit and archive them from
+  employee profiles, and assign not-started jobs while creating a shift.
 - Comment on any job in their organisation.
 
 ### 2.2 Employee
@@ -484,7 +485,7 @@ As an owner, I want a seven-day view for one employee so that I can plan their w
 Acceptance criteria:
 
 - The owner can select any active employee.
-- Seven consecutive dates are shown with 15-minute placement precision.
+- Seven consecutive dates are shown with minute-accurate placement.
 - Shifts display start time, end time, duration, and optional notes.
 - Previous week, next week, and Today controls are available.
 
@@ -501,21 +502,38 @@ Acceptance criteria:
 
 #### CAL-03: Shift management
 
-As an owner, I want to edit shifts directly from the roster so that roster maintenance is quick.
+As an owner, I want to create shifts directly from the roster and complete
+shift details in one form so that roster maintenance is quick.
 
 Acceptance criteria:
 
-- Owners can create a shift from an empty roster slot.
-- Owners can also create and exactly edit an employee's shifts from the employee directory sheet.
+- On desktop, dragging across empty calendar time selects an initial range in
+  15-minute increments and opens the create-shift form on release.
+- On mobile, tapping empty calendar time opens a one-hour shift beginning at
+  the tapped quarter hour.
+- The calendar form allows the owner to change the date, exact start and end
+  times, active employee, notes, and optional not-started jobs before saving.
+- The employee is inferred from the selected Team-day lane or Employee-week
+  view but remains editable in the form.
+- Owners can also create and exactly edit an employee's shifts from the
+  employee directory sheet.
 - Exact shift forms accept start and end times to the minute.
-- Dragging changes the shift time or employee where the current view permits it.
-- Resizing changes start or end in 15-minute increments.
-- Owners can open a form to edit exact values and notes.
-- Owners can copy a shift to another valid date or employee.
-- Delete requires confirmation.
+- Changing a form's start time advances the end time by the currently selected
+  duration, including across midnight.
+- Existing calendar shifts open read-only details; existing-shift drag,
+  resize, and copy are not part of V1.
+- Existing shifts are exactly edited or archived from the employee profile,
+  and archive requires confirmation.
+- The calendar form can select zero or more jobs that are still in `assigned`
+  status. In-progress, review, and archived jobs are not eligible.
+- Selected jobs are assigned to the shift employee, scheduled at the shift
+  start, and due at the shift end.
+- Shift creation and all selected job changes succeed or fail as one database
+  transaction, with normal assignment and system audit history.
+- Later shift changes do not automatically alter jobs previously scheduled
+  from that shift.
 - A shift must end after it starts.
 - Overlapping shifts for the same employee are rejected server-side.
-- Optimistic updates roll back on failure.
 
 #### CAL-04: Current-time indicator
 
@@ -926,7 +944,7 @@ Requirements:
 
 - Use Server Components for initial reads and role-specific page composition.
 - Use Server Actions for authenticated mutations.
-- Use client components only where browser state or interaction is required, including drag/drop, calendar manipulation, upload progress, and optimistic updates.
+- Use client components only where browser state or interaction is required, including drag/drop, calendar range selection, upload progress, and optimistic updates.
 - Use the required root-level `proxy.ts` as the single Next.js Proxy entrypoint.
 - Keep the root entrypoint thin: it imports and returns a project-native Supabase session helper from `lib/supabase/proxy.ts`.
 - Preserve the verified S01 cookie propagation and route-gating contract in the project-native root `proxy.ts` and `lib/supabase/proxy.ts`; the original reference prototypes were consumed and removed after verification.
@@ -1006,7 +1024,7 @@ Each implementation step should inspect the relevant reference implementation be
 
 Future implementation may port:
 
-- Roster slot positioning and drag interactions.
+- Roster slot positioning and pointer range-selection interactions.
 - Timezone conversion helpers.
 - Resend sender abstractions.
 
@@ -1049,7 +1067,8 @@ The repository includes versioned implementation guidance under `.agents/skills`
 
 - Forms preserve valid user input after a recoverable error.
 - Mutations show a pending state and prevent accidental duplicate submission.
-- Optimistic drag/drop and calendar changes roll back when the server rejects them.
+- Optimistic state changes roll back when the server rejects them; transactional
+  calendar creation remains pending until the server confirms it.
 - Upload errors identify invalid type, excessive size, limit reached, or network failure.
 - Empty dashboards, boards, directories, and calendars provide a relevant owner action.
 - Unauthorised access returns a safe not-found or redirect response without exposing record existence.
@@ -1058,7 +1077,7 @@ The repository includes versioned implementation guidance under `.agents/skills`
 ## 10. Accessibility and responsive behaviour
 
 - All core workflows are keyboard accessible.
-- Drag/drop actions have a non-drag alternative.
+- Drag/drop and calendar range-selection actions have a non-drag alternative.
 - Dialogs and drawers manage focus and have accessible names.
 - Status and priority are not communicated by colour alone.
 - Images have meaningful alt text or are marked decorative.
@@ -1196,7 +1215,10 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 
 ### Step 7: Roster interactions
 
-- Add direct slot creation, drag, resize, copy, delete, and optimistic rollback on top of the exact forms and live current-time indicator delivered with Step 6.
+- Add desktop drag-to-select and mobile tap-to-create on empty roster time,
+  followed by an exact shift form with optional transactional assignment and
+  scheduling of not-started jobs. Keep existing-shift edit/archive management
+  in the employee profile.
 
 ### Step 8: Templates and schedules
 

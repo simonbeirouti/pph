@@ -197,6 +197,28 @@ export function localTimeInputForInstant(
   return `${pad(parts.hour)}:${pad(parts.minute)}`
 }
 
+function clockMinutes(value: string) {
+  const match = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/u)
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null
+}
+
+export function clockTimeDurationMinutes(start: string, end: string) {
+  const startMinutes = clockMinutes(start)
+  const endMinutes = clockMinutes(end)
+  if (startMinutes === null || endMinutes === null) return null
+  const duration = endMinutes - startMinutes
+  return duration > 0 ? duration : duration + 24 * 60
+}
+
+export function addMinutesToClockTime(value: string, minutes: number) {
+  const startMinutes = clockMinutes(value)
+  if (startMinutes === null || !Number.isFinite(minutes)) return value
+  const dayMinutes = 24 * 60
+  const result = ((startMinutes + Math.round(minutes)) % dayMinutes + dayMinutes) %
+    dayMinutes
+  return `${pad(Math.floor(result / 60))}:${pad(result % 60)}`
+}
+
 export function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60)
   const remainder = minutes % 60
