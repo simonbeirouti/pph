@@ -37,6 +37,11 @@ export const jobSchema = z
       .trim()
       .regex(/^$|^\d+$/, "Choose a valid rostered shift."),
     scheduledAt: optionalDateTime,
+    templateId: z
+      .string()
+      .trim()
+      .regex(/^$|^\d+$/, "Choose a valid template.")
+      .default(""),
     title: z
       .string()
       .trim()

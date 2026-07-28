@@ -315,7 +315,7 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     await invitePage.getByRole("button", { name: "Activate account" }).click()
     await expect(invitePage).toHaveURL(/\/dashboard$/)
     await expect(
-      invitePage.getByRole("heading", { name: `Welcome, ${displayName}` })
+      invitePage.getByRole("heading", { name: `Hi, ${displayName}` })
     ).toBeVisible()
 
     const activatedRow = ownerPage.getByRole("row").filter({ hasText: email })

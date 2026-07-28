@@ -13,15 +13,39 @@ import {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ job?: string | string[] }>
+  searchParams: Promise<{
+    job?: string | string[]
+    priority?: string | string[]
+    status?: string | string[]
+    view?: string | string[]
+  }>
 }) {
   const membership = await requireActiveMembership()
-  const rawJobId = (await searchParams).job
+  const params = await searchParams
+  const rawJobId = params.job
   const selectedJobId =
     typeof rawJobId === "string" && /^[1-9]\d*$/.test(rawJobId)
       ? Number(rawJobId)
       : null
   if (rawJobId !== undefined && !selectedJobId) notFound()
+  const status =
+    params.status === "outstanding" || params.status === "in_review"
+      ? params.status
+      : null
+  const priority = params.priority === "urgent" ? "urgent" : null
+  const view =
+    params.view === "archived" || params.view === "workflow"
+      ? params.view
+      : "workflow"
+  if (
+    (params.status !== undefined && !status) ||
+    (params.priority !== undefined && !priority) ||
+    (params.view !== undefined &&
+      params.view !== "workflow" &&
+      params.view !== "archived")
+  ) {
+    notFound()
+  }
 
   if (membership.role === "employee") {
     const [jobs, detail] = await Promise.all([
@@ -43,13 +67,24 @@ export default async function Page({
     selectedJobId ? getJobDetail(selectedJobId) : null,
   ])
   if (selectedJobId && !detail) notFound()
+  const filteredJobs = data.jobs.filter(
+    (job) =>
+      (!status ||
+        (status === "outstanding"
+          ? job.status === "assigned" || job.status === "in_progress"
+          : job.status === "in_review")) &&
+      (!priority || job.priority === priority)
+  )
 
   return (
     <div className="flex h-[calc(100dvh-6rem)] min-h-0 w-full flex-col overflow-hidden md:h-[calc(100dvh-8rem)]">
       <JobWorkspace
         employees={data.employees}
-        initialJobs={data.jobs}
+        filterActive={Boolean(status || priority)}
+        initialJobs={filteredJobs}
+        initialView={view}
         rosterShifts={data.rosterShifts}
+        templates={data.templates}
         timezone={data.timezone}
       />
       <OwnerJobDetail

@@ -219,6 +219,232 @@ export type Database = {
           },
         ]
       }
+      job_schedule_occurrences: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          generated_at: string | null
+          id: number
+          job_id: number | null
+          last_attempted_at: string | null
+          last_error: string | null
+          occurrence_at: string
+          organisation_id: number
+          payload: Json
+          schedule_id: number
+          status: Database["public"]["Enums"]["job_schedule_occurrence_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          generated_at?: string | null
+          id?: never
+          job_id?: number | null
+          last_attempted_at?: string | null
+          last_error?: string | null
+          occurrence_at: string
+          organisation_id: number
+          payload: Json
+          schedule_id: number
+          status?: Database["public"]["Enums"]["job_schedule_occurrence_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          generated_at?: string | null
+          id?: never
+          job_id?: number | null
+          last_attempted_at?: string | null
+          last_error?: string | null
+          occurrence_at?: string
+          organisation_id?: number
+          payload?: Json
+          schedule_id?: number
+          status?: Database["public"]["Enums"]["job_schedule_occurrence_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_schedule_occurrences_job_organisation_fkey"
+            columns: ["job_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_schedule_occurrences_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_schedule_occurrences_schedule_organisation_fkey"
+            columns: ["schedule_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "job_schedules"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
+      job_schedules: {
+        Row: {
+          assignee_membership_id: number
+          created_at: string
+          created_by: number
+          deleted_at: string | null
+          ends_on: string | null
+          id: number
+          is_enabled: boolean
+          local_time: string
+          next_occurrence_at: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          weekdays: number[]
+        }
+        Insert: {
+          assignee_membership_id: number
+          created_at?: string
+          created_by: number
+          deleted_at?: string | null
+          ends_on?: string | null
+          id?: never
+          is_enabled?: boolean
+          local_time: string
+          next_occurrence_at?: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Update: {
+          assignee_membership_id?: number
+          created_at?: string
+          created_by?: number
+          deleted_at?: string | null
+          ends_on?: string | null
+          id?: never
+          is_enabled?: boolean
+          local_time?: string
+          next_occurrence_at?: string | null
+          organisation_id?: number
+          recurrence_type?: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on?: string
+          template_id?: number
+          timezone?: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_schedules_assignee_organisation_fkey"
+            columns: ["assignee_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_schedules_creator_organisation_fkey"
+            columns: ["created_by", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_schedules_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_schedules_template_organisation_fkey"
+            columns: ["template_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "job_templates"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
+      job_templates: {
+        Row: {
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          id: number
+          is_active: boolean
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_membership_id?: number | null
+          created_at?: string
+          created_by: number
+          description?: string
+          id?: never
+          is_active?: boolean
+          location?: string
+          minimum_completion_photos?: number
+          organisation_id: number
+          priority?: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_membership_id?: number | null
+          created_at?: string
+          created_by?: number
+          description?: string
+          id?: never
+          is_active?: boolean
+          location?: string
+          minimum_completion_photos?: number
+          organisation_id?: number
+          priority?: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_templates_assignee_organisation_fkey"
+            columns: ["assignee_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_templates_creator_organisation_fkey"
+            columns: ["created_by", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_templates_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_updates: {
         Row: {
           author_membership_id: number | null
@@ -368,6 +594,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organisations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_schedule_organisation_fkey"
+            columns: ["schedule_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "job_schedules"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "jobs_template_organisation_fkey"
+            columns: ["template_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "job_templates"
+            referencedColumns: ["id", "organisation_id"]
           },
         ]
       }
@@ -654,6 +894,7 @@ export type Database = {
           p_priority?: Database["public"]["Enums"]["job_priority"]
           p_requires_completion_note?: boolean
           p_scheduled_at?: string
+          p_template_id?: number
           p_title: string
         }
         Returns: {
@@ -683,6 +924,74 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_job_schedule: {
+        Args: {
+          p_assignee_membership_id: number
+          p_ends_on?: string
+          p_is_enabled?: boolean
+          p_local_time: string
+          p_recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          p_starts_on: string
+          p_template_id: number
+          p_weekdays: number[]
+        }
+        Returns: {
+          assignee_membership_id: number
+          created_at: string
+          created_by: number
+          deleted_at: string | null
+          ends_on: string | null
+          id: number
+          is_enabled: boolean
+          local_time: string
+          next_occurrence_at: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          weekdays: number[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_job_template: {
+        Args: {
+          p_assignee_membership_id?: number
+          p_description?: string
+          p_location?: string
+          p_minimum_completion_photos?: number
+          p_priority?: Database["public"]["Enums"]["job_priority"]
+          p_requires_completion_note?: boolean
+          p_title: string
+        }
+        Returns: {
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          id: number
+          is_active: boolean
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_templates"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -719,6 +1028,33 @@ export type Database = {
       delete_invited_employee: {
         Args: { p_membership_id: number }
         Returns: boolean
+      }
+      delete_job_schedule: {
+        Args: { p_schedule_id: number }
+        Returns: {
+          assignee_membership_id: number
+          created_at: string
+          created_by: number
+          deleted_at: string | null
+          ends_on: string | null
+          id: number
+          is_enabled: boolean
+          local_time: string
+          next_occurrence_at: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          weekdays: number[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       finalize_job_evidence: {
         Args: {
@@ -855,6 +1191,62 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      retry_job_schedule: { Args: { p_schedule_id: number }; Returns: number }
+      run_due_job_schedules: {
+        Args: { p_limit?: number; p_now?: string }
+        Returns: number
+      }
+      set_job_schedule_enabled: {
+        Args: { p_is_enabled: boolean; p_schedule_id: number }
+        Returns: {
+          assignee_membership_id: number
+          created_at: string
+          created_by: number
+          deleted_at: string | null
+          ends_on: string | null
+          id: number
+          is_enabled: boolean
+          local_time: string
+          next_occurrence_at: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          weekdays: number[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_job_template_active: {
+        Args: { p_is_active: boolean; p_template_id: number }
+        Returns: {
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          id: number
+          is_active: boolean
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_templates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       start_job: {
         Args: { p_job_id: number }
         Returns: {
@@ -940,18 +1332,86 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      upsert_job_schedule: {
+        Args: {
+          p_assignee_membership_id: number
+          p_ends_on?: string
+          p_is_enabled?: boolean
+          p_local_time: string
+          p_recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          p_schedule_id: number
+          p_starts_on: string
+          p_template_id: number
+          p_weekdays: number[]
+        }
+        Returns: {
+          assignee_membership_id: number
+          created_at: string
+          created_by: number
+          deleted_at: string | null
+          ends_on: string | null
+          id: number
+          is_enabled: boolean
+          local_time: string
+          next_occurrence_at: string | null
+          organisation_id: number
+          recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          starts_on: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          weekdays: number[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      upsert_job_template: {
+        Args: {
+          p_assignee_membership_id?: number
+          p_description?: string
+          p_location?: string
+          p_minimum_completion_photos?: number
+          p_priority?: Database["public"]["Enums"]["job_priority"]
+          p_requires_completion_note?: boolean
+          p_template_id: number
+          p_title: string
+        }
+        Returns: {
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          id: number
+          is_active: boolean
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          requires_completion_note: boolean
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_templates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       invite_delivery_status: "pending" | "sent" | "failed"
       job_notification_status: "queued" | "sending" | "sent" | "failed"
       job_priority: "low" | "normal" | "high" | "urgent"
+      job_schedule_occurrence_status: "pending" | "generated" | "failed"
+      job_schedule_recurrence: "daily" | "weekly"
       job_status: "assigned" | "in_progress" | "in_review" | "archived"
       job_update_type:
-        | "note"
-        | "comment"
-        | "status_change"
-        | "assignment_change"
-        | "system"
+        "note" | "comment" | "status_change" | "assignment_change" | "system"
       membership_role: "owner" | "employee"
       membership_status: "invited" | "active" | "inactive"
     }
@@ -969,12 +1429,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -996,13 +1456,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1021,13 +1480,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1046,13 +1504,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1065,11 +1522,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1084,6 +1541,8 @@ export const Constants = {
       invite_delivery_status: ["pending", "sent", "failed"],
       job_notification_status: ["queued", "sending", "sent", "failed"],
       job_priority: ["low", "normal", "high", "urgent"],
+      job_schedule_occurrence_status: ["pending", "generated", "failed"],
+      job_schedule_recurrence: ["daily", "weekly"],
       job_status: ["assigned", "in_progress", "in_review", "archived"],
       job_update_type: [
         "note",
@@ -1097,4 +1556,3 @@ export const Constants = {
     },
   },
 } as const
-

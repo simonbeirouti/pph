@@ -12,9 +12,9 @@ test("owner receives the owner application shell", async ({ ownerPage }) => {
   await ownerPage.goto("/dashboard")
 
   await expect(
-    ownerPage.getByRole("heading", { name: "Welcome, Olivia Owner" })
+    ownerPage.getByRole("heading", { name: "Good day, Olivia Owner" })
   ).toBeVisible()
-  await expect(ownerPage.getByText("Platform foundation")).toBeVisible()
+  await expect(ownerPage.getByText("Outstanding")).toBeVisible()
   await expect(ownerPage.getByText("Australia/Melbourne")).toBeVisible()
 })
 
@@ -138,10 +138,9 @@ test("employee receives only their application shell", async ({
   await employeePage.goto("/dashboard")
 
   await expect(
-    employeePage.getByRole("heading", { name: "Welcome, Alex Employee" })
+    employeePage.getByRole("heading", { name: "Hi, Alex Employee" })
   ).toBeVisible()
-  await expect(employeePage.getByText("Platform foundation")).toBeVisible()
-  await expect(employeePage.getByText("Australia/Melbourne")).toBeVisible()
+  await expect(employeePage.getByText("Assigned work")).toBeVisible()
   await expect(
     employeePage.getByRole("link", { name: "Employees" })
   ).toHaveCount(0)

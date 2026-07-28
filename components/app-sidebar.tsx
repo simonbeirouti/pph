@@ -6,6 +6,7 @@ import {
   Building2Icon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
+  ListChecksIcon,
   UsersIcon,
 } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -102,6 +103,22 @@ export function AppSidebar({
                 <span>Jobs</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {membership.role === "owner" ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-current={
+                    isRouteActive("/dashboard/templates") ? "page" : undefined
+                  }
+                  isActive={isRouteActive("/dashboard/templates")}
+                  tooltip="Templates"
+                  onClick={closeMobileSidebar}
+                  render={<Link href="/dashboard/templates" />}
+                >
+                  <ListChecksIcon />
+                  <span>Templates</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ) : null}
             {membership.role === "owner" ? (
               <SidebarMenuItem>
                 <SidebarMenuButton

@@ -43,6 +43,7 @@ import type {
   JobRosterShiftOption,
 } from "@/lib/jobs/types"
 import { INITIAL_JOB_ACTION_STATE } from "@/lib/jobs/types"
+import type { JobTemplateOption } from "@/lib/templates/types"
 import { isoToLocalDateTime } from "@/lib/jobs/validation"
 
 type JobFormAction = (
@@ -54,11 +55,13 @@ export function JobCreateDialog({
   employees,
   onCreated,
   rosterShifts,
+  templates,
   timezone,
 }: {
   employees: readonly JobBoardEmployee[]
   onCreated: (job: JobCard) => void
   rosterShifts: readonly JobRosterShiftOption[]
+  templates: readonly JobTemplateOption[]
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
@@ -86,6 +89,7 @@ export function JobCreateDialog({
             }}
             rosterShifts={rosterShifts}
             submitLabel="Create job"
+            templates={templates}
             timezone={timezone}
           />
         </DialogContent>
@@ -162,6 +166,7 @@ function JobForm({
   onSaved,
   rosterShifts,
   submitLabel,
+  templates = [],
   timezone,
 }: {
   action: JobFormAction
@@ -172,6 +177,7 @@ function JobForm({
   onSaved: (job: JobCard) => void
   rosterShifts: readonly JobRosterShiftOption[]
   submitLabel: string
+  templates?: readonly JobTemplateOption[]
   timezone: string
 }) {
   const [state, formAction, pending] = useActionState(
@@ -197,8 +203,7 @@ function JobForm({
     assigneeMembershipId === "unassigned"
       ? []
       : rosterShifts.filter(
-          (shift) =>
-            String(shift.employeeMembershipId) === assigneeMembershipId
+          (shift) => String(shift.employeeMembershipId) === assigneeMembershipId
         )
   const selectedAssigneeName =
     assigneeMembershipId === "unassigned"
@@ -211,6 +216,11 @@ function JobForm({
   const [requiresCompletionNote, setRequiresCompletionNote] = useState(
     initialJob?.requiresCompletionNote ?? false
   )
+  const [selectedTemplateId, setSelectedTemplateId] = useState("none")
+  const selectedTemplate = templates.find(
+    (template) => String(template.id) === selectedTemplateId
+  )
+  const defaultsKey = selectedTemplateId
   const handledJobId = useRef<number | null>(null)
   const fieldId = (name: string) => `${idPrefix}${name}`
 
@@ -229,13 +239,61 @@ function JobForm({
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         ) : null}
+        {templates.length ? (
+          <Field>
+            <FieldLabel htmlFor={fieldId("template")}>Template</FieldLabel>
+            <Select
+              name="templateId"
+              onValueChange={(value) => {
+                const next = value ?? "none"
+                const template = templates.find(
+                  (candidate) => String(candidate.id) === next
+                )
+                setSelectedTemplateId(next)
+                if (template) {
+                  setPriority(template.priority)
+                  setAssigneeMembershipId(
+                    template.assigneeMembershipId
+                      ? String(template.assigneeMembershipId)
+                      : "unassigned"
+                  )
+                  setRequiresCompletionNote(template.requiresCompletionNote)
+                  setRosterShiftId("none")
+                }
+              }}
+              value={selectedTemplateId}
+            >
+              <SelectTrigger className="w-full" id={fieldId("template")}>
+                <SelectValue>
+                  {selectedTemplate?.title ?? "Start without a template"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Start without a template</SelectItem>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={String(template.id)}>
+                    {template.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              Choosing a template fills its defaults; every field remains
+              editable.
+            </FieldDescription>
+          </Field>
+        ) : null}
         <Field>
           <FieldLabel htmlFor={fieldId("title")}>Title</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.title)}
-            defaultValue={state.values?.title ?? initialJob?.title}
+            defaultValue={
+              state.values?.title ??
+              selectedTemplate?.title ??
+              initialJob?.title
+            }
             id={fieldId("title")}
-            key={`title-${state.values?.title ?? initialJob?.title ?? ""}`}
+            key={`title-${defaultsKey}-${state.values?.title ?? initialJob?.title ?? ""}`}
             name="title"
             required
           />
@@ -245,9 +303,13 @@ function JobForm({
           <FieldLabel htmlFor={fieldId("description")}>Description</FieldLabel>
           <Textarea
             aria-invalid={Boolean(state.errors?.description)}
-            defaultValue={state.values?.description ?? initialJob?.description}
+            defaultValue={
+              state.values?.description ??
+              selectedTemplate?.description ??
+              initialJob?.description
+            }
             id={fieldId("description")}
-            key={`description-${state.values?.description ?? initialJob?.description ?? ""}`}
+            key={`description-${defaultsKey}-${state.values?.description ?? initialJob?.description ?? ""}`}
             name="description"
             rows={4}
           />
@@ -258,9 +320,13 @@ function JobForm({
             <FieldLabel htmlFor={fieldId("location")}>Location</FieldLabel>
             <Input
               aria-invalid={Boolean(state.errors?.location)}
-              defaultValue={state.values?.location ?? initialJob?.location}
+              defaultValue={
+                state.values?.location ??
+                selectedTemplate?.location ??
+                initialJob?.location
+              }
               id={fieldId("location")}
-              key={`location-${state.values?.location ?? initialJob?.location ?? ""}`}
+              key={`location-${defaultsKey}-${state.values?.location ?? initialJob?.location ?? ""}`}
               name="location"
             />
             <FieldErrors errors={state.errors?.location} />
@@ -414,11 +480,12 @@ function JobForm({
             aria-invalid={Boolean(state.errors?.minimumCompletionPhotos)}
             defaultValue={
               state.values?.minimumCompletionPhotos ??
+              selectedTemplate?.minimumCompletionPhotos ??
               initialJob?.minimumCompletionPhotos ??
               "0"
             }
             id={fieldId("minimum-photos")}
-            key={`photos-${state.values?.minimumCompletionPhotos ?? initialJob?.minimumCompletionPhotos ?? "0"}`}
+            key={`photos-${defaultsKey}-${state.values?.minimumCompletionPhotos ?? initialJob?.minimumCompletionPhotos ?? "0"}`}
             max={10}
             min={0}
             name="minimumCompletionPhotos"

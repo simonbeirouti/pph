@@ -49,10 +49,12 @@ import type {
   JobBoardColumn,
   JobBoardEmployee,
   JobCard,
+  JobPriority,
   JobRosterShiftOption,
   JobView,
   JobWorkflowColumnKey,
 } from "@/lib/jobs/types"
+import type { JobTemplateOption } from "@/lib/templates/types"
 import { cn } from "@/lib/utils"
 
 type BoardItems = Record<JobWorkflowColumnKey, JobCard[]>
@@ -68,6 +70,9 @@ const PRIORITY_LABELS = {
   normal: "Normal",
   urgent: "Urgent",
 } as const
+
+type PriorityFilter = JobPriority | "all"
+type EmployeeFilter = `${number}` | "all" | "unassigned"
 
 function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
   const board: BoardItems = {
@@ -91,23 +96,46 @@ function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
 
 export function JobWorkspace({
   employees,
+  filterActive = false,
   initialJobs,
+  initialView = "workflow",
   rosterShifts = [],
+  templates = [],
   timezone,
 }: {
   employees: readonly JobBoardEmployee[]
+  filterActive?: boolean
   initialJobs: readonly JobCard[]
+  initialView?: JobView
   rosterShifts?: readonly JobRosterShiftOption[]
+  templates?: readonly JobTemplateOption[]
   timezone: string
 }) {
-  const [view, setView] = useState<JobView>("workflow")
+  const [view, setView] = useState<JobView>(initialView)
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
+  const [employeeFilter, setEmployeeFilter] = useState<EmployeeFilter>("all")
   const [jobs, setJobs] = useState(() => [...initialJobs])
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set())
   const [assignmentJob, setAssignmentJob] = useState<JobCard | null>(null)
   const pendingIdsRef = useRef(new Set<number>())
   const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
   const columns = columnsForJobView(view)
-  const canonicalBoard = useMemo(() => buildBoard(jobs, view), [jobs, view])
+  const visibleJobs = useMemo(
+    () =>
+      jobs.filter(
+        (job) =>
+          (priorityFilter === "all" || job.priority === priorityFilter) &&
+          (employeeFilter === "all" ||
+            (employeeFilter === "unassigned"
+              ? job.assigneeMembershipId === null
+              : String(job.assigneeMembershipId) === employeeFilter))
+      ),
+    [employeeFilter, jobs, priorityFilter]
+  )
+  const canonicalBoard = useMemo(
+    () => buildBoard(visibleJobs, view),
+    [view, visibleJobs]
+  )
   const [dragBoard, setDragBoard] = useState<BoardItems | null>(null)
   const dragBoardRef = useRef<BoardItems | null>(null)
   const viewRef = useRef<JobView>(view)
@@ -250,38 +278,110 @@ export function JobWorkspace({
           <p className="text-muted-foreground">
             Create, assign, and review work in one workflow.
           </p>
+          {filterActive ? (
+            <p className="mt-1 text-sm text-primary">
+              Dashboard filter applied.{" "}
+              <Link className="underline" href="/dashboard/jobs">
+                Clear filter
+              </Link>
+            </p>
+          ) : null}
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <div className="order-1 w-full sm:order-2 sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
-            <JobCreateDialog
-              employees={assignmentTargets}
-              onCreated={addCreatedJob}
-              rosterShifts={rosterShifts}
-              timezone={timezone}
-            />
-          </div>
-          <Tabs
-            className="order-2 w-full sm:order-1 sm:w-auto"
-            onValueChange={(value) => {
-              const nextView = value as JobView
-              viewRef.current = nextView
-              setView(nextView)
-              dragBoardRef.current = null
-              setDragBoard(null)
-            }}
-            value={view}
-          >
-            <TabsList
-              aria-label="Filter jobs"
-              className="grid w-full grid-cols-2 sm:inline-flex sm:w-fit"
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <div className="order-1 w-full sm:order-2 sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+              <JobCreateDialog
+                employees={assignmentTargets}
+                onCreated={addCreatedJob}
+                rosterShifts={rosterShifts}
+                templates={templates}
+                timezone={timezone}
+              />
+            </div>
+            <Tabs
+              className="order-2 w-full sm:order-1 sm:w-auto"
+              onValueChange={(value) => {
+                const nextView = value as JobView
+                viewRef.current = nextView
+                setView(nextView)
+                dragBoardRef.current = null
+                setDragBoard(null)
+              }}
+              value={view}
             >
-              {(["workflow", "archived"] as const).map((value) => (
-                <TabsTrigger key={value} value={value}>
-                  {VIEW_LABELS[value]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+              <TabsList
+                aria-label="Filter jobs"
+                className="grid w-full grid-cols-2 sm:inline-flex sm:w-fit"
+              >
+                {(["workflow", "archived"] as const).map((value) => (
+                  <TabsTrigger key={value} value={value}>
+                    {VIEW_LABELS[value]}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <Select
+              onValueChange={(value) =>
+                setPriorityFilter((value ?? "all") as PriorityFilter)
+              }
+              value={priorityFilter}
+            >
+              <SelectTrigger
+                aria-label="Filter by urgency"
+                className="w-full sm:w-40"
+              >
+                <SelectValue>
+                  {priorityFilter === "all"
+                    ? "All urgencies"
+                    : PRIORITY_LABELS[priorityFilter]}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All urgencies</SelectItem>
+                {(
+                  Object.entries(PRIORITY_LABELS) as [JobPriority, string][]
+                ).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              onValueChange={(value) =>
+                setEmployeeFilter((value ?? "all") as EmployeeFilter)
+              }
+              value={employeeFilter}
+            >
+              <SelectTrigger
+                aria-label="Filter by employee"
+                className="w-full sm:w-48"
+              >
+                <SelectValue>
+                  {employeeFilter === "all"
+                    ? "All employees"
+                    : employeeFilter === "unassigned"
+                      ? "Unassigned"
+                      : (employeeById.get(Number(employeeFilter))
+                          ?.displayName ?? "Former employee")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All employees</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {assignmentTargets.map((employee) => (
+                  <SelectItem
+                    key={employee.membershipId}
+                    value={String(employee.membershipId)}
+                  >
+                    {employee.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -566,11 +666,7 @@ function JobCardView({
                 : "unassigned"
             }
           >
-            <SelectTrigger
-              aria-label="Assign to"
-              className="w-full"
-              size="sm"
-            >
+            <SelectTrigger aria-label="Assign to" className="w-full" size="sm">
               <SelectValue>
                 <AssigneeIdentity
                   assignee={assignee}

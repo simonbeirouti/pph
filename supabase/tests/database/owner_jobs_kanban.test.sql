@@ -20,7 +20,8 @@ select has_function(
     'timestamp with time zone',
     'timestamp with time zone',
     'boolean',
-    'integer'
+    'integer',
+    'bigint'
   ],
   'transactional job creation exists'
 );

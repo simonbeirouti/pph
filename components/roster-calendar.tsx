@@ -1565,7 +1565,7 @@ export function RosterCalendar({
               >
                 <SelectTrigger
                   aria-label="Filter employee"
-                  className="w-full min-w-0 sm:max-w-56"
+                  className="w-full max-w-56 min-w-0"
                 >
                   <SelectValue>
                     {selectedEmployee?.displayName ?? "All team"}

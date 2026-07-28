@@ -28,12 +28,13 @@ V1 supports one organisation per user and two roles:
 - **Owner:** manages employees, jobs, templates, recurring schedules, reviews, and rosters.
 - **Employee:** sees their own roster and assigned jobs, records work, uploads photos, leaves notes and comments, and submits jobs for review.
 
-The owner experience has four primary pages:
+The owner experience has five primary pages:
 
 1. Dashboard
 2. Jobs
 3. Roster
 4. Employees
+5. Templates & schedules
 
 Employees receive a role-specific dashboard and job experience. They do not have access to the owner roster, employee directory, templates, schedules, or other employees' work.
 
@@ -762,9 +763,17 @@ Acceptance criteria:
 
 ### `/dashboard/jobs`
 
-- Owners receive the employee-column Kanban board, filters, creation, templates, schedules, and review tools.
+- Owners receive the employee-column Kanban board, filters, creation, and review tools.
 - Employees receive their own active and review jobs in a mobile-friendly list.
 - Job detail may use a nested route or route-addressable drawer, but direct linking and refresh must preserve the selected job.
+
+### `/dashboard/templates`
+
+- Owner-only route for reusable job templates and daily or weekly schedules.
+- Owners can create, edit, activate, and deactivate templates.
+- Owners can create, edit, pause, resume, inspect, retry, and soft-delete schedules.
+- Employees cannot access the route or receive template, schedule, or occurrence
+  data.
 
 ### `/dashboard/roster`
 

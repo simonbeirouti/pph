@@ -63,20 +63,20 @@ For each active step:
 
 ## Implementation status
 
-| Step | Capability                              | Status     | Depends on | Checkpoint  | Verification notes                                                                                                                                                                                         |
-| ---- | --------------------------------------- | ---------- | ---------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline     | `complete` | —          | `8a07533`   | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                                                  |
-| S01  | Platform foundation                     | `complete` | S00        | `2e26642`   | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass                          |
-| S02  | Authentication and employees            | `complete` | S01        | —           | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
-| S03  | Progressive Web App shell               | `complete` | S02        | —           | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
-| S04  | Owner jobs and Kanban                   | `complete` | S03        | —           | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
-| S05  | Employee job execution and owner review | `complete` | S04        | `ef897ef`   | Complete job execution/review, private evidence, creator-owner email, deterministic shared-fixture browser coverage, 96 unit/component, 170 database, and 57 desktop/mobile E2E checks pass.               |
-| S06  | Roster data and views                   | `complete` | S05        | `ca99a70`   | Layered owner Team week with an optional employee filter, an employee self-scoped read-only week with allocated jobs, viewer-local live time, fitted 24-hour views, and roster-to-job scheduling.          |
-| S07  | Roster interactions                     | `complete` | S06        | Not created | Desktop/mobile calendar creation, transactional job scheduling, exact details, and employee-profile archive are complete; the user requested no Git checkpoint.                                            |
-| S08  | Templates and job schedules             | `planned`  | S07        | —           | —                                                                                                                                                                                                          |
-| S09  | Operational dashboards                  | `planned`  | S08        | —           | —                                                                                                                                                                                                          |
-| S10  | Offline employee job completion         | `planned`  | S09        | —           | Membership-scoped IndexedDB work packs and outbox, idempotent foreground sync, evidence recovery, conflict states, and offline mobile coverage.                                                            |
-| S11  | Integration and production hardening    | `planned`  | S10        | —           | —                                                                                                                                                                                                          |
+| Step | Capability                              | Status     | Depends on | Checkpoint | Verification notes                                                                                                                                                                                         |
+| ---- | --------------------------------------- | ---------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline     | `complete` | —          | `8a07533`  | Baseline content is committed and recoverable; documentation links resolve and no feature step is represented as complete                                                                                  |
+| S01  | Platform foundation                     | `complete` | S00        | `2e26642`  | Local stack reset/seed, schema lint, 24 pgTAP checks, 22 unit/component checks, 10 desktop/mobile Playwright checks, lint, type-check, generated types, and production build pass                          |
+| S02  | Authentication and employees            | `complete` | S01        | `049a0e9`  | 66 pgTAP checks, 33 unit/component tests, prior 18-check desktop/mobile Playwright journey, current live-browser interaction QA, schema lint, generated types, lint, type-check, and production build pass |
+| S03  | Progressive Web App shell               | `complete` | S02        | `b43f944`  | Valid manifest/icons, lifecycle-only root service worker, employee install guidance, security headers, Auth/PWA degradation, 43 unit, 66 database, and 50 desktop/mobile E2E checks pass.                  |
+| S04  | Owner jobs and Kanban                   | `complete` | S03        | `f00c938`  | Three-column workflow, viewport-height/internal scrolling, full-width mobile snapping, human-readable assignment controls, 65 unit/component, 123 database, and 54 runnable E2E checks pass.               |
+| S05  | Employee job execution and owner review | `complete` | S04        | `ef897ef`  | Complete job execution/review, private evidence, creator-owner email, deterministic shared-fixture browser coverage, 96 unit/component, 170 database, and 57 desktop/mobile E2E checks pass.               |
+| S06  | Roster data and views                   | `complete` | S05        | `ca99a70`  | Layered owner Team week with an optional employee filter, an employee self-scoped read-only week with allocated jobs, viewer-local live time, fitted 24-hour views, and roster-to-job scheduling.          |
+| S07  | Roster interactions                     | `complete` | S06        | `18c1987`  | Desktop/mobile calendar creation, transactional job scheduling, exact details, and employee-profile archive are complete.                                                                                  |
+| S08  | Templates and job schedules             | `complete` | S07        | Pending    | Owner-only templates/schedules, timezone-aware Cron generation, retry ledger, provenance, Realtime invalidation, RLS, pgTAP, unit, and desktop/mobile E2E are complete.                                    |
+| S09  | Operational dashboards                  | `complete` | S08        | Pending    | Role-specific operational dashboards, validated Jobs URL filters, owner summaries/roster, employee shift/queue actions, responsive states, unit, and desktop/mobile E2E are complete.                      |
+| S10  | Offline employee job completion         | `planned`  | S09        | —          | Membership-scoped IndexedDB work packs and outbox, idempotent foreground sync, evidence recovery, conflict states, and offline mobile coverage.                                                            |
+| S11  | Integration and production hardening    | `planned`  | S10        | —          | —                                                                                                                                                                                                          |
 
 ## Rules that apply to every step
 
@@ -458,6 +458,13 @@ An owner can create, inspect, filter, assign, and reassign jobs through a fixed 
 - Migration disposition: no schema change was required; the existing job status, assignment RPC, RLS, audit, Realtime, and roster contracts remain unchanged.
 - Reference disposition: consumed the column layout, muted card treatment, sortable grouping, filter controls, optimistic movement, and rollback patterns from `components/ref-files/dashboard-workspace.tsx`; replaced the reference grip treatment with a functional edit action and shadcn form controls, then removed the consumed duplicate. Shared helper references still needed by the future roster/calendar steps remain in place. Production code has only repository-native imports and contracts.
 - S04 refinement: the owner board has fixed Unassigned, Assigned, and To review columns; Assigned includes `assigned` and `in_progress`; only employee submission can enter To review; Archived is a separate single-column view matching one Workflow column's desktop width. The owner route establishes the remaining live-viewport height, including the desktop inset margins, while the workspace and columns consume that bounded height and scroll cards internally without document scrolling; mobile columns occupy the board width and snap horizontally. The Workflow/Archived tabs sit left of Create job on desktop and span the row beneath the button on mobile, without a redundant workflow explainer. Cards and every assignment Select show active or inactive historical assignee names rather than membership IDs, while only active employees appear as assignment targets. Card assignment Select values and options present the assignee compactly as `name - title` on one line, use the concise `Unassign` action to return work to the Unassigned queue, and retain stacked presentation for non-interactive historical assignee summaries. The assignment control uses the standard compact Select trigger and option spacing without the temporary padded identity-card treatment. Sortable cards use a full-card drag layer beneath their interactive controls, allowing pointer movement from any non-interactive card area while moving and styling the entire card as one unit. Dropping into Assigned opens a required employee picker, cancellation preserves Unassigned, and pointer/keyboard/mobile assignment paths are verified. This S05 follow-on refinement passes all 74 unit/component checks, lint, type-check, and the isolated two-check owner-jobs Playwright journey. The later viewport-boundary correction passes the focused four-check workspace test, lint, type-check, `git diff --check`, and the isolated no-document-scroll Playwright check on desktop Chromium and Pixel 7; the mutation-heavy owner journey reached and passed the new desktop overflow assertion before its pre-existing Archived-tab refresh race failed later in the flow. The React 19.2 drag-provider correction removes the job-derived provider key so assigned-to-unassigned moves preserve the provider and avoid scheduling store cleanup updates from `useInsertionEffect`; the focused five-check workspace suite now asserts stable board identity, and focused ESLint, type-check, and diff checks pass. The Chromium owner journey includes console-error coverage for the exact pointer drag, but its local verification remained blocked before that interaction by the same pre-existing Archived-tab refresh race.
+- Post-checkpoint Jobs refinement: the owner board header now includes urgency
+  and active-employee Select filters, including explicit all and unassigned
+  states. Filtering is derived client-side from the authoritative board
+  snapshot and is covered alongside the existing workflow filters in the
+  focused workspace suite.
+- Jobs filter labels now render their human-readable display values rather than
+  raw priority keys or employee membership IDs.
 - Employee handoff: active employees can open Jobs from their sidebar and see only currently assigned, non-archived work ordered urgent-to-low, then by due time and recent activity. Start/resume, notes, evidence, submission, and review actions remain S05.
 - Realtime foundation: private `org:<organisationId>:operations` and `member:<membershipId>:work` Broadcast topics carry versioned invalidation metadata only. Existing membership, employee-profile, job, job-update, and roster tables publish through a reusable private helper; S05–S09 attach future evidence, review, template, schedule, and dashboard consumers without exposing row payloads.
 - Realtime UI: one dashboard-level subscription refreshes authoritative RLS-filtered server data, coalesces event bursts, recovers after reconnect or stale-tab focus, and shows a non-blocking degraded state only after a sustained failure. The Kanban defers refreshed snapshots while optimistic assignments are pending.
@@ -684,6 +691,8 @@ during each shift.
 - Project skills and references used: `supabase`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, and `playwright-best-practices`; Next.js 16 page/search-param and client-boundary guidance; current Supabase RLS/query-optimisation guidance; `components/ref-files/roster-calendar.tsx` and `components/ref-files/roster-time.ts`.
 - Reference disposition: the useful vertical grid, sticky header/time rail, viewport fill, mobile snapping, and timezone conversion patterns were ported into repository-native roster modules. The reference calendar remains for S07 empty-range pointer interaction consumption; its unrelated automation/task domain is not imported into production.
 - Environment contract: no variables were added, renamed, or removed.
+- Roster control refinement: the owner Team selector is capped at `max-w-56`
+  at every viewport size.
 - Post-completion refinement: the selected employee view retained one
   interactive lane on every displayed date, including dates without an
   existing shift, so desktop drag and mobile tap creation worked in both roster
@@ -925,28 +934,67 @@ Owners can reuse job definitions and generate daily or weekly jobs exactly once 
 
 ### Tasks
 
-- Add job template and job schedule migrations and RLS.
-- Implement template CRUD and active state.
-- Implement template-prefilled manual job creation with overrides.
-- Implement daily and weekly schedule CRUD, pause, edit, and delete.
-- Implement organisation-timezone occurrence calculation.
-- Generate concrete jobs through the existing S04/S05 job contracts.
-- Enforce occurrence uniqueness and safe retry.
-- Add scheduler failure visibility.
+- [x] Add job template and job schedule migrations and RLS.
+- [x] Implement template CRUD and active state.
+- [x] Implement template-prefilled manual job creation with overrides.
+- [x] Implement daily and weekly schedule CRUD, pause, edit, and delete.
+- [x] Implement organisation-timezone occurrence calculation.
+- [x] Generate concrete jobs through the existing S04/S05 job contracts.
+- [x] Enforce occurrence uniqueness and safe retry.
+- [x] Add scheduler failure visibility.
 
 ### Tests
 
-- Template defaults and overrides.
-- Daily/weekly timezone occurrence calculation.
-- Occurrence uniqueness and retry.
-- Schedule RLS.
-- Exactly-one-job-per-occurrence integration journey.
+- [x] Template defaults and overrides.
+- [x] Daily/weekly timezone occurrence calculation.
+- [x] Occurrence uniqueness and retry.
+- [x] Schedule RLS.
+- [x] Exactly-one-job-per-occurrence integration journey.
 
 ### Completion gate
 
-- Generated jobs behave exactly like manual jobs.
-- Editing schedules changes only future occurrences.
-- No advanced recurrence or shift-start triggers are introduced.
+- [x] Generated jobs behave exactly like manual jobs.
+- [x] Editing schedules changes only future occurrences.
+- [x] No advanced recurrence or shift-start triggers are introduced.
+
+### S08 checkpoint
+
+- Commit: Pending; the user has not requested a Git checkpoint commit.
+- Migration disposition: `20260728091541_templates_job_schedules.sql` owns the
+  templates, schedules, occurrence ledger, organisation-safe keys, RLS, owner
+  RPCs, occurrence cursor, bounded `SKIP LOCKED` generator, direct database
+  Cron, generated-job auditing, and Realtime invalidation. The post-reset
+  `20260728094500_scheduling_constraint_service_role.sql` grants the scheduler
+  service role the immutable weekday-array check required by direct inserts.
+- Verification: the focused S08 pgTAP transaction passes 50 assertions,
+  including timezone/DST rules, cross-organisation constraints, template
+  provenance and immutability, pause/resume, idempotent generation, auditing,
+  and employee RLS; the full database suite passes all 264 assertions and
+  public/private schema lint reports no warnings. Focused template/job
+  validation and presentation tests, TypeScript, ESLint, production build, and
+  the owner desktop/mobile CRUD plus deterministic double-generator Playwright
+  journeys pass.
+- Reference disposition: recurrence, occurrence, scheduling health, and
+  pause/resume/delete interaction patterns were reimplemented against
+  repository-native job, audit, timezone, RLS, and component contracts. The
+  consumed `project-roster.ts`, `roster-calendar.tsx`, and `roster.ts`
+  prototypes were removed; production has no reference-only imports.
+- Environment contract: no variables were added, renamed, or removed. Cron
+  calls the database generator directly.
+- TODO-009 is resolved: generated jobs retain template/schedule provenance,
+  use the existing job status and evidence-compatible schema, and append the
+  same system-created and assignment audit categories as manual work.
+- Post-checkpoint template refinement: the eyebrow was removed; the
+  Templates/Schedules control now sits immediately left of the vertically
+  centred create action; inactive templates sort after active templates; and
+  template edit/activation actions live in an accessible per-card ellipsis
+  menu. Template and schedule selects fill their fields and retain
+  human-readable capitalised labels. Create/edit forms use the existing dialog
+  on desktop and a swipeable bottom drawer on mobile.
+- Template control follow-up: navigation now uses the same shadcn Tabs
+  primitives as Jobs, template and schedule menus use the card action slot for
+  true top-right placement, and every template/schedule form select uses the
+  project shadcn Select primitive with explicit display labels and form values.
 
 ### Implementation prompt
 
@@ -972,25 +1020,67 @@ Owners and employees receive useful role-specific dashboards composed from alrea
 
 ### Tasks
 
-- Implement owner operational counts and actionable lists.
-- Implement employee current/next shift summary.
-- Implement prioritised employee job queue and primary Start/Resume action.
-- Link statistics and rows to correct filtered destinations.
-- Add timezone-correct labels, empty states, loading states, and failures.
-- Verify mobile employee and desktop owner layouts.
+- [x] Implement owner operational counts and actionable lists.
+- [x] Implement employee current/next shift summary.
+- [x] Implement prioritised employee job queue and primary Start/Resume action.
+- [x] Link statistics and rows to correct filtered destinations.
+- [x] Add timezone-correct labels, empty states, loading states, and failures.
+- [x] Verify mobile employee and desktop owner layouts.
 
 ### Tests
 
-- Statistic calculations.
-- Job priority and due-time ordering.
-- Owner/employee role composition.
-- Links and filter destinations.
-- Desktop and mobile dashboard E2E journeys.
+- [x] Statistic calculations.
+- [x] Job priority and due-time ordering.
+- [x] Owner/employee role composition.
+- [x] Links and filter destinations.
+- [x] Desktop and mobile dashboard E2E journeys.
 
 ### Completion gate
 
-- Dashboard code composes employee, job, and roster query contracts without duplicating domain rules.
-- Role-specific data remains isolated.
+- [x] Dashboard code composes employee, job, and roster query contracts without duplicating domain rules.
+- [x] Role-specific data remains isolated.
+
+### S09 checkpoint
+
+- Commit: Pending; the user has not requested a Git checkpoint commit.
+- The owner dashboard composes existing job aggregates with parallel urgent,
+  submitted, employee, working-now, and viewer-local roster queries. Validated
+  `status`, `priority`, `view`, and `job` parameters open visibly filtered Jobs
+  results with a clear-filter action.
+- The employee dashboard requests only the current employee's RLS-scoped jobs
+  and shifts, reuses shared urgency ordering, chooses actionable work
+  independently of review items, and exposes direct Start, Resume, and
+  read-only submission actions.
+- Verification: focused dashboard component tests cover role composition,
+  actionable selection, Start/Resume treatment, and filtered links. Desktop
+  Chromium and Pixel 7 Playwright journeys pass for owner statistics, filters,
+  summaries and roster, employee shift/queue actions, owner-navigation
+  exclusion, and template direct-access denial. The final focused unit set
+  passes 19 checks; project lint, type-check, production build, and diff checks
+  pass.
+- Navigation now includes the fifth owner-only Templates page and the completed
+  role-specific route set. TODO-001 and TODO-005 are resolved.
+- Environment contract: no variables were added, renamed, or removed.
+- Post-checkpoint dashboard refinement: stat icons are twice their previous
+  size, spacing is increased, and urgent/submitted/roster content shares one
+  responsive grid below the stats. The two job panels have equal fixed heights
+  with internal scrolling, while the full-width roster remains beneath them
+  and keeps its action opposite the title with vertical centring.
+- Refinement verification: 29 focused dashboard, Jobs, template, and roster
+  component checks pass with TypeScript, focused ESLint, formatting, diff
+  validation, and the prior Next.js production build. Four isolated
+  desktop/mobile Playwright checks pass for template/schedule CRUD, shadcn form
+  selects, the mobile drawer, and human-readable Jobs filters.
+- Route-loading refinement: `/dashboard`, Jobs, Templates & schedules,
+  Employees, Roster, and Profile now have lightweight, accessible route-level
+  skeletons matched to each page's responsive layout. The dashboard shell stays
+  interactive while page data streams, and nested loading boundaries prevent
+  the generic dashboard fallback from appearing for feature routes.
+- Loading-state verification: focused component coverage renders and checks all
+  six accessible busy states (6 checks); focused ESLint, project TypeScript,
+  formatting, and diff validation pass. Guidance used:
+  `vercel-react-best-practices` strategic Suspense boundaries and the bundled
+  Next.js 16 `loading.tsx` convention.
 
 ### Implementation prompt
 
@@ -1154,15 +1244,15 @@ Do not silently reduce product scope. Update PRD.md first if a product decision 
 
 | ID       | Introduced in   | Target step | Deferred work                                                                                                                                                    | Status     | Resolution/checkpoint                                                                                                                                       |
 | -------- | --------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                                                                         | `planned`  | —                                                                                                                                                           |
+| TODO-001 | S01             | S09         | Complete final owner/employee navigation after all feature routes exist.                                                                                         | `complete` | Owner navigation now includes Dashboard, Jobs, Templates, Employees, and Roster; employee navigation remains scoped to Dashboard, Jobs, and Roster.         |
 | TODO-002 | S02             | S04/S06     | Consume the shared active-employee option/display query in Jobs and Roster.                                                                                      | `complete` | Jobs consumption completed in S04; S06 now consumes `ActiveEmployeeOption` for employee lanes and the week selector.                                        |
 | TODO-003 | Schema steps    | S11         | Regenerate and verify final combined Supabase types.                                                                                                             | `planned`  | —                                                                                                                                                           |
 | TODO-004 | All steps       | S11         | Reconcile final dependencies and remove unused packages.                                                                                                         | `planned`  | —                                                                                                                                                           |
-| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `planned`  | S04 job aggregates and S06 working-now/today-roster contracts are published; dashboard composition remains S09.                                             |
+| TODO-005 | S04/S06         | S09         | Compose job and roster aggregate queries into dashboards.                                                                                                        | `complete` | S09 composes job aggregates, urgent/submitted summaries, working-now and today-roster queries, plus employee job/shift contracts in parallel.               |
 | TODO-006 | S01             | S03         | Reconcile root Proxy matcher, standalone dashboard launch, PWA assets, and security headers.                                                                     | `complete` | S03 preserved public matcher exclusions, added install assets/headers, and verified signed-out launch plus the full Auth/PWA browser suite.                 |
 | TODO-007 | All steps       | S11         | Consolidate shared Supabase and Playwright fixtures without weakening isolation.                                                                                 | `planned`  | —                                                                                                                                                           |
 | TODO-008 | S04/S07         | S11         | Consolidate repeated mutation, date control, dialog, and upload patterns where reuse is justified.                                                               | `planned`  | S06 established the exact employee-sheet form alternative; S07 now supplies the calendar creation dialog and pending-state pattern for the S11 reuse audit. |
-| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `planned`  | —                                                                                                                                                           |
+| TODO-009 | S04/S05         | S08         | Ensure generated jobs use the manual job transition, audit, assignment, and evidence contracts.                                                                  | `complete` | Generated jobs use the existing lifecycle-compatible job row, copy requirements, store provenance, and append system-created plus assignment audit events.  |
 | TODO-010 | All steps       | S11         | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions.                                                               | `planned`  | —                                                                                                                                                           |
 | TODO-011 | S01/S04/S06/S07 | S11         | Remove superseded reference duplicates and verify repository-native production imports.                                                                          | `planned`  | S06/S07 ported roster grid, time, and empty-range pointer patterns without reference imports; S11 owns final duplicate removal.                             |
 | TODO-012 | S02             | S04         | Replace the employee-detail deferred card with active and archived job summaries.                                                                                | `complete` | S04 employee sheet and detail route render active and archived job summaries from the shared query contract.                                                |

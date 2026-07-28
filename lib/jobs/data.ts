@@ -10,6 +10,7 @@ import {
 import { listEmployees } from "@/lib/employees/data"
 import type { Tables } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
+import { getActiveJobTemplates } from "@/lib/templates/data"
 import type {
   EmployeeJobSummary,
   JobBoardEmployee,
@@ -45,7 +46,7 @@ export function toJobCard(row: JobRow): JobCard {
 export const getOwnerJobBoardData = cache(async () => {
   const owner = await requireOwner()
   const supabase = await createClient()
-  const [employees, jobsResult, shiftsResult] = await Promise.all([
+  const [employees, jobsResult, shiftsResult, templates] = await Promise.all([
     listEmployees(),
     supabase
       .from("jobs")
@@ -60,6 +61,7 @@ export const getOwnerJobBoardData = cache(async () => {
       .gt("ends_at", new Date().toISOString())
       .order("starts_at", { ascending: true })
       .limit(500),
+    getActiveJobTemplates(),
   ])
 
   if (jobsResult.error || shiftsResult.error) {
@@ -83,6 +85,7 @@ export const getOwnerJobBoardData = cache(async () => {
         startsAt: shift.starts_at,
       })
     ),
+    templates,
     timezone: owner.timezone,
   }
 })

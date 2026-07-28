@@ -44,6 +44,10 @@ function jobFormValues(formData: FormData) {
         ? ""
         : String(formData.get("rosterShiftId") ?? ""),
     scheduledAt: String(formData.get("scheduledAt") ?? ""),
+    templateId:
+      String(formData.get("templateId") ?? "") === "none"
+        ? ""
+        : String(formData.get("templateId") ?? ""),
     title: String(formData.get("title") ?? ""),
   }
 }
@@ -140,6 +144,9 @@ export async function createJobAction(
     p_priority: parsed.data.priority,
     p_requires_completion_note: parsed.data.requiresCompletionNote,
     ...(scheduledAt ? { p_scheduled_at: scheduledAt } : {}),
+    ...(parsed.data.templateId
+      ? { p_template_id: Number(parsed.data.templateId) }
+      : {}),
     p_title: parsed.data.title,
   })
 

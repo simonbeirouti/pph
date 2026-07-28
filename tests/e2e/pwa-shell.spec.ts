@@ -133,7 +133,7 @@ test("keeps Auth and the application usable without service-worker support", asy
   await employeePage.goto("/dashboard")
 
   await expect(
-    employeePage.getByRole("heading", { name: "Welcome, Alex Employee" })
+    employeePage.getByRole("heading", { name: "Hi, Alex Employee" })
   ).toBeVisible()
   await expect(
     employeePage.getByRole("region", { name: "Install Employee Ops" })
@@ -155,7 +155,7 @@ test("contains registration failures without blocking employee work", async ({
   await employeePage.goto("/dashboard")
 
   await expect(
-    employeePage.getByRole("heading", { name: "Welcome, Alex Employee" })
+    employeePage.getByRole("heading", { name: "Hi, Alex Employee" })
   ).toBeVisible()
 })
 

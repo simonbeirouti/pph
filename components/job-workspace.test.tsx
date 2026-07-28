@@ -66,6 +66,62 @@ afterEach(() => {
 })
 
 describe("JobWorkspace", () => {
+  it("prefills template defaults while keeping every job field editable", async () => {
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[]}
+        templates={[
+          {
+            assigneeMembershipId: 1103,
+            description: "Template description",
+            id: 1701,
+            location: "Front foyer",
+            minimumCompletionPhotos: 3,
+            priority: "high",
+            requiresCompletionNote: true,
+            title: "Template title",
+          },
+        ]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create job" }))
+    const dialog = screen.getByRole("dialog", { name: "Create job" })
+    await user.click(within(dialog).getByRole("combobox", { name: "Template" }))
+    await user.click(
+      await screen.findByRole("option", { name: "Template title" })
+    )
+
+    expect(within(dialog).getByLabelText("Title")).toHaveValue("Template title")
+    expect(within(dialog).getByLabelText("Description")).toHaveValue(
+      "Template description"
+    )
+    expect(within(dialog).getByLabelText("Location")).toHaveValue("Front foyer")
+    expect(
+      within(dialog).getByLabelText("Minimum completion photos")
+    ).toHaveValue(3)
+    expect(
+      within(dialog).getByRole("combobox", { name: "Priority" })
+    ).toHaveTextContent("high")
+    expect(
+      within(dialog).getByRole("combobox", { name: "Assignee" })
+    ).toHaveTextContent("Alex Employee")
+    expect(
+      within(dialog).getByRole("checkbox", {
+        name: "Require a completion note",
+      })
+    ).toBeChecked()
+
+    await user.clear(within(dialog).getByLabelText("Title"))
+    await user.type(within(dialog).getByLabelText("Title"), "Overridden title")
+    expect(within(dialog).getByLabelText("Title")).toHaveValue(
+      "Overridden title"
+    )
+  })
+
   it("schedules a job from the selected employee's rostered shift", async () => {
     const user = userEvent.setup()
     render(
@@ -83,10 +139,10 @@ describe("JobWorkspace", () => {
       within(dialog).getByRole("combobox", { name: "Rostered shift" })
     ).toBeDisabled()
 
+    await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }))
     await user.click(
-      within(dialog).getByRole("combobox", { name: "Assignee" })
+      await screen.findByRole("option", { name: "Alex Employee" })
     )
-    await user.click(await screen.findByRole("option", { name: "Alex Employee" }))
     await user.click(
       within(dialog).getByRole("combobox", { name: "Rostered shift" })
     )
@@ -180,6 +236,54 @@ describe("JobWorkspace", () => {
     ).toHaveTextContent("Archived checklist")
   })
 
+  it("filters the board by urgency and employee", async () => {
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[
+          job,
+          {
+            ...job,
+            assigneeMembershipId: null,
+            id: 1402,
+            priority: "urgent",
+            title: "Urgent unassigned work",
+          },
+        ]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("combobox", { name: "Filter by urgency" })
+    ).toHaveTextContent("All urgencies")
+    expect(
+      screen.getByRole("combobox", { name: "Filter by employee" })
+    ).toHaveTextContent("All employees")
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Filter by urgency" })
+    )
+    await user.click(await screen.findByRole("option", { name: "Urgent" }))
+    expect(screen.getByText("Urgent unassigned work")).toBeVisible()
+    expect(screen.queryByText("Inspect loading bay")).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Filter by employee" })
+    )
+    await user.click(await screen.findByRole("option", { name: "Unassigned" }))
+    expect(screen.getByText("Urgent unassigned work")).toBeVisible()
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Filter by employee" })
+    )
+    await user.click(
+      await screen.findByRole("option", { name: "Alex Employee" })
+    )
+    expect(screen.queryByText("Urgent unassigned work")).not.toBeInTheDocument()
+  })
+
   it("requires employee selection and supports cancellation", async () => {
     const user = userEvent.setup()
     const onAssign = vi.fn()
@@ -241,9 +345,10 @@ describe("JobWorkspace", () => {
 
     await waitFor(() =>
       expect(
-        within(
-          screen.getByRole("region", { name: "Assigned jobs" })
-        ).getByRole("article", { name: "Job Inspect loading bay" })
+        within(screen.getByRole("region", { name: "Assigned jobs" })).getByRole(
+          "article",
+          { name: "Job Inspect loading bay" }
+        )
       ).toBeVisible()
     )
     expect(
