@@ -3,21 +3,25 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.7
-- Last updated: 27 July 2026
+- Version: 1.8
+- Last updated: 29 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui, Playwright
 
 ### Development control
 
-This PRD is the central source of truth for product scope, behaviour, acceptance criteria, architecture, and delivery readiness.
+This document is the single source of truth for product scope, behaviour,
+acceptance criteria, architecture, implementation status, and delivery
+readiness. It consolidates the former `FEATURES.md` implementation register.
 
-- [`FEATURES.md`](FEATURES.md) converts this PRD into one ordered implementation sequence with step status, task prompts, tests, completion criteria, and deferred integration TODOs.
 - Only one implementation step is active at a time. A step must be implemented, tested, documented, and checkpointed before the next step begins.
-- Every step links its work to PRD story identifiers and updates its entry in `FEATURES.md`.
+- Every step links its work to story identifiers and updates the delivery
+  register in section 12.
 - Installed project skills under `.agents/skills` are part of the implementation standard and must be used for matching Playwright, Supabase, Postgres, React, and Next.js work.
-- Product decisions are changed here first. Implementation progress and cross-step TODOs are tracked in `FEATURES.md`.
-- When implementation exposes a missing or conflicting requirement, record the TODO immediately and update this PRD before resolving it in code.
+- Product decisions, implementation progress, cross-step TODOs, verification
+  evidence, and production approval are all recorded here.
+- When implementation exposes a missing or conflicting requirement, record the
+  TODO immediately and update this document before resolving it in code.
 
 ## 1. Product overview
 
@@ -1309,7 +1313,32 @@ Every change must pass:
 
 ## 12. Sequential implementation plan
 
-Development proceeds through the following verified steps. Detailed tasks, status, prompts, and test gates live in `FEATURES.md`.
+Development proceeds through the following verified steps. This register owns
+step status, checkpoints, verification evidence, and cross-step TODOs.
+
+At most one step may be `in_progress`. A step is `complete` only when its
+implementation, permissions, tests, documentation, and checkpoint verification
+are complete. `Verified` is reserved for confirmation during the final
+integrated V1 release review.
+
+Current release decision: **NO-GO**. S11 and S12 have not started, so the
+application is not yet approved for production.
+
+| Step | Capability                             | Status     | Checkpoint | Verification summary                                                                            |
+| ---- | -------------------------------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline    | `complete` | `8a07533`  | Baseline documents, environment contract, and reference assets recorded                         |
+| S01  | Platform foundation                    | `complete` | `2e26642`  | Lint, types, unit, database, desktop/mobile E2E, and build passed                               |
+| S02  | Authentication and employees           | `complete` | `049a0e9`  | Invitation, activation, employee lifecycle, storage, and isolation passed                       |
+| S03  | Progressive Web App shell              | `complete` | `b43f944`  | Manifest, install assets, service-worker lifecycle, headers, and degradation passed             |
+| S04  | Owner jobs and Kanban                  | `complete` | `f00c938`  | Workflow, assignment, permissions, and desktop/mobile board journeys passed                     |
+| S05  | Employee execution and owner review    | `complete` | `ef897ef`  | Evidence, submission, review, notification, and private-storage checks passed                   |
+| S06  | Roster data and views                  | `complete` | `ca99a70`  | Organisation and employee views, time handling, and scheduling passed                           |
+| S07  | Roster interactions                    | `complete` | `18c1987`  | Desktop/mobile creation, exact editing, archive, and transactional assignment passed            |
+| S08  | Templates and job schedules            | `complete` | `26e65e6`  | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                 |
+| S09  | Operational dashboards                 | `complete` | `26e65e6`  | Role-specific composition, filters, loading states, and responsive journeys passed              |
+| S10  | Access governance and review hierarchy | `complete` | `f8431ee`  | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed |
+| S11  | Offline assigned-worker completion     | `planned`  | —          | Required before production                                                                      |
+| S12  | Integration and production hardening   | `planned`  | —          | Final automated and manual release gate                                                         |
 
 ### Step 1: Platform foundation — complete
 
@@ -1317,46 +1346,46 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 - [x] Configure the installed Playwright package, deterministic fixtures, test scripts, reports, and local web-server lifecycle using the project Playwright skill.
 - [x] Add Supabase local configuration, organisations, memberships, seeds, clients, session handling, root Proxy, data-access authorisation, and initial RLS.
 
-### Step 2: Authentication and employees
+### Step 2: Authentication and employees — complete
 
 - Implement login, invitation confirmation, password setup, and role-aware access.
 - Implement employee directory, profile, invitation, deactivation, and avatar upload.
 
-### Step 3: Progressive Web App shell
+### Step 3: Progressive Web App shell — complete
 
 - Add the manifest, install assets and guidance, minimal service-worker lifecycle, and security headers.
 - Verify installability and graceful degradation; offline operational behaviour
-  is added separately in Step 10.
+  is added separately in Step 11.
 
-### Step 4: Owner jobs and Kanban
+### Step 4: Owner jobs and Kanban — complete
 
 - Implement the job schema, transitions, owner creation flow, three-column workflow board, filters, and assignment/reassignment.
 
-### Step 5: Employee job execution and owner review
+### Step 5: Employee job execution and owner review — complete
 
 - Implement start/resume, notes, evidence, submission, comments, review, reopen/reassign, and archive.
 
-### Step 6: Roster data and views
+### Step 6: Roster data and views — complete
 
 - Implement shift schema, RLS, overlap protection, employee week view,
   layered organisation week view, and employee shift summary.
 
-### Step 7: Roster interactions
+### Step 7: Roster interactions — complete
 
 - Add desktop drag-to-select and mobile tap-to-create on empty roster time,
   followed by an exact shift form with optional transactional assignment and
   scheduling of not-started jobs. Keep existing-shift edit/archive management
   in the employee profile.
 
-### Step 8: Templates and schedules
+### Step 8: Templates and schedules — complete
 
 - Implement templates and idempotent daily/weekly job generation with retry visibility.
 
-### Step 9: Operational dashboards
+### Step 9: Operational dashboards — complete
 
 - Compose the verified employee, job, and roster query contracts into owner and employee dashboards.
 
-### Step 10: Owner, manager, and employee access governance
+### Step 10: Owner, manager, and employee access governance — complete
 
 - Add the database-enforced role hierarchy, owner invariants, role audit, and
   least-privilege membership transitions.
@@ -1367,7 +1396,7 @@ Development proceeds through the following verified steps. Detailed tasks, statu
 - Verify owner, manager, employee, inactive, and cross-organisation boundaries
   in database, server, component, and browser tests.
 
-### Step 11: Offline assigned-worker job completion
+### Step 11: Offline assigned-worker job completion — planned
 
 - Add the membership-scoped IndexedDB work pack, pending-photo store, operation
   outbox, generic offline shell, and visible synchronisation states.
@@ -1375,40 +1404,174 @@ Development proceeds through the following verified steps. Detailed tasks, statu
   start, note, photo, and submission replay.
 - Verify foreground/manual sync, conflict handling, logout/deactivation purge,
   storage-pressure failure, reload recovery, and exactly-once behaviour.
+- Do not begin S12 until offline database, unit/component, desktop/mobile
+  Playwright, online regression, lint, type-check, and build checks pass.
 
-### Step 12: Integration and production hardening
+### Step 12: Integration and production hardening — planned
 
 - Resolve all deferred cross-step TODOs.
-- Complete end-to-end coverage, responsive QA, accessibility checks, security verification, and staging readiness.
+- Reconcile navigation, dependencies, headers, fixtures, shared UI, generated
+  Supabase types, environment variables, and remaining reference code.
+- Complete end-to-end coverage, responsive QA, accessibility checks, security
+  verification, operational documentation, and staging readiness.
+- Record every automated result and manual reviewer decision in section 13.
 
 ## 13. Prototype and production readiness
 
+Production deployment requires all S11 and S12 gates below to be checked, an
+identified reviewer for each manual review group, and a final **GO** decision.
+An unchecked, failed, or undocumented required item is a release blocker. A
+waiver must identify its owner, reason, risk, expiry, and follow-up issue; scope
+must not be silently reduced to obtain approval.
+
 ### Prototype acceptance
 
-- Critical owner, manager, and employee Playwright journeys pass.
-- Owner pages work at desktop width.
-- Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
-- Employee offline start, notes, photos, queued submission, foreground sync, and
-  Needs attention recovery work at a mobile viewport.
-- RLS tests demonstrate role and organisation isolation.
-- No real email is sent by automated tests.
-- The deployed application passes manifest, icon, service-worker, and installability checks.
-- Lint, type-check, unit tests, and production build pass.
+- [ ] Critical owner, manager, and employee Playwright journeys pass.
+- [ ] Owner pages work at desktop width.
+- [ ] Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
+- [ ] Employee offline start, notes, photos, queued submission, foreground sync, and
+      Needs attention recovery work at a mobile viewport.
+- [ ] RLS tests demonstrate role and organisation isolation.
+- [ ] No real email is sent by automated tests.
+- [ ] The deployed application passes manifest, icon, service-worker, and installability checks.
+- [ ] Lint, type-check, unit tests, and production build pass.
+
+### 13.1 Automated pre-production gate
+
+Run from a clean checkout against the release candidate. Record the commit,
+date, environment, command output or CI URL, and reviewer. Do not reset a
+shared or production database.
+
+| Gate                | Command or evidence                                                                    | Required result                                                            | Status/evidence |
+| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------- |
+| Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [ ]             |
+| Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [ ]             |
+| Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [ ]             |
+| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [ ]             |
+| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [ ]             |
+| Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [ ]             |
+| Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [ ]             |
+| Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [ ]             |
+| Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [ ]             |
+| Offline/idempotency | S11 database and Playwright suites                                                     | Replay is exactly once; conflicts retain recoverable local work            | [ ]             |
+| Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [ ]             |
+| Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]             |
+
+If `pnpm db:types` changes the checked-in file, review and commit the change,
+then rerun the affected checks. The final gate must run against that exact
+commit.
+
+### 13.2 Manual staging review
+
+Each group needs a named reviewer and dated evidence such as a staging URL,
+screenshot, trace, monitoring event, or runbook link.
+
+#### Product journeys
+
+- [ ] Owner invitation is delivered through Resend; acceptance, password setup,
+      sign-in, resend, deactivation, and reactivation work.
+- [ ] Owner creates, assigns, reassigns, reviews, reopens, comments on, and
+      archives a job.
+- [ ] Manager manages employees and operations, completes assigned work, reviews
+      employee work, and cannot review manager or self-authored work.
+- [ ] Employee sees only personal data, completes online and offline work,
+      recovers from Needs attention, and cannot reach privileged routes.
+- [ ] Roster creation/edit/archive, templates, schedules, generated jobs,
+      dashboards, filters, loading, empty, and error states behave as specified.
+
+#### Responsive, accessibility, and PWA
+
+- [ ] Desktop owner/manager layouts and supported mobile employee layouts have
+      no clipped actions, trapped scrolling, or unusable overlays.
+- [ ] Core journeys work by keyboard with visible focus; dialogs/drawers restore
+      focus and drag operations have non-drag alternatives.
+- [ ] Labels, errors, status changes, headings, landmarks, contrast, zoom, and
+      screen-reader announcements receive an accessibility review.
+- [ ] Install, launch, update, offline shell, storage denial, quota pressure,
+      stale work-pack, logout purge, and service-worker-disabled behaviour pass on
+      supported staging devices.
+
+#### Security and data
+
+- [ ] Auth redirect URLs, allowed origins, HTTPS, CSP/security headers, cookie
+      behaviour, and secrets/configuration are reviewed in staging.
+- [ ] Private avatar/evidence access and signed URL expiry are checked using
+      owner, manager, employee, inactive, and cross-organisation accounts.
+- [ ] Migration order, scheduler permissions, occurrence retry, realtime
+      invalidation, job locks, audit history, and notification idempotency are
+      inspected with representative staging data.
+- [ ] `.env.example` matches deployment configuration names and contains no
+      usable secret; real values are present only in the deployment secret store.
+
+#### Operations and release
+
+- [ ] Error monitoring and server-side mutation logging receive a deliberate
+      staging test and contain enough context to investigate without exposing
+      sensitive content.
+- [ ] Database backup, restore rehearsal, migration recovery, scheduler failure,
+      email failure, and rollback procedures are documented and reviewed.
+- [ ] Release owner confirms migration window, rollback trigger, on-call owner,
+      post-deploy smoke test, and monitoring window.
+- [ ] A final staging smoke test passes against the exact release artifact.
+
+### 13.3 Release decision record
+
+| Field                       | Value                              |
+| --------------------------- | ---------------------------------- |
+| Release commit              | Pending                            |
+| Staging deployment          | Pending                            |
+| Automated-gate evidence     | Pending                            |
+| Product reviewer/date       | Pending                            |
+| Accessibility reviewer/date | Pending                            |
+| Security/data reviewer/date | Pending                            |
+| Operations reviewer/date    | Pending                            |
+| Waivers and expiries        | None recorded                      |
+| Decision                    | **NO-GO — S11 and S12 incomplete** |
 
 ### Production readiness
 
-- A real invitation is delivered through Resend in staging.
-- Auth redirect URLs and allowed origins are verified.
-- Private storage and signed URL expiry are verified.
-- Database backup and recovery procedures are documented.
-- Error monitoring and server-side mutation logging are configured.
-- Schedule processing has failure visibility and a safe retry path.
-- HTTPS, PWA security headers, service-worker update behaviour, and installability are verified in staging.
-- Offline work-pack expiry, logout purge, storage-pressure handling, and
-  exactly-once replay are verified in staging on supported mobile browsers.
-- A staging smoke test passes before deployment.
+- [ ] A real invitation is delivered through Resend in staging.
+- [ ] Auth redirect URLs and allowed origins are verified.
+- [ ] Private storage and signed URL expiry are verified.
+- [ ] Database backup and recovery procedures are documented.
+- [ ] Error monitoring and server-side mutation logging are configured.
+- [ ] Schedule processing has failure visibility and a safe retry path.
+- [ ] HTTPS, PWA security headers, service-worker update behaviour, and installability are verified in staging.
+- [ ] Offline work-pack expiry, logout purge, storage-pressure handling, and
+      exactly-once replay are verified in staging on supported mobile browsers.
+- [ ] A staging smoke test passes before deployment.
 
-## 14. Deferred work
+## 14. Deferred integration TODO ledger
+
+Add a TODO as soon as an active step identifies work owned by a later step.
+Resolve it only when the integrated behaviour and its regression test pass. If
+resolution changes product behaviour, update this document first.
+
+| ID       | Introduced      | Target | Work                                                                                              | Status    |
+| -------- | --------------- | ------ | ------------------------------------------------------------------------------------------------- | --------- |
+| TODO-003 | Schema steps    | S12    | Regenerate and verify final combined Supabase types                                               | `planned` |
+| TODO-004 | All steps       | S12    | Reconcile dependencies and remove unused packages                                                 | `planned` |
+| TODO-007 | All steps       | S12    | Consolidate shared Supabase and Playwright fixtures without weakening isolation                   | `planned` |
+| TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `planned` |
+| TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `planned` |
+| TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `planned` |
+| TODO-014 | S03/S05/S10     | S11    | Add the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `planned` |
+
+Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
+TODO-012, and TODO-013.
+
+Checkpoint evidence for a completed step must record:
+
+- commit and stories verified;
+- commands passed and their result counts;
+- database migrations and generated types;
+- environment-variable changes;
+- project skills and references used;
+- reference files reused, cleaned, moved, or removed;
+- TODOs added or resolved; and
+- known limitations.
+
+## 15. Deferred work
 
 The following are explicitly outside V1:
 
@@ -1429,7 +1592,7 @@ The following are explicitly outside V1:
 - Shift-start-triggered job generation.
 - Comment editing or deletion.
 
-## 15. Open work after V1
+## 16. Open work after V1
 
 - Add email or push notifications for assignment, reassignment, owner
   feedback, reopened jobs, and roster changes.
