@@ -9,6 +9,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
+  addJobNoteAction,
   finalizeJobEvidenceUploadAction,
   prepareJobEvidenceUploadAction,
 } from "@/app/dashboard/jobs/actions"
@@ -103,6 +104,15 @@ const detail: JobDetail = {
   updatedAt: "2026-07-27T00:00:00.000Z",
 }
 
+Object.defineProperty(URL, "createObjectURL", {
+  configurable: true,
+  value: vi.fn(() => "blob:job-evidence-preview"),
+})
+Object.defineProperty(URL, "revokeObjectURL", {
+  configurable: true,
+  value: vi.fn(),
+})
+
 afterEach(() => {
   cleanup()
   isMobile.mockReturnValue(false)
@@ -133,8 +143,8 @@ describe("job detail surfaces", () => {
       "justify-center"
     )
     expect(
-      screen.queryByRole("button", { name: /History/ })
-    ).not.toBeInTheDocument()
+      screen.getByRole("button", { name: "History, 0 updates" })
+    ).toHaveAttribute("aria-expanded", "true")
     expect(
       screen.queryByRole("button", { name: "Comments" })
     ).not.toBeInTheDocument()
@@ -171,8 +181,14 @@ describe("job detail surfaces", () => {
       )
     ).toBeVisible()
     expect(
-      screen.getByRole("button", { name: "Submit for review" })
-    ).toBeDisabled()
+      screen.queryByRole("button", { name: "Submit for review" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Add completion photos" })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Add comment")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Comments" })
@@ -235,6 +251,14 @@ describe("job detail surfaces", () => {
       uploadSizeBytes: optimized.size,
     })
 
+    expect(
+      await screen.findByRole("img", {
+        name: "Selected completion photo preview",
+      })
+    ).toBeVisible()
+    expect(prepareJobEvidenceUploadAction).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+
     await waitFor(() =>
       expect(prepareJobEvidenceUploadAction).toHaveBeenCalledWith({
         jobId: detail.id,
@@ -280,11 +304,49 @@ describe("job detail surfaces", () => {
         "This photo could not be optimized. Uploading the original instead."
       )
     )
+    expect(prepareJobEvidenceUploadAction).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() =>
+      expect(prepareJobEvidenceUploadAction).toHaveBeenCalled()
+    )
     expect(prepareJobEvidenceUploadAction).toHaveBeenCalledWith(
       expect.objectContaining({
         mimeType: "image/jpeg",
         sizeBytes: original.size,
       })
+    )
+  })
+
+  it("shows Save only for a draft note and persists it", async () => {
+    vi.mocked(addJobNoteAction).mockResolvedValue({
+      message: "Note added.",
+      ok: true,
+    })
+    render(
+      <EmployeeJobDetail
+        detail={{ ...detail, status: "in_progress" }}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Work note"), {
+      target: { value: "Completed safely." },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(addJobNoteAction).toHaveBeenCalledWith(
+        detail.id,
+        "Completed safely."
+      )
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Save" })
+      ).not.toBeInTheDocument()
     )
   })
 
@@ -435,8 +497,6 @@ describe("job detail surfaces", () => {
         timezone="Australia/Melbourne"
       />
     )
-
-    fireEvent.click(screen.getByRole("button", { name: "History, 7 updates" }))
 
     expect(screen.getByText("History entry 7")).toBeVisible()
     expect(screen.getByText("History entry 5")).toBeVisible()

@@ -1,6 +1,22 @@
-import { CalendarClockIcon, CheckCircle2Icon, MapPinIcon } from "lucide-react"
-import Link from "next/link"
+"use client"
 
+import {
+  CalendarClockIcon,
+  CheckCircle2Icon,
+  LoaderCircleIcon,
+  MapPinIcon,
+  SendIcon,
+} from "lucide-react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useTransition } from "react"
+import { toast } from "sonner"
+
+import { submitJobAction } from "@/app/dashboard/jobs/actions"
+import {
+  updateJobEverywhere,
+  useOfflineV2Actions,
+} from "@/components/offline-v2-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +44,13 @@ export function EmployeeJobsList({
   jobs: readonly JobCard[]
   timezone: string
 }) {
+  const searchParams = useSearchParams()
+  const mode = searchParams.get("mode")
+  const jobHref = (jobId: number) =>
+    mode === "my-work"
+      ? `/dashboard/jobs?mode=my-work&job=${jobId}`
+      : `/dashboard/jobs?job=${jobId}`
+
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="grid gap-1">
@@ -90,12 +113,7 @@ export function EmployeeJobsList({
                     Submitted and waiting for owner review.
                   </p>
                 ) : null}
-                <Button
-                  nativeButton={false}
-                  render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
-                >
-                  Open job
-                </Button>
+                <JobCardActions href={jobHref(job.id)} job={job} />
               </CardContent>
             </Card>
           ))}
@@ -110,6 +128,70 @@ export function EmployeeJobsList({
           </CardHeader>
         </Card>
       )}
+    </div>
+  )
+}
+
+function JobCardActions({ href, job }: { href: string; job: JobCard }) {
+  const router = useRouter()
+  const offline = useOfflineV2Actions()
+  const [pending, startTransition] = useTransition()
+  const hasCounts =
+    typeof job.completionNoteCount === "number" &&
+    typeof job.completionPhotoCount === "number"
+  const requirementsMet =
+    hasCounts &&
+    (!job.requiresCompletionNote || job.completionNoteCount! > 0) &&
+    job.completionPhotoCount! >= job.minimumCompletionPhotos
+  const canSubmit =
+    requirementsMet &&
+    (job.status === "assigned" || job.status === "in_progress")
+
+  return (
+    <div className={cn("grid gap-2", canSubmit && "grid-cols-2")}>
+      <Button nativeButton={false} render={<Link href={href} />}>
+        Open job
+      </Button>
+      {canSubmit ? (
+        <Button
+          aria-label="Submit for review"
+          disabled={pending}
+          onClick={() => {
+            startTransition(async () => {
+              const queued = await offline.queue({
+                entityId: job.id,
+                entityType: "job",
+                expectedVersion: job.version ?? null,
+                kind: "job.submit",
+                optimistic: (snapshot) =>
+                  updateJobEverywhere(snapshot, job.id, (current) => ({
+                    ...current,
+                    status: "in_review",
+                    submittedAt: new Date().toISOString(),
+                  })),
+              })
+              const result = queued
+                ? { message: "Submission saved.", ok: true }
+                : await submitJobAction(job.id)
+              if (result.ok) {
+                toast.success(result.message)
+                if (!queued) router.refresh()
+              } else {
+                toast.error(result.message)
+              }
+            })
+          }}
+          type="button"
+          variant="outline"
+        >
+          {pending ? (
+            <LoaderCircleIcon className="animate-spin" />
+          ) : (
+            <SendIcon />
+          )}
+          Submit
+        </Button>
+      ) : null}
     </div>
   )
 }

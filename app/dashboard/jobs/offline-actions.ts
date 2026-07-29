@@ -8,10 +8,7 @@ import { getRequestOrigin } from "@/lib/http/origin"
 import type { ReplayResult } from "@/lib/offline/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import {
-  detectImageMimeType,
-  IMAGE_MIME_EXTENSIONS,
-} from "@/lib/uploads/image"
+import { detectImageMimeType, IMAGE_MIME_EXTENSIONS } from "@/lib/uploads/image"
 
 const operationSchema = z.object({
   clientOperationId: z.string().uuid(),
@@ -53,7 +50,10 @@ export async function prepareOfflineEvidenceUploadAction(input: {
 }) {
   const parsed = uploadSchema.safeParse(input)
   if (!parsed.success) {
-    return { message: "The offline photo metadata is invalid.", ok: false } as const
+    return {
+      message: "The offline photo metadata is invalid.",
+      ok: false,
+    } as const
   }
   const worker = await requireAssignedWorker()
   const objectName = `${worker.organisationId}/${parsed.data.jobId}/${
@@ -65,7 +65,10 @@ export async function prepareOfflineEvidenceUploadAction(input: {
     .createSignedUploadUrl(objectName)
 
   if (error || !data) {
-    return { message: "The photo upload could not be prepared.", ok: false } as const
+    return {
+      message: "The photo upload could not be prepared.",
+      ok: false,
+    } as const
   }
   return {
     bucketName: "job-evidence",
@@ -75,9 +78,39 @@ export async function prepareOfflineEvidenceUploadAction(input: {
   } as const
 }
 
-export async function replayOfflineJobOperationAction(input: unknown): Promise<
-  | { message: string; ok: false }
-  | { ok: true; replay: ReplayResult }
+export async function verifyOfflineEvidenceUploadAction(input: {
+  clientOperationId: string
+  extension: string
+  jobId: number
+}) {
+  const parsed = uploadSchema.safeParse(input)
+  if (!parsed.success) {
+    return {
+      message: "The offline photo metadata is invalid.",
+      ok: false,
+    } as const
+  }
+  const worker = await requireAssignedWorker()
+  const objectName = `${worker.organisationId}/${parsed.data.jobId}/${
+    worker.membershipId
+  }/${parsed.data.clientOperationId}.${parsed.data.extension}`
+  const { data, error } = await createAdminClient()
+    .storage.from("job-evidence")
+    .info(objectName)
+
+  if (error || !data) {
+    return {
+      message: "The queued photo has not reached storage yet.",
+      ok: false,
+    } as const
+  }
+  return { objectName, ok: true } as const
+}
+
+export async function replayOfflineJobOperationAction(
+  input: unknown
+): Promise<
+  { message: string; ok: false } | { ok: true; replay: ReplayResult }
 > {
   const parsed = operationSchema.safeParse(input)
   if (!parsed.success) {
@@ -98,7 +131,10 @@ export async function replayOfflineJobOperationAction(input: unknown): Promise<
       .from("job-evidence")
       .download(storagePath)
     if (error || !data) {
-      return { message: "The queued photo has not finished uploading.", ok: false }
+      return {
+        message: "The queued photo has not finished uploading.",
+        ok: false,
+      }
     }
     const bytes = new Uint8Array(await data.arrayBuffer())
     const mimeType = detectImageMimeType(bytes)
@@ -108,7 +144,10 @@ export async function replayOfflineJobOperationAction(input: unknown): Promise<
       bytes.byteLength > 10 * 1024 * 1024
     ) {
       await admin.storage.from("job-evidence").remove([storagePath])
-      return { message: "The queued photo is not a supported image.", ok: false }
+      return {
+        message: "The queued photo is not a supported image.",
+        ok: false,
+      }
     }
     parsed.data.payload.mimeType = mimeType
     parsed.data.payload.sizeBytes = bytes.byteLength
@@ -127,7 +166,10 @@ export async function replayOfflineJobOperationAction(input: unknown): Promise<
   )
   const replay = data?.[0]
   if (error || !replay) {
-    return { message: error?.message ?? "The queued change could not sync.", ok: false }
+    return {
+      message: error?.message ?? "The queued change could not sync.",
+      ok: false,
+    }
   }
 
   const submissionUpdateId = replay.result.submissionUpdateId

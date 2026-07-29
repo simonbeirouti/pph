@@ -22,6 +22,10 @@ import type {
 import { sortJobsByUrgency } from "@/lib/jobs/board"
 
 type JobRow = Tables<"jobs">
+type EmployeeJobRow = JobRow & {
+  job_assets: Array<{ count: number }>
+  job_updates: Array<{ count: number }>
+}
 
 const JOB_FIELDS =
   "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, updated_at, version"
@@ -41,6 +45,14 @@ export function toJobCard(row: JobRow): JobCard {
     title: row.title,
     updatedAt: row.updated_at,
     version: row.version,
+  }
+}
+
+function toEmployeeJobCard(row: EmployeeJobRow): JobCard {
+  return {
+    ...toJobCard(row),
+    completionNoteCount: row.job_updates[0]?.count ?? 0,
+    completionPhotoCount: row.job_assets[0]?.count ?? 0,
   }
 }
 
@@ -96,14 +108,18 @@ export const getEmployeeAssignedJobs = cache(async (): Promise<JobCard[]> => {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("jobs")
-    .select(JOB_FIELDS)
+    .select(`${JOB_FIELDS}, job_updates(count), job_assets(count)`)
     .eq("organisation_id", employee.organisationId)
     .eq("assignee_membership_id", employee.membershipId)
+    .eq("job_updates.type", "note")
+    .is("job_assets.archived_at", null)
     .neq("status", "archived")
 
   if (error) throw new Error("Unable to load assigned jobs")
 
-  return sortJobsByUrgency((data ?? []).map((row) => toJobCard(row as JobRow)))
+  return sortJobsByUrgency(
+    (data ?? []).map((row) => toEmployeeJobCard(row as EmployeeJobRow))
+  )
 })
 
 export const getJobDetail = cache(
@@ -227,9 +243,7 @@ export const getJobDetail = cache(
       startedAt: job.started_at,
       submittedByMembershipId: job.submitted_by_membership_id,
       requiredReviewerRole: job.required_reviewer_role as
-        | "manager"
-        | "owner"
-        | null,
+        "manager" | "owner" | null,
       submissionVersion: job.submission_version,
       submittedAt: job.submitted_at,
       timeline,

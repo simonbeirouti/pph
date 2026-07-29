@@ -58,7 +58,6 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
 
   await employeePage.getByRole("button", { name: "Start job" }).click()
   await employeePage.getByLabel("Work note").fill("Completed safely.")
-  await employeePage.getByRole("button", { name: "Add note" }).click()
   const largeJpegDataUrl = await employeePage.evaluate(() => {
     const canvas = document.createElement("canvas")
     canvas.width = 2400
@@ -83,11 +82,24 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
       request.method() === "POST" &&
       request.url().includes("/storage/v1/upload/resumable")
   )
-  await employeePage.getByLabel("Completion photos").setInputFiles({
-    buffer: largeJpeg,
-    mimeType: "image/jpeg",
-    name: "android-photo.jpg",
-  })
+  await employeePage
+    .getByLabel("Completion photos", { exact: true })
+    .setInputFiles({
+      buffer: largeJpeg,
+      mimeType: "image/jpeg",
+      name: "android-photo.jpg",
+    })
+  await expect(
+    employeePage.getByRole("img", {
+      name: "Selected completion photo preview",
+    })
+  ).toBeVisible()
+  await expect(
+    employeePage
+      .locator('[data-slot="drawer-popup"]')
+      .getByRole("button", { name: "Submit for review" })
+  ).toHaveCount(0)
+  await employeePage.getByRole("button", { name: "Save" }).click()
   const jpegUpload = await jpegUploadRequest
   expect(Number(jpegUpload.headers()["upload-length"])).toBeLessThanOrEqual(
     largeJpeg.byteLength / 2
@@ -95,21 +107,31 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   expect(jpegUpload.headers()["upload-metadata"]).toContain(
     Buffer.from("image/webp").toString("base64")
   )
-  await expect(employeePage.getByText("Photo added.")).toBeVisible({
+  await expect(employeePage.getByText("Changes saved.")).toBeVisible({
     timeout: 20_000,
   })
-  await expect(employeePage.getByLabel("Completion photos")).toBeEnabled()
+  await expect(
+    employeePage.getByLabel("Completion photos", { exact: true })
+  ).toBeEnabled()
 
   const heicUploadRequest = employeePage.waitForRequest(
     (request) =>
       request.method() === "POST" &&
       request.url().includes("/storage/v1/upload/resumable")
   )
-  await employeePage.getByLabel("Completion photos").setInputFiles({
-    buffer: phoneNativeHeic,
-    mimeType: "image/heic",
-    name: "iphone-photo.HEIC",
-  })
+  await employeePage
+    .getByLabel("Completion photos", { exact: true })
+    .setInputFiles({
+      buffer: phoneNativeHeic,
+      mimeType: "image/heic",
+      name: "iphone-photo.HEIC",
+    })
+  await expect(
+    employeePage.getByRole("img", {
+      name: "Selected completion photo preview",
+    })
+  ).toBeVisible()
+  await employeePage.getByRole("button", { name: "Save" }).click()
   const heicUpload = await heicUploadRequest
   expect(Number(heicUpload.headers()["upload-length"])).toBeLessThan(
     phoneNativeHeic.byteLength
@@ -117,17 +139,24 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   expect(heicUpload.headers()["upload-metadata"]).toContain(
     Buffer.from("image/webp").toString("base64")
   )
-  await expect(employeePage.getByText("Photo added.")).toBeVisible({
+  await expect(employeePage.getByText("Changes saved.")).toBeVisible({
     timeout: 20_000,
   })
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  const employeeJobCard = employeePage
+    .getByRole("article")
+    .filter({ hasText: title })
   await expect(
-    employeePage.getByRole("button", { name: "Submit for review" })
+    employeeJobCard.getByRole("button", { name: "Submit for review" })
   ).toBeEnabled()
-  await employeePage.getByRole("button", { name: "Submit for review" }).click()
+  await employeeJobCard
+    .getByRole("button", { name: "Submit for review" })
+    .click()
   await expect(
     employeePage.getByText("Job submitted for review.")
   ).toBeVisible()
-  await expect(employeePage.getByLabel("Work note")).toHaveCount(0)
   await employeePage.goto("about:blank")
 
   await ownerPage.goto(jobUrl!)
@@ -161,7 +190,14 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
     employeePage.getByText("Please photograph the final label.").first()
   ).toBeVisible()
   await employeePage.getByRole("button", { name: "Start job" }).click()
-  await employeePage.getByRole("button", { name: "Submit for review" }).click()
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  await employeePage
+    .getByRole("article")
+    .filter({ hasText: title })
+    .getByRole("button", { name: "Submit for review" })
+    .click()
   await expect(
     employeePage.getByText("Job submitted for review.")
   ).toBeVisible()

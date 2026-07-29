@@ -100,7 +100,7 @@ test("employee completes an assigned job through the offline outbox", async ({
     await employeePage.getByLabel("Work note").fill("Completed while offline.")
     await employeePage.getByRole("button", { name: "Add note" }).click()
     await employeePage
-      .getByLabel("Completion photos")
+      .getByLabel("Completion photos", { exact: true })
       .setInputFiles(path.resolve("public/icons/icon-192.png"))
     await expect(employeePage.getByText("1 of 1 required")).toBeVisible({
       timeout: 15_000,

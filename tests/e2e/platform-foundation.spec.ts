@@ -40,6 +40,11 @@ test("sidebar toggles and links to the current profile", async ({
     await ownerPage.getByRole("button", { name: "Close navigation" }).click()
     await expect(dashboardLink).toBeHidden()
     await toggle.click()
+    await sidebar.getByRole("link", { name: "Jobs" }).click()
+    await expect(ownerPage).toHaveURL(/\/dashboard\/jobs$/)
+    await expect(dashboardLink).toBeHidden()
+    await ownerPage.goto("/dashboard")
+    await toggle.click()
   } else {
     await expect(
       ownerPage.locator('[data-slot="sidebar"][data-state="collapsed"]')

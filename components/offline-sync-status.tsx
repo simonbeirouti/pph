@@ -37,6 +37,9 @@ export function OfflineSyncStatus() {
   const offline = useOptionalOfflineV2()
   if (!offline) return null
   const { conflicts, operations, status } = offline
+  const operationsWithErrors = operations.filter(
+    (operation) => operation.lastError
+  )
   const Icon =
     status === "offline_ready"
       ? CheckCircle2Icon
@@ -77,7 +80,8 @@ export function OfflineSyncStatus() {
     status !== "needs_attention" &&
     status !== "storage_warning" &&
     status !== "lease_expired" &&
-    status !== "cold"
+    status !== "cold" &&
+    !(status === "changes_pending" && operationsWithErrors.length)
   ) {
     return badge
   }
@@ -85,19 +89,23 @@ export function OfflineSyncStatus() {
   const title =
     status === "needs_attention"
       ? "Changes need attention"
-      : status === "storage_warning"
-        ? "Offline storage is incomplete"
-        : status === "lease_expired"
-          ? "Access must be revalidated"
-          : "This device is not prepared"
+      : status === "changes_pending"
+        ? "Changes are retrying"
+        : status === "storage_warning"
+          ? "Offline storage is incomplete"
+          : status === "lease_expired"
+            ? "Access must be revalidated"
+            : "This device is not prepared"
   const description =
     status === "needs_attention"
       ? "A server record changed while this device had pending work. Both versions are preserved below."
-      : status === "storage_warning"
-        ? "The full permitted dataset or required media could not be stored. Stay connected until storage is available."
-        : status === "lease_expired"
-          ? "Pending work is retained, but organisational data remains locked until a successful online authorisation refresh."
-          : "Connect and sign in once. The dashboard will prepare offline access automatically."
+      : status === "changes_pending"
+        ? "A queued upload or change has not reached the server yet. It remains stored on this device and will retry automatically."
+        : status === "storage_warning"
+          ? "The full permitted dataset or required media could not be stored. Stay connected until storage is available."
+          : status === "lease_expired"
+            ? "Pending work is retained, but organisational data remains locked until a successful online authorisation refresh."
+            : "Connect and sign in once. The dashboard will prepare offline access automatically."
 
   return (
     <Popover>
@@ -113,7 +121,10 @@ export function OfflineSyncStatus() {
       >
         {badge}
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[70dvh] w-96 max-w-[90vw] overflow-auto">
+      <PopoverContent
+        align="end"
+        className="max-h-[70dvh] w-96 max-w-[90vw] overflow-auto"
+      >
         <PopoverHeader>
           <PopoverTitle>{title}</PopoverTitle>
           <PopoverDescription>{description}</PopoverDescription>
@@ -140,16 +151,14 @@ export function OfflineSyncStatus() {
             </div>
           </section>
         ))}
-        {operations.filter((operation) => operation.state === "failed").map(
-          (operation) => (
-            <p
-              className="rounded-md border p-2 text-xs"
-              key={operation.clientOperationId}
-            >
-              {operation.kind}: {operation.lastError ?? "Sync failed"}
-            </p>
-          )
-        )}
+        {operationsWithErrors.map((operation) => (
+          <p
+            className="rounded-md border p-2 text-xs"
+            key={operation.clientOperationId}
+          >
+            {operation.kind}: {operation.lastError ?? "Sync failed"}
+          </p>
+        ))}
       </PopoverContent>
     </Popover>
   )

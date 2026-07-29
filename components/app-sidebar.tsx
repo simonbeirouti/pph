@@ -37,8 +37,10 @@ export function AppSidebar({
   membership: MembershipContext
 }) {
   const pathname = usePathname()
-  const { setOpenMobile } = useSidebar()
-  const closeMobileSidebar = () => setOpenMobile(false)
+  const { isMobile, setOpenMobile } = useSidebar()
+  const closeMobileSidebar = () => {
+    if (isMobile) setOpenMobile(false)
+  }
   const isRouteActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
 
@@ -53,8 +55,9 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              onClick={closeMobileSidebar}
-              render={<Link href="/dashboard" />}
+              render={
+                <Link href="/dashboard" onNavigate={closeMobileSidebar} />
+              }
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <Building2Icon className="size-4" />
@@ -80,8 +83,9 @@ export function AppSidebar({
                 aria-current={pathname === "/dashboard" ? "page" : undefined}
                 isActive={pathname === "/dashboard"}
                 tooltip="Dashboard"
-                onClick={closeMobileSidebar}
-                render={<Link href="/dashboard" />}
+                render={
+                  <Link href="/dashboard" onNavigate={closeMobileSidebar} />
+                }
               >
                 <LayoutDashboardIcon />
                 <span>Dashboard</span>
@@ -94,8 +98,12 @@ export function AppSidebar({
                 }
                 isActive={isRouteActive("/dashboard/jobs")}
                 tooltip="Jobs"
-                onClick={closeMobileSidebar}
-                render={<Link href="/dashboard/jobs" />}
+                render={
+                  <Link
+                    href="/dashboard/jobs"
+                    onNavigate={closeMobileSidebar}
+                  />
+                }
               >
                 <BriefcaseBusinessIcon />
                 <span>Jobs</span>
@@ -109,8 +117,12 @@ export function AppSidebar({
                   }
                   isActive={isRouteActive("/dashboard/templates")}
                   tooltip="Templates"
-                  onClick={closeMobileSidebar}
-                  render={<Link href="/dashboard/templates" />}
+                  render={
+                    <Link
+                      href="/dashboard/templates"
+                      onNavigate={closeMobileSidebar}
+                    />
+                  }
                 >
                   <ListChecksIcon />
                   <span>Templates</span>
@@ -125,8 +137,12 @@ export function AppSidebar({
                   }
                   isActive={isRouteActive("/dashboard/employees")}
                   tooltip="Employees"
-                  onClick={closeMobileSidebar}
-                  render={<Link href="/dashboard/employees" />}
+                  render={
+                    <Link
+                      href="/dashboard/employees"
+                      onNavigate={closeMobileSidebar}
+                    />
+                  }
                 >
                   <UsersIcon />
                   <span>Employees</span>
@@ -140,8 +156,12 @@ export function AppSidebar({
                 }
                 isActive={isRouteActive("/dashboard/roster")}
                 tooltip="Roster"
-                onClick={closeMobileSidebar}
-                render={<Link href="/dashboard/roster" />}
+                render={
+                  <Link
+                    href="/dashboard/roster"
+                    onNavigate={closeMobileSidebar}
+                  />
+                }
               >
                 <CalendarDaysIcon />
                 <span>Roster</span>

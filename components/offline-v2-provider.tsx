@@ -29,8 +29,12 @@ import {
   removeOfflineV2Operation,
 } from "@/lib/offline-v2/storage"
 import { logoutAction } from "@/app/dashboard/actions"
-import { prepareOfflineEvidenceUploadAction } from "@/app/dashboard/jobs/offline-actions"
+import {
+  prepareOfflineEvidenceUploadAction,
+  verifyOfflineEvidenceUploadAction,
+} from "@/app/dashboard/jobs/offline-actions"
 import { ensureOfflineShellReady } from "@/components/service-worker-registration"
+import { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import type {
   OfflineConflict,
@@ -71,11 +75,10 @@ export function OfflineV2Provider({
   const [conflicts, setConflicts] = useState<OfflineConflict[]>([])
   const [isOnline, setIsOnline] = useState(true)
   const [status, setStatus] = useState<OfflineSyncStatus>("preparing")
-  const [currentPath, setCurrentPath] = useState(
-    "/dashboard"
-  )
+  const [currentPath, setCurrentPath] = useState("/dashboard")
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
+  const refreshInFlightRef = useRef<Promise<void> | null>(null)
 
   const reloadLocalState = useCallback(async () => {
     const [storedSnapshot, storedOperations, storedConflicts] =
@@ -92,57 +95,70 @@ export function OfflineV2Provider({
         storedSnapshot.membership.organisationId ===
           serverMembership.organisationId)
     if (!identityMatches) await purgeOfflineV2Data()
-    const usableSnapshot =
+    const storedOperationsForIdentity = identityMatches ? storedOperations : []
+    const hydratedSnapshot =
       identityMatches && storedSnapshot
         ? await hydrateOfflineSnapshotMedia(storedSnapshot)
         : null
+    const usableSnapshot = hydratedSnapshot
+      ? await applyPendingOptimisticState(
+          hydratedSnapshot,
+          storedOperationsForIdentity
+        )
+      : null
     snapshotRevisionRef.current = usableSnapshot?.revision ?? 0
     snapshotStateRef.current = usableSnapshot
     setSnapshot(usableSnapshot)
-    setOperations(storedOperations)
-    setConflicts(storedConflicts)
-    if (!navigator.onLine) {
-      if (!usableSnapshot) {
-        setStatus("cold")
-      } else if (!isOfflineLeaseValid(usableSnapshot.leaseExpiresAt)) {
-        setStatus("lease_expired")
-      } else if (storedConflicts.length) {
-        setStatus("needs_attention")
-      } else if (storedOperations.length) {
-        setStatus("changes_pending")
-      } else {
-        setStatus("offline")
-      }
+    setOperations(storedOperationsForIdentity)
+    setConflicts(identityMatches ? storedConflicts : [])
+    if (!usableSnapshot) {
+      setStatus("cold")
+    } else if (!isOfflineLeaseValid(usableSnapshot.leaseExpiresAt)) {
+      setStatus("lease_expired")
+    } else if (
+      storedConflicts.length ||
+      storedOperationsForIdentity.some(
+        (operation) => operation.state === "needs_attention"
+      )
+    ) {
+      setStatus("needs_attention")
+    } else if (storedOperationsForIdentity.length) {
+      setStatus("changes_pending")
+    } else {
+      setStatus(navigator.onLine ? "offline_ready" : "offline")
     }
   }, [serverMembership])
 
-  const refresh = useCallback(async () => {
+  const performRefresh = useCallback(async () => {
     if (!navigator.onLine) {
       await reloadLocalState()
       return
     }
     setStatus("preparing")
     try {
-      const pendingOperations = await preparePendingUploads(
-        await getOfflineV2Operations()
+      const queuedOperations = await getOfflineV2Operations()
+      const { readyOperations } = await preparePendingUploads(queuedOperations)
+      setStatus(
+        readyOperations.length
+          ? "syncing"
+          : queuedOperations.length
+            ? "changes_pending"
+            : "preparing"
       )
-      setStatus(pendingOperations.length ? "syncing" : "preparing")
       const response = await fetch(
-        pendingOperations.length
-          ? "/api/offline/sync"
-          : "/api/offline/bootstrap",
+        readyOperations.length ? "/api/offline/sync" : "/api/offline/bootstrap",
         {
-        cache: "no-store",
-        credentials: "same-origin",
+          cache: "no-store",
+          credentials: "same-origin",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-          method: pendingOperations.length ? "POST" : "GET",
-          ...(pendingOperations.length
+          method: readyOperations.length ? "POST" : "GET",
+          ...(readyOperations.length
             ? {
                 body: JSON.stringify({
-                  operations: pendingOperations,
+                  operations: readyOperations,
                   revision: snapshotRevisionRef.current,
                 }),
               }
@@ -160,14 +176,32 @@ export function OfflineV2Provider({
       }
       if (!response.ok) throw new Error(`Bootstrap failed: ${response.status}`)
       const payload = (await response.json()) as
-        | OfflineV2Snapshot
-        | OfflineSyncResult
-      const syncResult =
-        "operationResults" in payload ? payload : null
+        OfflineV2Snapshot | OfflineSyncResult
+      const syncResult = "operationResults" in payload ? payload : null
       if (syncResult) {
+        const replayedById = new Map(
+          readyOperations.map((operation) => [
+            operation.clientOperationId,
+            operation,
+          ])
+        )
         for (const result of syncResult.operationResults) {
           if (result.status === "acknowledged") {
             await removeOfflineV2Operation(result.clientOperationId)
+            continue
+          }
+          const replayed = replayedById.get(result.clientOperationId)
+          if (replayed) {
+            await putOfflineV2Operation({
+              ...replayed,
+              lastError:
+                result.error ?? "The queued change could not be applied.",
+              state:
+                result.status === "conflict" ||
+                result.status === "needs_attention"
+                  ? "needs_attention"
+                  : "pending",
+            })
           }
         }
         for (const conflict of syncResult.conflicts) {
@@ -175,7 +209,8 @@ export function OfflineV2Provider({
         }
         await applyOfflineIdMappings(syncResult.idMappings)
       }
-      const nextSnapshot = syncResult?.snapshot ?? (payload as OfflineV2Snapshot)
+      const nextSnapshot =
+        syncResult?.snapshot ?? (payload as OfflineV2Snapshot)
       snapshotRevisionRef.current = nextSnapshot.revision
       const structuredBytes = new Blob([JSON.stringify(nextSnapshot)]).size
       const capacity = await estimateOfflineCapacity(structuredBytes)
@@ -189,37 +224,53 @@ export function OfflineV2Provider({
         navigator.serviceWorker,
         window.caches
       )
-      const hydratedSnapshot =
-        await hydrateOfflineSnapshotMedia(nextSnapshot)
-      snapshotStateRef.current = hydratedSnapshot
-      setSnapshot(hydratedSnapshot)
       const [nextOperations, nextConflicts] = await Promise.all([
         getOfflineV2Operations(),
         getOfflineConflicts(),
       ])
+      const hydratedSnapshot = await hydrateOfflineSnapshotMedia(nextSnapshot)
+      const optimisticSnapshot = await applyPendingOptimisticState(
+        hydratedSnapshot,
+        nextOperations
+      )
+      snapshotStateRef.current = optimisticSnapshot
+      setSnapshot(optimisticSnapshot)
       setOperations(nextOperations)
       setConflicts(nextConflicts)
       setStatus(
         !mediaComplete || !shellReady
           ? "storage_warning"
-          : nextConflicts.length
-          ? "needs_attention"
-          : nextOperations.length
-            ? "changes_pending"
-            : "offline_ready"
+          : nextConflicts.length ||
+              nextOperations.some(
+                (operation) => operation.state === "needs_attention"
+              )
+            ? "needs_attention"
+            : nextOperations.length
+              ? "changes_pending"
+              : "offline_ready"
       )
-    } catch {
+    } catch (error) {
+      console.warn("Offline synchronisation will retry.", error)
       await reloadLocalState()
     }
   }, [reloadLocalState])
+
+  const refresh = useCallback(() => {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current
+    const refreshPromise = performRefresh().finally(() => {
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null
+      }
+    })
+    refreshInFlightRef.current = refreshPromise
+    return refreshPromise
+  }, [performRefresh])
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
       setIsOnline(navigator.onLine)
-      setCurrentPath(
-        `${window.location.pathname}${window.location.search}`
-      )
+      setCurrentPath(`${window.location.pathname}${window.location.search}`)
       const logoutPending = await Promise.race([
         isOfflineLogoutPending(),
         new Promise<false>((resolve) =>
@@ -285,6 +336,17 @@ export function OfflineV2Provider({
     }
   }, [refresh, reloadLocalState])
 
+  useEffect(() => {
+    if (
+      !isOnline ||
+      !operations.some((operation) => operation.state !== "needs_attention")
+    ) {
+      return
+    }
+    const retry = window.setTimeout(() => void refresh(), 5_000)
+    return () => window.clearTimeout(retry)
+  }, [isOnline, operations, refresh])
+
   const navigate = useCallback(
     (href: string, options?: { replace?: boolean }) => {
       const url = new URL(href, window.location.origin)
@@ -336,11 +398,12 @@ export function OfflineV2Provider({
   const queueOperation = useCallback(async (operation: OfflineV2Operation) => {
     await putOfflineV2Operation(operation)
     setOperations((current) =>
-      [...current.filter(
-        (item) => item.clientOperationId !== operation.clientOperationId
-      ), operation].toSorted((left, right) =>
-        left.createdAt.localeCompare(right.createdAt)
-      )
+      [
+        ...current.filter(
+          (item) => item.clientOperationId !== operation.clientOperationId
+        ),
+        operation,
+      ].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt))
     )
     setStatus("changes_pending")
   }, [])
@@ -406,8 +469,17 @@ export function useOptionalOfflineV2() {
 }
 
 async function preparePendingUploads(operations: OfflineV2Operation[]) {
-  const preparedOperations: OfflineV2Operation[] = []
+  const blockedOperationIds = new Set<string>()
+  const readyOperations: OfflineV2Operation[] = []
   for (const operation of operations) {
+    if (
+      operation.dependsOn.some((dependency) =>
+        blockedOperationIds.has(dependency)
+      )
+    ) {
+      blockedOperationIds.add(operation.clientOperationId)
+      continue
+    }
     if (
       operation.kind === "membership.create" ||
       operation.kind === "membership.update" ||
@@ -415,7 +487,7 @@ async function preparePendingUploads(operations: OfflineV2Operation[]) {
     ) {
       const avatar = await getOfflineV2Blob(operation.clientOperationId)
       if (avatar) {
-        preparedOperations.push({
+        readyOperations.push({
           ...operation,
           payload: {
             ...operation.payload,
@@ -434,58 +506,148 @@ async function preparePendingUploads(operations: OfflineV2Operation[]) {
       operation.entity.source !== "server" ||
       typeof operation.payload.storagePath === "string"
     ) {
-      preparedOperations.push(operation)
+      readyOperations.push(operation)
       continue
     }
     const blob = await getOfflineV2Blob(operation.clientOperationId)
     if (!blob) {
-      preparedOperations.push({
+      await putOfflineV2Operation({
         ...operation,
         lastError: "The queued photo is missing from this device.",
-        state: "failed",
+        state: "needs_attention",
       })
+      blockedOperationIds.add(operation.clientOperationId)
       continue
     }
-    const prepared = await prepareOfflineEvidenceUploadAction({
+    const uploadInput = {
       clientOperationId: operation.clientOperationId,
       extension: String(operation.payload.extension ?? ""),
       jobId: operation.entity.id,
-    })
+    }
+    const prepared = await prepareOfflineEvidenceUploadAction(uploadInput)
     if (!prepared.ok) {
-      preparedOperations.push({
+      await putOfflineV2Operation({
         ...operation,
         lastError: prepared.message,
-        state: "failed",
+        state: "pending",
       })
+      blockedOperationIds.add(operation.clientOperationId)
       continue
     }
     const supabase = createBrowserSupabaseClient()
     const { error } = await supabase.storage
       .from(prepared.bucketName)
-      .uploadToSignedUrl(
-        prepared.objectName,
-        prepared.signature,
-        blob,
-        { contentType: String(operation.payload.mimeType ?? blob.type) }
-      )
-    const next: OfflineV2Operation = error
-      ? {
+      .uploadToSignedUrl(prepared.objectName, prepared.signature, blob, {
+        contentType: String(operation.payload.mimeType ?? blob.type),
+      })
+    if (error) {
+      const verified = await verifyOfflineEvidenceUploadAction(uploadInput)
+      if (!verified.ok) {
+        await putOfflineV2Operation({
           ...operation,
-          lastError: "The queued photo could not upload.",
-          state: "failed",
-        }
-      : {
-          ...operation,
-          payload: {
-            ...operation.payload,
-            storagePath: prepared.objectName,
-          },
+          lastError: storageUploadErrorMessage(error),
           state: "pending",
-        }
+        })
+        blockedOperationIds.add(operation.clientOperationId)
+        continue
+      }
+    }
+    const next: OfflineV2Operation = {
+      ...operation,
+      lastError: undefined,
+      payload: {
+        ...operation.payload,
+        storagePath: prepared.objectName,
+      },
+      state: "pending",
+    }
     await putOfflineV2Operation(next)
-    preparedOperations.push(next)
+    readyOperations.push(next)
   }
-  return preparedOperations
+  return { readyOperations }
+}
+
+async function applyPendingOptimisticState(
+  snapshot: OfflineV2Snapshot,
+  operations: OfflineV2Operation[]
+) {
+  let optimistic = snapshot
+  for (const operation of operations) {
+    if (
+      operation.entityType !== "job" ||
+      operation.entity.source !== "server"
+    ) {
+      continue
+    }
+    const jobId = operation.entity.id
+    if (operation.kind === "job.start") {
+      optimistic = updateJobEverywhere(optimistic, jobId, (job) => ({
+        ...job,
+        startedAt:
+          typeof job.startedAt === "string"
+            ? job.startedAt
+            : operation.createdAt,
+        status: "in_progress",
+      }))
+      continue
+    }
+    if (operation.kind === "job.note") {
+      optimistic = updateJobEverywhere(optimistic, jobId, (job) => ({
+        ...job,
+        noteCount: Number(job.noteCount ?? 0) + 1,
+        completionNoteCount: Number(job.completionNoteCount ?? 0) + 1,
+      }))
+      continue
+    }
+    if (operation.kind === "job.submit") {
+      optimistic = updateJobEverywhere(optimistic, jobId, (job) => ({
+        ...job,
+        status: "in_review",
+        submittedAt:
+          typeof operation.payload.submittedAt === "string"
+            ? operation.payload.submittedAt
+            : operation.createdAt,
+      }))
+      continue
+    }
+    if (operation.kind !== "job.evidence.add") continue
+    const temporaryAssetId = operation.payload.temporaryAssetId
+    if (typeof temporaryAssetId !== "number") continue
+    const blob = await getOfflineV2Blob(operation.clientOperationId)
+    if (!blob) continue
+    optimistic = updateJobEverywhere(optimistic, jobId, (job) => {
+      const evidence = job.evidence ?? []
+      if (evidence.some((asset) => asset.id === temporaryAssetId)) return job
+      return {
+        ...job,
+        evidence: [
+          ...evidence,
+          {
+            createdAt: operation.createdAt,
+            id: temporaryAssetId,
+            mimeType: String(operation.payload.mimeType ?? blob.type),
+            removable: true,
+            signedUrl: URL.createObjectURL(blob),
+            sizeBytes: blob.size,
+            uploadedByMembershipId: optimistic.membership.membershipId,
+          },
+        ],
+        pendingEvidenceCount: Number(job.pendingEvidenceCount ?? 0) + 1,
+        completionPhotoCount: Number(job.completionPhotoCount ?? 0) + 1,
+      }
+    })
+  }
+  return optimistic
+}
+
+function storageUploadErrorMessage(error: {
+  message?: string
+  statusCode?: string
+}) {
+  const detail = error.statusCode ?? error.message
+  return detail
+    ? `The queued photo could not upload (${detail}). It will retry automatically.`
+    : "The queued photo could not upload. It will retry automatically."
 }
 
 function blobDataUrl(blob: Blob) {

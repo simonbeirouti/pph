@@ -7,8 +7,10 @@ import {
   FileTextIcon,
   LoaderCircleIcon,
   MessageSquareIcon,
+  PlusIcon,
   RotateCcwIcon,
   Trash2Icon,
+  XIcon,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState, useTransition } from "react"
@@ -24,7 +26,6 @@ import {
   reopenJobAction,
   retryJobNotificationAction,
   startJobAction,
-  submitJobAction,
 } from "@/app/dashboard/jobs/actions"
 import {
   updateJobEverywhere,
@@ -99,12 +100,21 @@ export function EmployeeJobDetail({
 }) {
   const mobile = useIsMobile()
   const close = useCloseJob()
+  const [open, setOpen] = useState(true)
   if (!detail) return null
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) close()
+  }
 
   if (mobile) {
     return (
-      <Drawer open onOpenChange={(open) => !open && close()} showSwipeHandle>
-        <DrawerContent className="[--drawer-content-max-height:calc(100dvh-1rem)]">
+      <Drawer open={open} onOpenChange={handleOpenChange} showSwipeHandle>
+        <DrawerContent
+          className="duration-200 [--drawer-content-max-height:calc(100dvh-1rem)]"
+          overlayClassName="duration-200"
+        >
           <DrawerHeader>
             <DrawerTitle>{detail.title}</DrawerTitle>
             <JobBadges detail={detail} />
@@ -119,7 +129,7 @@ export function EmployeeJobDetail({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{detail.title}</DialogTitle>
@@ -148,10 +158,16 @@ export function OwnerJobDetail({
   timezone: string
 }) {
   const close = useCloseJob()
+  const [open, setOpen] = useState(true)
   if (!detail) return null
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) close()
+  }
+
   return (
-    <Sheet open onOpenChange={(open) => !open && close()}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:w-[40vw] data-[side=right]:sm:max-w-[40vw]">
         <SheetHeader className="border-b pr-12">
           <SheetTitle>{detail.title}</SheetTitle>
@@ -221,13 +237,9 @@ function JobDetailBody({
   const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   const [comment, setComment] = useState("")
-  const [note, setNote] = useState("")
   const canStart = role === "employee" && detail.status === "assigned"
   const canComplete = role === "employee" && detail.status === "in_progress"
   const showProgress = role === "owner" || detail.status !== "assigned"
-  const requirementReady =
-    (!detail.requiresCompletionNote || detail.noteCount > 0) &&
-    detail.evidence.length >= detail.minimumCompletionPhotos
 
   function run(
     action: () => Promise<{ message: string; ok: boolean }>,
@@ -246,11 +258,7 @@ function JobDetailBody({
   }
 
   async function queueJob(
-    kind:
-      | "job.start"
-      | "job.note"
-      | "job.comment"
-      | "job.submit",
+    kind: "job.start" | "job.note" | "job.comment",
     payload: Record<string, unknown> = {}
   ) {
     const queued = await offline.queue({
@@ -272,12 +280,10 @@ function JobDetailBody({
               }
             : {}),
           ...(kind === "job.note"
-            ? { noteCount: Number(current.noteCount ?? 0) + 1 }
-            : {}),
-          ...(kind === "job.submit"
             ? {
-                status: "in_review",
-                submittedAt: new Date().toISOString(),
+                completionNoteCount:
+                  Number(current.completionNoteCount ?? 0) + 1,
+                noteCount: Number(current.noteCount ?? 0) + 1,
               }
             : {}),
         })),
@@ -286,7 +292,7 @@ function JobDetailBody({
   }
 
   return (
-    <div className="grid gap-6 p-4">
+    <div className="grid gap-6 p-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       {role === "employee" &&
       detail.status === "assigned" &&
       detail.latestReopenFeedback ? (
@@ -295,6 +301,71 @@ function JobDetailBody({
           <p className="mt-1 text-sm">{detail.latestReopenFeedback}</p>
         </section>
       ) : null}
+
+      <Accordion
+        defaultValue={role === "owner" ? ["history", "comments"] : ["history"]}
+        key={`${detail.id}-${detail.status}-${role}`}
+        multiple
+      >
+        <AccordionItem value="history">
+          <AccordionTrigger
+            aria-label={`History, ${detail.timeline.length} ${
+              detail.timeline.length === 1 ? "update" : "updates"
+            }`}
+            className="hover:no-underline"
+          >
+            <span>
+              <span className="block font-medium">History</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {detail.timeline.length}{" "}
+                {detail.timeline.length === 1 ? "update" : "updates"}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Notes, comments, evidence, assignments, and status changes.
+            </p>
+            <Timeline key={detail.id} detail={detail} timezone={timezone} />
+          </AccordionContent>
+        </AccordionItem>
+
+        {role === "owner" ? (
+          <AccordionItem value="comments">
+            <AccordionTrigger className="hover:no-underline">
+              Comments
+            </AccordionTrigger>
+            <AccordionContent className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="job-comment">
+                Add comment
+              </label>
+              <Textarea
+                id="job-comment"
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="Write a comment…"
+                value={comment}
+              />
+              <Button
+                disabled={pending || !comment.trim()}
+                onClick={() =>
+                  run(
+                    async () =>
+                      (await queueJob("job.comment", { body: comment }))
+                        ? { message: "Comment saved.", ok: true }
+                        : addJobCommentAction(detail.id, comment),
+                    () => setComment("")
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                <MessageSquareIcon />
+                Comment
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+        ) : null}
+      </Accordion>
 
       <section className="grid gap-4">
         <dl className="grid grid-cols-2 gap-2 text-sm">
@@ -340,120 +411,11 @@ function JobDetailBody({
       ) : null}
 
       {canComplete ? (
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium" htmlFor="job-note">
-              Work note
-            </label>
-            <Textarea
-              id="job-note"
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="What was completed?"
-              value={note}
-            />
-            <Button
-              disabled={pending || !note.trim()}
-              onClick={() =>
-                run(
-                  async () =>
-                    (await queueJob("job.note", { body: note }))
-                      ? { message: "Note saved.", ok: true }
-                      : addJobNoteAction(detail.id, note),
-                  () => setNote("")
-                )
-              }
-              type="button"
-              variant="outline"
-            >
-              Add note
-            </Button>
-          </div>
-          <EvidenceUploader detail={detail} />
-          <Button
-            disabled={pending || !requirementReady}
-            onClick={() =>
-              run(async () =>
-                (await queueJob("job.submit"))
-                  ? { message: "Submission saved.", ok: true }
-                  : submitJobAction(detail.id)
-              )
-            }
-            type="button"
-          >
-            Submit for review
-          </Button>
-        </div>
+        <JobChangesEditor detail={detail} timezone={timezone} />
       ) : null}
 
-      {showProgress ? (
+      {showProgress && !canComplete ? (
         <EvidenceGallery detail={detail} timezone={timezone} />
-      ) : null}
-
-      {showProgress ? (
-        <Accordion
-          defaultValue={role === "owner" ? ["history", "comments"] : []}
-          key={`${detail.id}-${detail.status}-${role}`}
-          multiple
-        >
-          <AccordionItem value="history">
-            <AccordionTrigger
-              aria-label={`History, ${detail.timeline.length} ${
-                detail.timeline.length === 1 ? "update" : "updates"
-              }`}
-              className="hover:no-underline"
-            >
-              <span>
-                <span className="block font-medium">History</span>
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {detail.timeline.length}{" "}
-                  {detail.timeline.length === 1 ? "update" : "updates"}
-                </span>
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <p className="mb-3 text-sm text-muted-foreground">
-                Notes, comments, evidence, assignments, and status changes.
-              </p>
-              <Timeline key={detail.id} detail={detail} timezone={timezone} />
-            </AccordionContent>
-          </AccordionItem>
-
-          {role === "owner" ? (
-            <AccordionItem value="comments">
-              <AccordionTrigger className="hover:no-underline">
-                Comments
-              </AccordionTrigger>
-              <AccordionContent className="grid gap-2">
-                <label className="text-sm font-medium" htmlFor="job-comment">
-                  Add comment
-                </label>
-                <Textarea
-                  id="job-comment"
-                  onChange={(event) => setComment(event.target.value)}
-                  placeholder="Write a comment…"
-                  value={comment}
-                />
-                <Button
-                  disabled={pending || !comment.trim()}
-                  onClick={() =>
-                    run(
-                      async () =>
-                        (await queueJob("job.comment", { body: comment }))
-                          ? { message: "Comment saved.", ok: true }
-                          : addJobCommentAction(detail.id, comment),
-                      () => setComment("")
-                    )
-                  }
-                  type="button"
-                  variant="outline"
-                >
-                  <MessageSquareIcon />
-                  Comment
-                </Button>
-              </AccordionContent>
-            </AccordionItem>
-          ) : null}
-        </Accordion>
       ) : null}
     </div>
   )
@@ -496,10 +458,7 @@ function OwnerJobActions({
   }
 
   async function queueOwnerJobOperation(
-    kind:
-      | "job.archive"
-      | "job.reopen"
-      | "job.notification.retry",
+    kind: "job.archive" | "job.reopen" | "job.notification.retry",
     payload: Record<string, unknown>
   ) {
     return offline.queue({
@@ -552,10 +511,9 @@ function OwnerJobActions({
                 disabled={pending}
                 onClick={() =>
                   run(async () =>
-                    (await queueOwnerJobOperation(
-                      "job.notification.retry",
-                      { deliveryId: notification.id }
-                    ))
+                    (await queueOwnerJobOperation("job.notification.retry", {
+                      deliveryId: notification.id,
+                    }))
                       ? { message: "Email retry queued.", ok: true }
                       : retryJobNotificationAction(notification.id)
                   )
@@ -700,151 +658,199 @@ function OwnerJobActions({
   )
 }
 
-function EvidenceUploader({ detail }: { detail: JobDetail }) {
+type DraftEvidence = {
+  file: File
+  id: string
+  mimeType: NonNullable<ReturnType<typeof mimeTypeForImageUpload>>
+  previewUrl: string
+  uploadSizeBytes: number
+}
+
+function JobChangesEditor({
+  detail,
+  timezone,
+}: {
+  detail: JobDetail
+  timezone: string
+}) {
   const router = useRouter()
   const offline = useOfflineV2Actions()
   const inputRef = useRef<HTMLInputElement>(null)
   const attemptRef = useRef(0)
   const optimizationControllerRef = useRef<AbortController | null>(null)
   const tusUploadRef = useRef<tus.Upload | null>(null)
+  const draftsRef = useRef<DraftEvidence[]>([])
+  const temporaryAssetIdRef = useRef(0)
+  const [drafts, setDrafts] = useState<DraftEvidence[]>([])
+  const [note, setNote] = useState("")
+  const [saving, startSaving] = useTransition()
   const [uploadState, setUploadState] = useState<
     { phase: "optimizing" } | { phase: "uploading"; progress: number } | null
   >(null)
+
+  useEffect(() => {
+    draftsRef.current = drafts
+  }, [drafts])
 
   useEffect(
     () => () => {
       attemptRef.current += 1
       optimizationControllerRef.current?.abort()
       void tusUploadRef.current?.abort(true)
+      for (const draft of draftsRef.current) {
+        URL.revokeObjectURL(draft.previewUrl)
+      }
     },
     []
   )
 
-  async function upload(sourceFile: File) {
+  async function stageFiles(sourceFiles: readonly File[]) {
+    const available = 10 - detail.evidence.length - draftsRef.current.length
+    if (available <= 0) return
     const attempt = attemptRef.current + 1
     attemptRef.current = attempt
     optimizationControllerRef.current?.abort()
-    void tusUploadRef.current?.abort(true)
     const controller = new AbortController()
     optimizationControllerRef.current = controller
     setUploadState({ phase: "optimizing" })
 
-    const reset = () => {
-      if (attemptRef.current !== attempt) return
-      optimizationControllerRef.current = null
-      tusUploadRef.current = null
-      setUploadState(null)
-      if (inputRef.current) inputRef.current.value = ""
-    }
-
     try {
-      const optimized = await optimizeJobEvidenceFile(sourceFile, {
-        signal: controller.signal,
-      })
-      if (attemptRef.current !== attempt || controller.signal.aborted) return
-
-      if (optimized.outcome === "fallback") {
-        toast.warning(
-          "This photo could not be optimized. Uploading the original instead."
+      const nextDrafts: DraftEvidence[] = []
+      for (const sourceFile of sourceFiles.slice(0, available)) {
+        const optimized = await optimizeJobEvidenceFile(sourceFile, {
+          signal: controller.signal,
+        })
+        if (attemptRef.current !== attempt || controller.signal.aborted) return
+        if (optimized.outcome === "fallback") {
+          toast.warning(
+            "This photo could not be optimized. Uploading the original instead."
+          )
+        }
+        const mimeType = mimeTypeForImageUpload(optimized.file)
+        if (!mimeType) {
+          toast.error("Choose a JPEG, PNG, WebP, HEIC, or HEIF image.")
+          continue
+        }
+        nextDrafts.push({
+          file: optimized.file,
+          id: crypto.randomUUID(),
+          mimeType,
+          previewUrl: URL.createObjectURL(optimized.file),
+          uploadSizeBytes: optimized.uploadSizeBytes,
+        })
+      }
+      if (nextDrafts.length) {
+        setDrafts((current) => [...current, ...nextDrafts])
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "The photo could not be prepared."
         )
       }
-      const file = optimized.file
-      const mimeType = mimeTypeForImageUpload(file)
-      if (!mimeType) {
-        toast.error("Choose a JPEG, PNG, WebP, HEIC, or HEIF image.")
-        reset()
-        return
+    } finally {
+      if (attemptRef.current === attempt) {
+        optimizationControllerRef.current = null
+        setUploadState(null)
+        if (inputRef.current) inputRef.current.value = ""
       }
-      const temporaryAssetId = -Date.now()
-      if (
-        await offline.queue({
-          blob: file,
-          entityId: detail.id,
-          entityType: "job",
-          expectedVersion: detail.version ?? null,
-          kind: "job.evidence.add",
-          payload: {
-            extension: extensionForImageMimeType(mimeType),
-            mimeType,
-            sizeBytes: file.size,
-            temporaryAssetId,
-          },
-          optimistic: (snapshot) =>
-            updateJobEverywhere(snapshot, detail.id, (current) => ({
-              ...current,
-              evidence: [
-                ...(current.evidence ?? []),
-                {
-                  createdAt: new Date().toISOString(),
-                  id: temporaryAssetId,
-                  mimeType,
-                  removable: true,
-                  signedUrl: URL.createObjectURL(file),
-                  sizeBytes: file.size,
-                  uploadedByMembershipId:
-                    snapshot.membership.membershipId,
-                },
-              ],
-              pendingEvidenceCount:
-                Number(current.pendingEvidenceCount ?? 0) + 1,
-            })),
-        })
-      ) {
-        toast.success("Photo saved on this device")
-        reset()
-        return
-      }
+    }
+  }
 
-      const prepared = await prepareJobEvidenceUploadAction({
-        jobId: detail.id,
-        mimeType,
-        sizeBytes: optimized.uploadSizeBytes,
+  async function savePhoto(
+    draft: DraftEvidence,
+    attempt: number
+  ): Promise<{ message: string; ok: boolean }> {
+    if (temporaryAssetIdRef.current === 0) {
+      temporaryAssetIdRef.current = -Date.now()
+    }
+    const temporaryAssetId = temporaryAssetIdRef.current--
+    if (
+      await offline.queue({
+        blob: draft.file,
+        entityId: detail.id,
+        entityType: "job",
+        expectedVersion: detail.version ?? null,
+        kind: "job.evidence.add",
+        payload: {
+          extension: extensionForImageMimeType(draft.mimeType),
+          mimeType: draft.mimeType,
+          sizeBytes: draft.file.size,
+          temporaryAssetId,
+        },
+        optimistic: (snapshot) =>
+          updateJobEverywhere(snapshot, detail.id, (current) => ({
+            ...current,
+            completionPhotoCount: Number(current.completionPhotoCount ?? 0) + 1,
+            evidence: [
+              ...(current.evidence ?? []),
+              {
+                createdAt: new Date().toISOString(),
+                id: temporaryAssetId,
+                mimeType: draft.mimeType,
+                removable: true,
+                signedUrl: URL.createObjectURL(draft.file),
+                sizeBytes: draft.file.size,
+                uploadedByMembershipId: snapshot.membership.membershipId,
+              },
+            ],
+            pendingEvidenceCount: Number(current.pendingEvidenceCount ?? 0) + 1,
+          })),
       })
-      if (attemptRef.current !== attempt || controller.signal.aborted) return
-      if (!prepared.ok) {
-        toast.error(prepared.message)
-        reset()
-        return
-      }
-      const uploadHost = new URL(prepared.uploadUrl).hostname
-      const localStorageService =
-        uploadHost === "127.0.0.1" || uploadHost === "localhost"
-      const headers: Record<string, string> = {
-        "x-signature": prepared.signature,
-      }
+    ) {
+      return { message: "Photo saved on this device.", ok: true }
+    }
 
-      // The current local Storage image predates signed TUS support. Hosted
-      // Supabase uses the short-lived signature; local verification uses the
-      // user's access token and the same Storage path policy.
-      if (localStorageService) {
-        const {
-          data: { session },
-        } = await createBrowserSupabaseClient().auth.getSession()
-        if (!session) {
-          toast.error("Your session expired. Sign in and try the upload again.")
-          reset()
-          return
+    const prepared = await prepareJobEvidenceUploadAction({
+      jobId: detail.id,
+      mimeType: draft.mimeType,
+      sizeBytes: draft.uploadSizeBytes,
+    })
+    if (attemptRef.current !== attempt) {
+      return { message: "The photo save was cancelled.", ok: false }
+    }
+    if (!prepared.ok) return prepared
+
+    const uploadHost = new URL(prepared.uploadUrl).hostname
+    const localStorageService =
+      uploadHost === "127.0.0.1" || uploadHost === "localhost"
+    const headers: Record<string, string> = {
+      "x-signature": prepared.signature,
+    }
+
+    // The local Storage image predates signed TUS support. Hosted Supabase
+    // uses the short-lived signature; local verification uses the session.
+    if (localStorageService) {
+      const {
+        data: { session },
+      } = await createBrowserSupabaseClient().auth.getSession()
+      if (!session) {
+        return {
+          message: "Your session expired. Sign in and try the upload again.",
+          ok: false,
         }
-        delete headers["x-signature"]
-        headers.authorization = `Bearer ${session.access_token}`
       }
+      delete headers["x-signature"]
+      headers.authorization = `Bearer ${session.access_token}`
+    }
 
-      if (attemptRef.current !== attempt || controller.signal.aborted) return
-      setUploadState({ phase: "uploading", progress: 0 })
-      const tusUpload = new tus.Upload(file, {
+    setUploadState({ phase: "uploading", progress: 0 })
+    return await new Promise((resolve) => {
+      const tusUpload = new tus.Upload(draft.file, {
         chunkSize: 6 * 1024 * 1024,
         endpoint: prepared.uploadUrl,
         headers,
         metadata: {
           bucketName: prepared.bucketName,
           cacheControl: "3600",
-          contentType: mimeType,
+          contentType: draft.mimeType,
           objectName: prepared.objectName,
         },
         onError(error) {
           if (attemptRef.current !== attempt) return
-          toast.error(`Upload failed: ${error.message}`)
-          reset()
+          resolve({ message: `Upload failed: ${error.message}`, ok: false })
         },
         async onSuccess() {
           if (attemptRef.current !== attempt) return
@@ -853,10 +859,7 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
             objectName: prepared.objectName,
           })
           if (attemptRef.current !== attempt) return
-          if (result.ok) toast.success(result.message)
-          else toast.error(result.message)
-          reset()
-          router.refresh()
+          resolve(result)
         },
         onProgress(uploaded, total) {
           if (attemptRef.current !== attempt) return
@@ -871,33 +874,164 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
       })
       tusUploadRef.current = tusUpload
       tusUpload.start()
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return
-      }
-      toast.error(
-        error instanceof Error ? error.message : "The photo could not upload."
-      )
-      reset()
-    }
+    })
   }
 
+  function saveChanges() {
+    const noteBody = note.trim()
+    const draftsToSave = [...draftsRef.current]
+    const attempt = attemptRef.current + 1
+    attemptRef.current = attempt
+
+    startSaving(async () => {
+      let savedAnything = false
+      if (noteBody) {
+        const queued = await offline.queue({
+          entityId: detail.id,
+          entityType: "job",
+          expectedVersion: detail.version ?? null,
+          kind: "job.note",
+          payload: { body: noteBody },
+          optimistic: (snapshot) =>
+            updateJobEverywhere(snapshot, detail.id, (current) => ({
+              ...current,
+              completionNoteCount: Number(current.completionNoteCount ?? 0) + 1,
+              noteCount: Number(current.noteCount ?? 0) + 1,
+            })),
+        })
+        const result = queued
+          ? { message: "Note saved on this device.", ok: true }
+          : await addJobNoteAction(detail.id, noteBody)
+        if (result.ok) {
+          savedAnything = true
+          setNote("")
+        } else {
+          toast.error(result.message)
+        }
+      }
+
+      const savedDraftIds = new Set<string>()
+      for (const draft of draftsToSave) {
+        try {
+          const result = await savePhoto(draft, attempt)
+          if (result.ok) {
+            savedAnything = true
+            savedDraftIds.add(draft.id)
+          } else {
+            toast.error(result.message)
+          }
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "The photo could not be saved."
+          )
+        }
+      }
+
+      if (savedDraftIds.size) {
+        setDrafts((current) =>
+          current.filter((draft) => {
+            if (!savedDraftIds.has(draft.id)) return true
+            URL.revokeObjectURL(draft.previewUrl)
+            return false
+          })
+        )
+      }
+      tusUploadRef.current = null
+      setUploadState(null)
+      if (savedAnything) {
+        toast.success("Changes saved.")
+        if (!offline.isOffline) router.refresh()
+      }
+    })
+  }
+
+  const dirty = Boolean(note.trim() || drafts.length)
+  const atPhotoLimit = detail.evidence.length + drafts.length >= 10
+
   return (
-    <div className="grid gap-2">
-      <label className="text-sm font-medium" htmlFor="job-evidence">
-        Completion photos
-      </label>
+    <section className="grid gap-4" aria-label="Job changes">
+      <div className="grid gap-2">
+        <label className="text-sm font-medium" htmlFor="job-note">
+          Work note
+        </label>
+        <Input
+          id="job-note"
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="What was completed?"
+          value={note}
+        />
+      </div>
+
+      <EvidenceGallery detail={detail} timezone={timezone} />
+
+      {drafts.length ? (
+        <div className="grid grid-cols-2 gap-2" aria-label="Selected photos">
+          {drafts.map((draft) => (
+            <figure
+              className="relative overflow-hidden rounded-lg border"
+              key={draft.id}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
+              <img
+                alt="Selected completion photo preview"
+                className="aspect-square w-full object-cover"
+                src={draft.previewUrl}
+              />
+              <Button
+                aria-label="Remove selected photo"
+                className="absolute top-2 right-2"
+                disabled={saving}
+                onClick={() => {
+                  URL.revokeObjectURL(draft.previewUrl)
+                  setDrafts((current) =>
+                    current.filter((item) => item.id !== draft.id)
+                  )
+                }}
+                size="icon-sm"
+                type="button"
+                variant="destructive"
+              >
+                <XIcon />
+              </Button>
+            </figure>
+          ))}
+        </div>
+      ) : null}
+
       <Input
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-        disabled={uploadState !== null || detail.evidence.length >= 10}
+        aria-label="Completion photos"
+        className="sr-only"
+        disabled={uploadState !== null || saving || atPhotoLimit}
         id="job-evidence"
+        multiple
         onChange={(event) => {
-          const file = event.target.files?.[0]
-          if (file) void upload(file)
+          const files = Array.from(event.target.files ?? [])
+          if (files.length) void stageFiles(files)
         }}
         ref={inputRef}
         type="file"
       />
+      <button
+        aria-label="Add completion photos"
+        className="grid min-h-28 w-full place-items-center rounded-lg border border-dashed border-muted-foreground/50 bg-muted/20 text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={uploadState !== null || saving || atPhotoLimit}
+        onClick={() => inputRef.current?.click()}
+        type="button"
+      >
+        <span className="grid place-items-center gap-2">
+          {uploadState?.phase === "optimizing" ? (
+            <LoaderCircleIcon className="size-7 animate-spin" />
+          ) : (
+            <PlusIcon className="size-8" />
+          )}
+          <span className="text-xs">
+            {atPhotoLimit ? "Photo limit reached" : "Add completion photos"}
+          </span>
+        </span>
+      </button>
       <p className="text-xs text-muted-foreground">
         JPEG, PNG, WebP, HEIC, or HEIF · 10 MB source maximum · larger photos
         are optimized · up to 10 photos
@@ -919,7 +1053,17 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
           </span>
         </div>
       ) : null}
-    </div>
+      {dirty ? (
+        <Button
+          disabled={saving || uploadState !== null}
+          onClick={saveChanges}
+          type="button"
+        >
+          {saving ? <LoaderCircleIcon className="animate-spin" /> : null}
+          Save
+        </Button>
+      ) : null}
+    </section>
   )
 }
 
@@ -964,22 +1108,22 @@ function EvidenceGallery({
                     kind: "job.evidence.remove",
                     payload: { assetId: asset.id },
                     optimistic: (snapshot) =>
-                      updateJobEverywhere(
-                        snapshot,
-                        detail.id,
-                        (current) => ({
-                          ...current,
-                          evidence: Array.isArray(current.evidence)
-                            ? current.evidence.filter(
-                                (item) =>
-                                  typeof item !== "object" ||
-                                  item === null ||
-                                  !("id" in item) ||
-                                  item.id !== asset.id
-                              )
-                            : [],
-                        })
-                      ),
+                      updateJobEverywhere(snapshot, detail.id, (current) => ({
+                        ...current,
+                        completionPhotoCount: Math.max(
+                          0,
+                          Number(current.completionPhotoCount ?? 0) - 1
+                        ),
+                        evidence: Array.isArray(current.evidence)
+                          ? current.evidence.filter(
+                              (item) =>
+                                typeof item !== "object" ||
+                                item === null ||
+                                !("id" in item) ||
+                                item.id !== asset.id
+                            )
+                          : [],
+                      })),
                   })
                   const result = queued
                     ? { message: "Photo removal saved.", ok: true }

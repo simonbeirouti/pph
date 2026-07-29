@@ -34,10 +34,14 @@ export function NavUser({
         <SidebarMenuButton
           aria-current={isActive ? "page" : undefined}
           isActive={isActive}
-          onClick={() => {
-            if (isMobile) setOpenMobile(false)
-          }}
-          render={<Link href="/dashboard/profile" />}
+          render={
+            <Link
+              href="/dashboard/profile"
+              onNavigate={() => {
+                if (isMobile) setOpenMobile(false)
+              }}
+            />
+          }
           size="lg"
           tooltip="Profile"
         >

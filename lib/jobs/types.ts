@@ -8,6 +8,8 @@ export type JobWorkflowColumnKey =
 
 export type JobCard = {
   assigneeMembershipId: number | null
+  completionNoteCount?: number
+  completionPhotoCount?: number
   description: string
   dueAt: string | null
   id: number

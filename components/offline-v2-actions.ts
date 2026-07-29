@@ -3,18 +3,17 @@
 import { useCallback } from "react"
 
 import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
-import { putOfflineV2Blob } from "@/lib/offline-v2/storage"
+import {
+  getOfflineV2Operations,
+  putOfflineV2Blob,
+} from "@/lib/offline-v2/storage"
 import type {
   OfflineEntityType,
   OfflineOperationKind,
   OfflineV2Snapshot,
 } from "@/lib/offline-v2/types"
-import type { JobCard, JobDetail } from "@/lib/jobs/types"
 
-type OfflineJobEntity = JobCard &
-  Partial<JobDetail> & {
-    pendingEvidenceCount?: number
-  }
+export { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
 
 type QueueInput = {
   blob?: Blob
@@ -36,7 +35,7 @@ export function useOfflineV2Actions() {
       if (input.blob) {
         await putOfflineV2Blob(clientOperationId, input.blob)
       }
-      const dependency = offline.operations
+      const dependency = (await getOfflineV2Operations())
         .filter(
           (operation) =>
             operation.entityType === input.entityType &&
@@ -69,55 +68,5 @@ export function useOfflineV2Actions() {
     isOffline: Boolean(offline && !offline.isOnline),
     navigate: offline?.navigate,
     queue,
-  }
-}
-
-export function updateJobEverywhere(
-  snapshot: OfflineV2Snapshot,
-  jobId: number,
-  update: (job: OfflineJobEntity) => OfflineJobEntity
-) {
-  const updateList = <T extends { id: number }>(items: T[]) =>
-    items.map((item) =>
-      item.id === jobId
-        ? (update(item as unknown as OfflineJobEntity) as unknown as T)
-        : item
-    )
-  const detail = snapshot.jobDetails[jobId]
-  return {
-    ...snapshot,
-    dashboard: {
-      employee: snapshot.dashboard.employee
-        ? {
-            ...snapshot.dashboard.employee,
-            jobs: updateList(snapshot.dashboard.employee.jobs),
-            nextActionable:
-              snapshot.dashboard.employee.nextActionable?.id === jobId
-                ? (update(
-                    snapshot.dashboard.employee.nextActionable
-                  ) as typeof snapshot.dashboard.employee.nextActionable)
-                : snapshot.dashboard.employee.nextActionable,
-          }
-        : null,
-      operations: snapshot.dashboard.operations
-        ? {
-            ...snapshot.dashboard.operations,
-            recentlySubmitted: updateList(
-              snapshot.dashboard.operations.recentlySubmitted
-            ),
-            urgent: updateList(snapshot.dashboard.operations.urgent),
-          }
-        : null,
-    },
-    employeeJobs: updateList(snapshot.employeeJobs),
-    jobs: snapshot.jobs
-      ? { ...snapshot.jobs, jobs: updateList(snapshot.jobs.jobs) }
-      : null,
-    jobDetails: detail
-      ? {
-          ...snapshot.jobDetails,
-          [jobId]: update(detail) as JobDetail,
-        }
-      : snapshot.jobDetails,
   }
 }

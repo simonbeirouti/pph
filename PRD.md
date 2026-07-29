@@ -1383,20 +1383,20 @@ integrated V1 release review.
 Current release decision: **NO-GO**. S11 is complete and S12 is in progress, so
 the application is not yet approved for production.
 
-| Step | Capability                             | Status        | Checkpoint   | Verification summary                                                                                 |
-| ---- | -------------------------------------- | ------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline    | `complete`    | `8a07533`    | Baseline documents, environment contract, and reference assets recorded                              |
-| S01  | Platform foundation                    | `complete`    | `2e26642`    | Lint, types, unit, database, desktop/mobile E2E, and build passed                                    |
-| S02  | Authentication and employees           | `complete`    | `049a0e9`    | Invitation, activation, employee lifecycle, storage, and isolation passed                            |
-| S03  | Progressive Web App shell              | `complete`    | `b43f944`    | Manifest, install assets, service-worker lifecycle, headers, and degradation passed                  |
-| S04  | Owner jobs and Kanban                  | `complete`    | `f00c938`    | Workflow, assignment, permissions, and desktop/mobile board journeys passed                          |
-| S05  | Employee execution and owner review    | `complete`    | `ef897ef`    | Evidence, submission, review, notification, and private-storage checks passed                        |
-| S06  | Roster data and views                  | `complete`    | `ca99a70`    | Organisation and employee views, time handling, and scheduling passed                                |
-| S07  | Roster interactions                    | `complete`    | `18c1987`    | Desktop/mobile creation, exact editing, archive, and transactional assignment passed                 |
-| S08  | Templates and job schedules            | `complete`    | `26e65e6`    | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                      |
-| S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                   |
-| S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed      |
-| S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed |
+| Step | Capability                             | Status        | Checkpoint   | Verification summary                                                                                                    |
+| ---- | -------------------------------------- | ------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline    | `complete`    | `8a07533`    | Baseline documents, environment contract, and reference assets recorded                                                 |
+| S01  | Platform foundation                    | `complete`    | `2e26642`    | Lint, types, unit, database, desktop/mobile E2E, and build passed                                                       |
+| S02  | Authentication and employees           | `complete`    | `049a0e9`    | Invitation, activation, employee lifecycle, storage, and isolation passed                                               |
+| S03  | Progressive Web App shell              | `complete`    | `b43f944`    | Manifest, install assets, service-worker lifecycle, headers, and degradation passed                                     |
+| S04  | Owner jobs and Kanban                  | `complete`    | `f00c938`    | Workflow, assignment, permissions, and desktop/mobile board journeys passed                                             |
+| S05  | Employee execution and owner review    | `complete`    | `ef897ef`    | Evidence, submission, review, notification, and private-storage checks passed                                           |
+| S06  | Roster data and views                  | `complete`    | `ca99a70`    | Organisation and employee views, time handling, and scheduling passed                                                   |
+| S07  | Roster interactions                    | `complete`    | `18c1987`    | Desktop/mobile creation, exact editing, archive, and transactional assignment passed                                    |
+| S08  | Templates and job schedules            | `complete`    | `26e65e6`    | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                                         |
+| S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                                      |
+| S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed                         |
+| S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed                    |
 | S12  | Integration and production hardening   | `in_progress` | working tree | Offline-v2 targeted database/unit/desktop/mobile Chromium checks pass; native Safari/Android staging acceptance remains |
 
 ### Step 1: Platform foundation — complete
@@ -1635,6 +1635,32 @@ Automated implementation evidence (2026-07-29):
   staging reload/deep-link, upgrade, lease, revocation, storage-pressure, and
   conflict-resolution acceptance remain required. The release stays
   **NO-GO** and TODO-015 remains in progress.
+- Hosted real-device reconnect follow-up (2026-07-29): the worker start and
+  note receipts applied, but a failed signed Storage upload was still sent to
+  replay without a `storagePath`. The photo receipt consequently failed, its
+  dependent submission was withheld, and the client replaced the optimistic
+  job with the partial server snapshot while leaving `Changes pending`.
+  Remediation serialises refresh/sync, withholds unprepared uploads and their
+  dependants from replay, verifies ambiguous signed-upload outcomes, retries
+  transient work automatically, preserves the latest IndexedDB dependency
+  chain, and reapplies pending job/photo/submission state over each canonical
+  snapshot. Automated tests were intentionally not run for this follow-up at
+  the product owner's request; deployed real-device replay remains pending.
+- Job and navigation UI remediation (2026-07-29): mobile sidebar links now
+  close the navigation drawer; assigned-worker job detail puts expanded history
+  first, stages notes and photos behind a conditional Save action, uses an
+  accessible full-width dashed photo picker, and closes with an immediate local
+  transition. Requirement-satisfied assigned-work cards now own review
+  submission, backed by filtered Supabase relationship counts and authoritative
+  server validation. This deliberately overlaps the active offline optimistic
+  action work in `components/offline-v2-provider.tsx` and
+  `lib/offline-v2/optimistic.ts`; pending note/photo operations update the new
+  optional card counts without changing the existing replay contract.
+- Targeted remediation verification passed: ESLint for changed files,
+  `pnpm typecheck`, 3 Vitest files / 27 tests, the execution/review Chromium
+  journey (including its Pixel 7 worker flow), and the sidebar navigation check
+  in both Mobile Chrome and Mobile Safari. No migration, RLS, environment, or
+  public-route change was required.
 
 ## 13. Prototype and production readiness
 
@@ -1663,20 +1689,20 @@ Run from a clean checkout against the release candidate. Record the commit,
 date, environment, command output or CI URL, and reviewer. Do not reset a
 shared or production database.
 
-| Gate                | Command or evidence                                                                    | Required result                                                            | Status/evidence                  |
-| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------- |
-| Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [x] 2026-07-29 local             |
-| Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [x] frozen install               |
-| Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [x] pass                         |
-| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [x] 180 pass                     |
-| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [x] 330 pass                     |
-| Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [x] no errors                    |
-| Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [x] regenerated                  |
-| Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [x] pass                         |
-| Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [x] 84 pass, 4 intentional skips |
-| Offline/idempotency | S12 offline-v2 database and Playwright suites                                         | Every role navigates and replays exactly once; conflicts retain local work | [ ] 10 targeted checks pass; native reload/deep-link/conflict staging acceptance pending |
-| Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [x] pass                         |
-| Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]                              |
+| Gate                | Command or evidence                                                                    | Required result                                                            | Status/evidence                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [x] 2026-07-29 local                                                                     |
+| Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [x] frozen install                                                                       |
+| Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [x] pass                                                                                 |
+| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [x] 180 pass                                                                             |
+| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [x] 330 pass                                                                             |
+| Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [x] no errors                                                                            |
+| Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [x] regenerated                                                                          |
+| Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [x] pass                                                                                 |
+| Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [x] 84 pass, 4 intentional skips                                                         |
+| Offline/idempotency | S12 offline-v2 database and Playwright suites                                          | Every role navigates and replays exactly once; conflicts retain local work | [ ] 10 targeted checks pass; native reload/deep-link/conflict staging acceptance pending |
+| Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [x] pass                                                                                 |
+| Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]                                                                                      |
 
 If `pnpm db:types` changes the checked-in file, review and commit the change,
 then rerun the affected checks. The final gate must run against that exact
@@ -1774,15 +1800,15 @@ Add a TODO as soon as an active step identifies work owned by a later step.
 Resolve it only when the integrated behaviour and its regression test pass. If
 resolution changes product behaviour, update this document first.
 
-| ID       | Introduced      | Target | Work                                                                                              | Status     |
-| -------- | --------------- | ------ | ------------------------------------------------------------------------------------------------- | ---------- |
-| TODO-003 | Schema steps    | S12    | Regenerate and verify final combined Supabase types                                               | `complete` |
-| TODO-004 | All steps       | S12    | Reconcile dependencies and remove unused packages                                                 | `complete` |
-| TODO-007 | All steps       | S12    | Consolidate shared Supabase and Playwright fixtures without weakening isolation                   | `complete` |
-| TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `complete` |
-| TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `complete` |
-| TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete` |
-| TODO-014 | S03/S05/S10     | S11    | Add the original IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete` |
+| ID       | Introduced      | Target | Work                                                                                              | Status        |
+| -------- | --------------- | ------ | ------------------------------------------------------------------------------------------------- | ------------- |
+| TODO-003 | Schema steps    | S12    | Regenerate and verify final combined Supabase types                                               | `complete`    |
+| TODO-004 | All steps       | S12    | Reconcile dependencies and remove unused packages                                                 | `complete`    |
+| TODO-007 | All steps       | S12    | Consolidate shared Supabase and Playwright fixtures without weakening isolation                   | `complete`    |
+| TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `complete`    |
+| TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `complete`    |
+| TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete`    |
+| TODO-014 | S03/S05/S10     | S11    | Add the original IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete`    |
 | TODO-015 | S11/real-device | S12    | Replace narrow assigned-work fallback with complete all-role offline-first dashboard and sync     | `in_progress` |
 
 Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
