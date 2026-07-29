@@ -42,7 +42,7 @@ export function OfflineDashboardBoundary({
   children: React.ReactNode
 }) {
   const offline = useOfflineV2()
-  if (offline.isOnline) return children
+  if (!offline.usesLocalRepository) return children
   return <OfflineDashboardRouter />
 }
 
@@ -183,10 +183,13 @@ function OfflineJobsPage({
           jobs={snapshot.employeeJobs}
           timezone={membership.timezone}
         />
-        <EmployeeJobDetail
-          detail={selectedDetail}
-          timezone={membership.timezone}
-        />
+        {selectedDetail ? (
+          <EmployeeJobDetail
+            detail={selectedDetail}
+            key={selectedDetail.id}
+            timezone={membership.timezone}
+          />
+        ) : null}
       </div>
     )
   }
@@ -215,15 +218,18 @@ function OfflineJobsPage({
         templates={snapshot.jobs.templates}
         timezone={snapshot.jobs.timezone}
       />
-      <OwnerJobDetail
-        canReview={
-          membership.role === "owner" ||
-          selectedDetail?.requiredReviewerRole === "manager"
-        }
-        detail={selectedDetail}
-        employees={snapshot.jobs.employees}
-        timezone={snapshot.jobs.timezone}
-      />
+      {selectedDetail ? (
+        <OwnerJobDetail
+          canReview={
+            membership.role === "owner" ||
+            selectedDetail.requiredReviewerRole === "manager"
+          }
+          detail={selectedDetail}
+          employees={snapshot.jobs.employees}
+          key={selectedDetail.id}
+          timezone={snapshot.jobs.timezone}
+        />
+      ) : null}
     </div>
   )
 }

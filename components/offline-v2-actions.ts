@@ -30,7 +30,7 @@ export function useOfflineV2Actions() {
 
   const queue = useCallback(
     async (input: QueueInput) => {
-      if (!offline || offline.isOnline) return false
+      if (!offline?.usesLocalRepository) return false
       const clientOperationId = crypto.randomUUID()
       if (input.blob) {
         await putOfflineV2Blob(clientOperationId, input.blob)
@@ -65,7 +65,7 @@ export function useOfflineV2Actions() {
   )
 
   return {
-    isOffline: Boolean(offline && !offline.isOnline),
+    isOffline: Boolean(offline?.usesLocalRepository),
     navigate: offline?.navigate,
     queue,
   }

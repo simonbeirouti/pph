@@ -34,6 +34,7 @@ import {
   verifyOfflineEvidenceUploadAction,
 } from "@/app/dashboard/jobs/offline-actions"
 import { ensureOfflineShellReady } from "@/components/service-worker-registration"
+import { restoreOfflineEvidenceFile } from "@/lib/offline-v2/evidence-upload"
 import { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import type {
@@ -56,6 +57,7 @@ type OfflineV2ContextValue = {
   refresh: () => Promise<void>
   snapshot: OfflineV2Snapshot | null
   status: OfflineSyncStatus
+  usesLocalRepository: boolean
   updateSnapshot: (
     updater: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
   ) => Promise<void>
@@ -75,6 +77,7 @@ export function OfflineV2Provider({
   const [conflicts, setConflicts] = useState<OfflineConflict[]>([])
   const [isOnline, setIsOnline] = useState(true)
   const [status, setStatus] = useState<OfflineSyncStatus>("preparing")
+  const [usesLocalRepository, setUsesLocalRepository] = useState(false)
   const [currentPath, setCurrentPath] = useState("/dashboard")
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
@@ -111,6 +114,14 @@ export function OfflineV2Provider({
     setSnapshot(usableSnapshot)
     setOperations(storedOperationsForIdentity)
     setConflicts(identityMatches ? storedConflicts : [])
+    if (
+      usableSnapshot &&
+      (!navigator.onLine ||
+        storedOperationsForIdentity.length > 0 ||
+        storedConflicts.length > 0)
+    ) {
+      setUsesLocalRepository(true)
+    }
     if (!usableSnapshot) {
       setStatus("cold")
     } else if (!isOfflineLeaseValid(usableSnapshot.leaseExpiresAt)) {
@@ -171,6 +182,7 @@ export function OfflineV2Provider({
         setSnapshot(null)
         setOperations([])
         setConflicts([])
+        setUsesLocalRepository(false)
         setStatus("cold")
         return
       }
@@ -284,6 +296,7 @@ export function OfflineV2Provider({
         }
         setSnapshot(null)
         snapshotStateRef.current = null
+        setUsesLocalRepository(false)
         setStatus("cold")
         return
       }
@@ -307,6 +320,7 @@ export function OfflineV2Provider({
     }
     const onOffline = () => {
       setIsOnline(false)
+      setUsesLocalRepository(true)
       void reloadLocalState()
     }
     const onVisibility = () => {
@@ -363,7 +377,7 @@ export function OfflineV2Provider({
   )
 
   useEffect(() => {
-    if (isOnline) return
+    if (!usesLocalRepository) return
     const interceptDashboardLink = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -393,10 +407,11 @@ export function OfflineV2Provider({
     document.addEventListener("click", interceptDashboardLink, true)
     return () =>
       document.removeEventListener("click", interceptDashboardLink, true)
-  }, [isOnline, navigate])
+  }, [navigate, usesLocalRepository])
 
   const queueOperation = useCallback(async (operation: OfflineV2Operation) => {
     await putOfflineV2Operation(operation)
+    setUsesLocalRepository(true)
     setOperations((current) =>
       [
         ...current.filter(
@@ -431,6 +446,7 @@ export function OfflineV2Provider({
       refresh,
       snapshot,
       status,
+      usesLocalRepository,
       updateSnapshot,
     }),
     [
@@ -443,13 +459,18 @@ export function OfflineV2Provider({
       refresh,
       snapshot,
       status,
+      usesLocalRepository,
       updateSnapshot,
     ]
   )
 
   return (
     <OfflineV2Context.Provider value={value}>
-      <div className="contents" data-offline-provider={status}>
+      <div
+        className="contents"
+        data-offline-provider={status}
+        data-offline-repository={usesLocalRepository ? "local" : "server"}
+      >
         {children}
       </div>
     </OfflineV2Context.Provider>
@@ -523,13 +544,49 @@ async function preparePendingUploads(operations: OfflineV2Operation[]) {
       clientOperationId: operation.clientOperationId,
       extension: String(operation.payload.extension ?? ""),
       jobId: operation.entity.id,
+      mimeType: String(operation.payload.mimeType ?? blob.type),
+    }
+    if (operation.lastError) {
+      try {
+        const existing = await verifyOfflineEvidenceUploadAction(uploadInput)
+        if (existing.ok) {
+          const next: OfflineV2Operation = {
+            ...operation,
+            lastError: undefined,
+            payload: {
+              ...operation.payload,
+              storagePath: existing.objectName,
+            },
+            state: "pending",
+          }
+          await putOfflineV2Operation(next)
+          readyOperations.push(next)
+          continue
+        }
+      } catch {
+        // A failed verification is ambiguous, so retry the deterministic upload.
+      }
     }
     const prepared = await prepareOfflineEvidenceUploadAction(uploadInput)
     if (!prepared.ok) {
       await putOfflineV2Operation({
         ...operation,
         lastError: prepared.message,
-        state: "pending",
+        state: prepared.retryable ? "pending" : "needs_attention",
+      })
+      blockedOperationIds.add(operation.clientOperationId)
+      continue
+    }
+    const uploadFile = restoreOfflineEvidenceFile(blob, {
+      clientOperationId: operation.clientOperationId,
+      extension: uploadInput.extension,
+      mimeType: prepared.contentType,
+    })
+    if (!uploadFile) {
+      await putOfflineV2Operation({
+        ...operation,
+        lastError: "The queued photo metadata is invalid.",
+        state: "needs_attention",
       })
       blockedOperationIds.add(operation.clientOperationId)
       continue
@@ -537,11 +594,11 @@ async function preparePendingUploads(operations: OfflineV2Operation[]) {
     const supabase = createBrowserSupabaseClient()
     const { error } = await supabase.storage
       .from(prepared.bucketName)
-      .uploadToSignedUrl(prepared.objectName, prepared.signature, blob, {
-        contentType: String(operation.payload.mimeType ?? blob.type),
+      .uploadToSignedUrl(prepared.objectName, prepared.signature, uploadFile, {
+        contentType: prepared.contentType,
       })
     if (error) {
-      const verified = await verifyOfflineEvidenceUploadAction(uploadInput)
+      const verified = await verifyOfflineUploadAfterError(uploadInput)
       if (!verified.ok) {
         await putOfflineV2Operation({
           ...operation,
@@ -644,10 +701,28 @@ function storageUploadErrorMessage(error: {
   message?: string
   statusCode?: string
 }) {
-  const detail = error.statusCode ?? error.message
+  const detail = [error.statusCode, error.message]
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .join(": ")
   return detail
     ? `The queued photo could not upload (${detail}). It will retry automatically.`
     : "The queued photo could not upload. It will retry automatically."
+}
+
+async function verifyOfflineUploadAfterError(input: {
+  clientOperationId: string
+  extension: string
+  jobId: number
+  mimeType: string
+}) {
+  try {
+    return await verifyOfflineEvidenceUploadAction(input)
+  } catch {
+    return {
+      message: "The queued photo upload could not be verified yet.",
+      ok: false,
+    } as const
+  }
 }
 
 function blobDataUrl(blob: Blob) {

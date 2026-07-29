@@ -13,10 +13,13 @@ test("employee completes an assigned job through the offline outbox", async ({
   context,
   employeePage,
 }) => {
-  test.setTimeout(60_000)
+  test.setTimeout(90_000)
   const pageErrors: string[] = []
   const supabaseRequestsWhileOffline: string[] = []
   let offlinePhase = false
+  let rejectQueuedUploads = true
+  let queuedUploadAttempts = 0
+  const queuedUploadResponses: number[] = []
   employeePage.on("pageerror", (error) => pageErrors.push(error.message))
   employeePage.on("request", (request) => {
     const url = new URL(request.url())
@@ -24,6 +27,30 @@ test("employee completes an assigned job through the offline outbox", async ({
       supabaseRequestsWhileOffline.push(`${request.method()} ${url.pathname}`)
     }
   })
+  await employeePage.route(
+    "**/storage/v1/object/upload/sign/job-evidence/**",
+    async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue()
+        return
+      }
+      queuedUploadAttempts += 1
+      if (!rejectQueuedUploads) {
+        const response = await route.fetch()
+        queuedUploadResponses.push(response.status())
+        await route.fulfill({ response })
+        return
+      }
+      await route.fulfill({
+        body: JSON.stringify({
+          message: "The uploaded multipart body has no supported MIME type.",
+          statusCode: "400",
+        }),
+        contentType: "application/json",
+        status: 400,
+      })
+    }
+  )
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
@@ -98,17 +125,31 @@ test("employee completes an assigned job through the offline outbox", async ({
     ).toBeVisible()
     await employeePage.getByRole("button", { name: "Start job" }).click()
     await employeePage.getByLabel("Work note").fill("Completed while offline.")
-    await employeePage.getByRole("button", { name: "Add note" }).click()
     await employeePage
       .getByLabel("Completion photos", { exact: true })
       .setInputFiles(path.resolve("public/icons/icon-192.png"))
+    await expect(
+      employeePage.getByRole("img", {
+        name: "Selected completion photo preview",
+      })
+    ).toBeVisible({ timeout: 15_000 })
+    await employeePage.getByRole("button", { name: "Save" }).click()
     await expect(employeePage.getByText("1 of 1 required")).toBeVisible({
       timeout: 15_000,
     })
     await expect(
-      employeePage.getByRole("button", { name: "Submit for review" })
+      employeePage.getByRole("img", {
+        name: /Completion evidence added/,
+      })
+    ).toBeVisible()
+    await closeJobDetail(employeePage, title)
+    const jobCard = employeePage.getByRole("article", {
+      name: `Job ${title}`,
+    })
+    await expect(
+      jobCard.getByRole("button", { name: "Submit for review" })
     ).toBeEnabled()
-    await employeePage
+    await jobCard
       .getByRole("button", { name: "Submit for review" })
       .click()
     await expect(
@@ -118,6 +159,34 @@ test("employee completes an assigned job through the offline outbox", async ({
 
     offlinePhase = false
     await context.setOffline(false)
+    await expect
+      .poll(() => queuedUploadAttempts, { timeout: 15_000 })
+      .toBeGreaterThan(0)
+    await expect(
+      employeePage.locator('[data-offline-status="changes_pending"]')
+    ).toBeVisible()
+    await expect(jobCard.getByText("in review")).toBeVisible()
+    await jobCard.getByRole("button", { name: "Open job" }).click()
+    await expect(
+      employeePage.getByRole("img", {
+        name: /Completion evidence added/,
+      })
+    ).toBeVisible()
+    await expect(employeePage.getByText("1 of 1 required")).toBeVisible()
+    await closeJobDetail(employeePage, title)
+
+    const pendingOutboxCount = await getOfflineOutboxCount(employeePage)
+    expect(pendingOutboxCount).toBeGreaterThanOrEqual(2)
+    const queuedPhotoOperationId = await getOfflineOperationId(
+      employeePage,
+      "job.evidence.add"
+    )
+    expect(queuedPhotoOperationId).not.toBeNull()
+
+    rejectQueuedUploads = false
+    await expect
+      .poll(() => queuedUploadResponses, { timeout: 30_000 })
+      .toContain(200)
     await expect(
       employeePage.locator('[data-offline-status="offline_ready"]')
     ).toBeVisible({
@@ -128,6 +197,8 @@ test("employee completes an assigned job through the offline outbox", async ({
       { data: updatedJob },
       { count: receiptCount },
       { count: noteCount },
+      { count: assetCount },
+      { count: submissionCount },
     ] = await Promise.all([
       admin.from("jobs").select("status").eq("id", job!.id).single(),
       admin
@@ -139,10 +210,41 @@ test("employee completes an assigned job through the offline outbox", async ({
         .select("*", { count: "exact", head: true })
         .eq("job_id", job!.id)
         .eq("type", "note"),
+      admin
+        .from("job_assets")
+        .select("*", { count: "exact", head: true })
+        .eq("job_id", job!.id),
+      admin
+        .from("job_updates")
+        .select("*", { count: "exact", head: true })
+        .eq("job_id", job!.id)
+        .eq("type", "status_change")
+        .contains("metadata", { new_status: "in_review" }),
     ])
     expect(updatedJob?.status).toBe("in_review")
     expect(receiptCount).toBe(4)
     expect(noteCount).toBe(1)
+    expect(assetCount).toBe(1)
+    expect(submissionCount).toBe(1)
+    expect(await getOfflineOutboxCount(employeePage)).toBe(0)
+    expect(
+      await hasOfflineBlob(employeePage, queuedPhotoOperationId!)
+    ).toBe(false)
+
+    await employeePage.reload()
+    await expect(
+      employeePage.locator('[data-offline-status="offline_ready"]')
+    ).toBeVisible({ timeout: 30_000 })
+    const reloadedJobCard = employeePage.getByRole("article", {
+      name: `Job ${title}`,
+    })
+    await expect(reloadedJobCard.getByText("in review")).toBeVisible()
+    await reloadedJobCard.getByRole("button", { name: "Open job" }).click()
+    await expect(
+      employeePage.getByRole("img", {
+        name: /Completion evidence added/,
+      })
+    ).toBeVisible()
   } finally {
     const { data: assets } = await admin
       .from("job_assets")
@@ -166,3 +268,90 @@ test("employee completes an assigned job through the offline outbox", async ({
     await admin.from("jobs").delete().eq("id", job!.id)
   }
 })
+
+async function getOfflineOutboxCount(
+  page: import("@playwright/test").Page
+) {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("pph-offline-v2")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const count = request.result
+            .transaction("outbox", "readonly")
+            .objectStore("outbox")
+            .count()
+          count.onerror = () => reject(count.error)
+          count.onsuccess = () => resolve(count.result)
+        }
+      })
+  )
+}
+
+async function closeJobDetail(
+  page: import("@playwright/test").Page,
+  title: string
+) {
+  const closeButton = page.getByRole("button", { name: "Close" })
+  if (await closeButton.count()) {
+    await closeButton.click()
+  } else {
+    await page.keyboard.press("Escape")
+  }
+  await expect(
+    page.getByRole("heading", { name: title })
+  ).not.toBeVisible()
+}
+
+async function getOfflineOperationId(
+  page: import("@playwright/test").Page,
+  kind: string
+) {
+  return page.evaluate(
+    (operationKind) =>
+      new Promise<string | null>((resolve, reject) => {
+        const request = indexedDB.open("pph-offline-v2")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const operations = request.result
+            .transaction("outbox", "readonly")
+            .objectStore("outbox")
+            .getAll()
+          operations.onerror = () => reject(operations.error)
+          operations.onsuccess = () => {
+            const operation = (
+              operations.result as Array<{
+                clientOperationId: string
+                kind: string
+              }>
+            ).find((candidate) => candidate.kind === operationKind)
+            resolve(operation?.clientOperationId ?? null)
+          }
+        }
+      }),
+    kind
+  )
+}
+
+async function hasOfflineBlob(
+  page: import("@playwright/test").Page,
+  clientOperationId: string
+) {
+  return page.evaluate(
+    (operationId) =>
+      new Promise<boolean>((resolve, reject) => {
+        const request = indexedDB.open("pph-offline-v2")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const blob = request.result
+            .transaction("blobs", "readonly")
+            .objectStore("blobs")
+            .get(operationId)
+          blob.onerror = () => reject(blob.error)
+          blob.onsuccess = () => resolve(Boolean(blob.result))
+        }
+      }),
+    clientOperationId
+  )
+}

@@ -5,6 +5,7 @@ import { z } from "zod"
 import { requireAssignedWorker } from "@/lib/auth/membership"
 import { deliverJobSubmissionEmail } from "@/lib/email/job-submission"
 import { getRequestOrigin } from "@/lib/http/origin"
+import { validateOfflineEvidenceMetadata } from "@/lib/offline-v2/evidence-upload"
 import type { ReplayResult } from "@/lib/offline/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -22,6 +23,13 @@ const uploadSchema = z.object({
   clientOperationId: z.string().uuid(),
   extension: z.enum(["jpg", "png", "webp", "heic", "heif"]),
   jobId: z.number().int().positive(),
+  mimeType: z.enum([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+  ]),
 })
 
 type ReplayRpc = (
@@ -47,12 +55,18 @@ export async function prepareOfflineEvidenceUploadAction(input: {
   clientOperationId: string
   extension: string
   jobId: number
+  mimeType: string
 }) {
   const parsed = uploadSchema.safeParse(input)
-  if (!parsed.success) {
+  const metadata = parsed.success
+    ? validateOfflineEvidenceMetadata(parsed.data)
+    : null
+  if (!parsed.success || !metadata) {
     return {
+      code: "invalid_photo_metadata",
       message: "The offline photo metadata is invalid.",
       ok: false,
+      retryable: false,
     } as const
   }
   const worker = await requireAssignedWorker()
@@ -66,12 +80,15 @@ export async function prepareOfflineEvidenceUploadAction(input: {
 
   if (error || !data) {
     return {
+      code: "upload_preparation_failed",
       message: "The photo upload could not be prepared.",
       ok: false,
+      retryable: true,
     } as const
   }
   return {
     bucketName: "job-evidence",
+    contentType: metadata.mimeType,
     objectName,
     ok: true,
     signature: data.token,
@@ -82,9 +99,13 @@ export async function verifyOfflineEvidenceUploadAction(input: {
   clientOperationId: string
   extension: string
   jobId: number
+  mimeType: string
 }) {
   const parsed = uploadSchema.safeParse(input)
-  if (!parsed.success) {
+  const metadata = parsed.success
+    ? validateOfflineEvidenceMetadata(parsed.data)
+    : null
+  if (!parsed.success || !metadata) {
     return {
       message: "The offline photo metadata is invalid.",
       ok: false,

@@ -1397,7 +1397,7 @@ the application is not yet approved for production.
 | S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                                      |
 | S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed                         |
 | S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed                    |
-| S12  | Integration and production hardening   | `in_progress` | working tree | Offline-v2 targeted database/unit/desktop/mobile Chromium checks pass; native Safari/Android staging acceptance remains |
+| S12  | Integration and production hardening   | `in_progress` | working tree | Offline photo forced-400 retry passes in desktop/mobile Chromium; native Safari/Android staging acceptance remains       |
 
 ### Step 1: Platform foundation — complete
 
@@ -1661,6 +1661,31 @@ Automated implementation evidence (2026-07-29):
   journey (including its Pixel 7 worker flow), and the sidebar navigation check
   in both Mobile Chrome and Mobile Safari. No migration, RLS, environment, or
   public-route change was required.
+- Offline photo reconnect remediation (2026-07-30): a hosted mobile retry could
+  hide its pending image and satisfied requirements because reconnect switched
+  rendering back to stale server data before the outbox was acknowledged.
+  IndexedDB could also restore the upload body without its validated image MIME
+  type, producing the observed signed Storage HTTP 400. A retry split across
+  batches additionally treated an already-acknowledged and removed dependency
+  as outstanding.
+- Added a session-sticky local-repository view, separate from connectivity, so
+  dashboard rendering, navigation, and mutation queuing continue against the
+  optimistic IndexedDB snapshot after reconnect. Photo preparation now
+  validates the MIME/extension pair, reconstructs a canonical `File`, verifies
+  deterministic object paths before and after ambiguous uploads, retains
+  retryable blobs and optimistic counts, and withholds dependent submission
+  until photo acknowledgement. Cross-batch replay now blocks only dependencies
+  still present in that batch.
+- Verification passed changed-file ESLint, TypeScript, 4 focused Vitest files /
+  25 tests, `git diff --check`, and the repaired staged note/photo plus Save
+  journey in desktop Chromium and Mobile Chrome. The journey forces the first
+  signed upload to return HTTP 400, proves the local photo, counts, and
+  submitted state remain visible, then proves one successful retry produces
+  exactly one note, asset, submission update, and receipt per operation before
+  clearing the blob/outbox and surviving an authoritative reload. No database
+  migration, RLS, environment-variable, or public-route change was required.
+  Installed iOS Safari over trusted staging HTTPS remains the required
+  real-device acceptance, so S12 and TODO-015 remain `in_progress`.
 
 ## 13. Prototype and production readiness
 

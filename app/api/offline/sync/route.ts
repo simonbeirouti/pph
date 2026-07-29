@@ -100,6 +100,9 @@ export async function POST(request: Request) {
     const operations = orderByDependencies(
       parsed.data.operations as OfflineV2Operation[]
     )
+    const queuedOperationIds = new Set(
+      operations.map((operation) => operation.clientOperationId)
+    )
     const conflicts: OfflineConflict[] = []
     const idMappings: Record<string, number> = {}
     const operationResults: OfflineSyncResult["operationResults"] = []
@@ -124,7 +127,8 @@ export async function POST(request: Request) {
           : storedOperation
       if (
         operation.dependsOn.some(
-          (dependency) => !acknowledged.has(dependency)
+          (dependency) =>
+            queuedOperationIds.has(dependency) && !acknowledged.has(dependency)
         )
       ) {
         operationResults.push({
