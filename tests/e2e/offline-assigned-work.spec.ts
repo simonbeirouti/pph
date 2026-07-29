@@ -76,8 +76,10 @@ test("employee completes an assigned job through the offline outbox", async ({
     await employeePage.goto("/dashboard/jobs")
     await expect(employeePage.locator("[data-offline-provider]")).toHaveCount(1)
     await expect(
-      employeePage.locator('[data-offline-status="offline_ready"]')
-    ).toBeVisible({ timeout: 30_000 })
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "offline_ready", {
+      timeout: 30_000,
+    })
     await employeePage.evaluate(() => navigator.serviceWorker.ready)
     const persisted = await employeePage.evaluate(
       () =>
@@ -149,12 +151,10 @@ test("employee completes an assigned job through the offline outbox", async ({
     await expect(
       jobCard.getByRole("button", { name: "Submit for review" })
     ).toBeEnabled()
-    await jobCard
-      .getByRole("button", { name: "Submit for review" })
-      .click()
+    await jobCard.getByRole("button", { name: "Submit for review" }).click()
     await expect(
-      employeePage.locator('[data-offline-status="changes_pending"]')
-    ).toBeVisible()
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "changes_pending")
     expect(supabaseRequestsWhileOffline).toEqual([])
 
     offlinePhase = false
@@ -163,8 +163,8 @@ test("employee completes an assigned job through the offline outbox", async ({
       .poll(() => queuedUploadAttempts, { timeout: 15_000 })
       .toBeGreaterThan(0)
     await expect(
-      employeePage.locator('[data-offline-status="changes_pending"]')
-    ).toBeVisible()
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "changes_pending")
     await expect(jobCard.getByText("in review")).toBeVisible()
     await jobCard.getByRole("button", { name: "Open job" }).click()
     await expect(
@@ -188,8 +188,8 @@ test("employee completes an assigned job through the offline outbox", async ({
       .poll(() => queuedUploadResponses, { timeout: 30_000 })
       .toContain(200)
     await expect(
-      employeePage.locator('[data-offline-status="offline_ready"]')
-    ).toBeVisible({
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "offline_ready", {
       timeout: 30_000,
     })
 
@@ -227,14 +227,16 @@ test("employee completes an assigned job through the offline outbox", async ({
     expect(assetCount).toBe(1)
     expect(submissionCount).toBe(1)
     expect(await getOfflineOutboxCount(employeePage)).toBe(0)
-    expect(
-      await hasOfflineBlob(employeePage, queuedPhotoOperationId!)
-    ).toBe(false)
+    expect(await hasOfflineBlob(employeePage, queuedPhotoOperationId!)).toBe(
+      false
+    )
 
     await employeePage.reload()
     await expect(
-      employeePage.locator('[data-offline-status="offline_ready"]')
-    ).toBeVisible({ timeout: 30_000 })
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "offline_ready", {
+      timeout: 30_000,
+    })
     const reloadedJobCard = employeePage.getByRole("article", {
       name: `Job ${title}`,
     })
@@ -269,9 +271,7 @@ test("employee completes an assigned job through the offline outbox", async ({
   }
 })
 
-async function getOfflineOutboxCount(
-  page: import("@playwright/test").Page
-) {
+async function getOfflineOutboxCount(page: import("@playwright/test").Page) {
   return page.evaluate(
     () =>
       new Promise<number>((resolve, reject) => {
@@ -299,9 +299,7 @@ async function closeJobDetail(
   } else {
     await page.keyboard.press("Escape")
   }
-  await expect(
-    page.getByRole("heading", { name: title })
-  ).not.toBeVisible()
+  await expect(page.getByRole("heading", { name: title })).not.toBeVisible()
 }
 
 async function getOfflineOperationId(

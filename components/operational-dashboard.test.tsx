@@ -10,6 +10,7 @@ import type {
   OwnerDashboardData,
 } from "@/lib/dashboard/data"
 import type { JobCard } from "@/lib/jobs/types"
+import type { RosterShift } from "@/lib/roster/types"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
@@ -33,6 +34,28 @@ const baseJob: JobCard = {
   status: "assigned",
   title: "Actionable",
   updatedAt: "2030-01-01T00:00:00Z",
+}
+
+function shift(
+  id: number,
+  startsAt: string,
+  endsAt: string,
+  notes: string
+): RosterShift {
+  return {
+    archivedAt: null,
+    createdAt: "2030-01-01T00:00:00Z",
+    createdByMembershipId: 1101,
+    employeeMembershipId: 1103,
+    endsAt,
+    id,
+    lockedAt: null,
+    lockedByMembershipId: null,
+    notes,
+    organisationId: 1001,
+    startsAt,
+    updatedAt: "2030-01-01T00:00:00Z",
+  }
 }
 
 describe("employee operational dashboard", () => {
@@ -70,6 +93,57 @@ describe("employee operational dashboard", () => {
     expect(screen.getByRole("button", { name: "Resume" })).toBeVisible()
     expect(
       screen.getByRole("button", { name: "View submission" })
+    ).toBeVisible()
+  })
+
+  it("uses plain sections and shows only the current and next shifts", () => {
+    const current = shift(
+      11,
+      "2030-01-01T01:00:00Z",
+      "2030-01-01T09:00:00Z",
+      "Current shift"
+    )
+    const next = shift(
+      12,
+      "2030-01-02T01:00:00Z",
+      "2030-01-02T09:00:00Z",
+      "Next shift"
+    )
+    const later = shift(
+      13,
+      "2030-01-03T01:00:00Z",
+      "2030-01-03T09:00:00Z",
+      "Later shift"
+    )
+    const data: EmployeeDashboardData = {
+      jobs: [baseJob],
+      nextActionable: baseJob,
+      shifts: { current, upcoming: [next, later] },
+    }
+
+    render(
+      <EmployeeOperationalDashboard
+        data={data}
+        name="Alex"
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    const roster = screen
+      .getByRole("heading", { name: "Your roster" })
+      .closest("section")
+    const work = screen
+      .getByRole("heading", { name: "Assigned work" })
+      .closest("section")
+    expect(roster?.closest('[data-slot="card"]')).toBeNull()
+    expect(work?.closest('[data-slot="card"]')).toBeNull()
+    expect(screen.getByText("Urgent and due work appears first.")).toBeVisible()
+    expect(screen.getByText("Current shift")).toBeVisible()
+    expect(screen.getByText("Next shift")).toBeVisible()
+    expect(screen.queryByText("Later shift")).not.toBeInTheDocument()
+    expect(roster?.querySelectorAll(".rounded-md.border")).toHaveLength(2)
+    expect(
+      screen.getByText("Actionable").closest(".rounded-lg.border")
     ).toBeVisible()
   })
 })

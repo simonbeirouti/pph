@@ -8,15 +8,17 @@ import {
 import type { EmployeeShiftSummary as EmployeeShiftSummaryModel } from "@/lib/roster/types"
 
 export function EmployeeShiftSummary({
+  maximumUpcoming,
   summary,
   timezone,
 }: {
+  maximumUpcoming?: number
   summary: EmployeeShiftSummaryModel
   timezone: string
 }) {
   const shifts = [
     ...(summary.current ? [summary.current] : []),
-    ...summary.upcoming,
+    ...summary.upcoming.slice(0, maximumUpcoming),
   ]
 
   return shifts.length ? (

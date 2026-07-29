@@ -22,13 +22,7 @@ import {
 } from "@/components/offline-v2-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type {
   EmployeeDashboardData,
   OwnerDashboardData,
@@ -183,20 +177,24 @@ export function EmployeeOperationalDashboard({
           Your shift and work queue, in priority order.
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Your roster</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmployeeShiftSummary summary={data.shifts} timezone={timezone} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Assigned work</CardTitle>
-          <CardDescription>Urgent and due work appears first.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <section>
+        <h2 className="text-lg font-semibold">Your roster</h2>
+        <div className="mt-3">
+          <EmployeeShiftSummary
+            maximumUpcoming={1}
+            summary={data.shifts}
+            timezone={timezone}
+          />
+        </div>
+      </section>
+      <section>
+        <div>
+          <h2 className="text-lg font-semibold">Assigned work</h2>
+          <p className="text-sm text-muted-foreground">
+            Urgent and due work appears first.
+          </p>
+        </div>
+        <div className="mt-3">
           {data.jobs.length ? (
             <div className="grid gap-3">
               {data.jobs.map((job) => (
@@ -213,8 +211,8 @@ export function EmployeeOperationalDashboard({
               You have no assigned work right now.
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   )
 }

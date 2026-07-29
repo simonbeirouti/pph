@@ -14,9 +14,14 @@ async function prepare(page: Page) {
   await page.goto("/dashboard")
   expect((await bootstrapResponse).status()).toBe(200)
   await page.evaluate(() => navigator.serviceWorker.ready)
-  await expect(
-    page.locator('[data-offline-status="offline_ready"]')
-  ).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator("[data-offline-provider]").first()).toHaveAttribute(
+    "data-offline-provider",
+    "offline_ready",
+    {
+      timeout: 30_000,
+    }
+  )
+  await expect(page.getByText("Offline ready", { exact: true })).toHaveCount(0)
 }
 
 async function verifyOfflineRoutes(page: Page, routes: string[]) {
@@ -26,10 +31,12 @@ async function verifyOfflineRoutes(page: Page, routes: string[]) {
       window.dispatchEvent(new PopStateEvent("popstate"))
     }, route)
     await expect(page.getByText("No current offline work")).toHaveCount(0)
-    await expect(page.getByText("Connect once to prepare this device")).toHaveCount(0)
     await expect(
-      page.locator('[data-offline-status="offline"]').first()
-    ).toBeVisible()
+      page.getByText("Connect once to prepare this device")
+    ).toHaveCount(0)
+    await expect(
+      page.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "offline")
   }
 }
 
@@ -59,8 +66,8 @@ test("owner bootstraps once, then navigates across the dashboard offline", async
     .last()
     .click()
   await expect(
-    ownerPage.locator('[data-offline-status="changes_pending"]')
-  ).toBeVisible()
+    ownerPage.locator("[data-offline-provider]").first()
+  ).toHaveAttribute("data-offline-provider", "changes_pending")
 })
 
 test("manager receives both operations routes and personal assigned work offline", async ({
@@ -101,8 +108,8 @@ test("employee opens unseen permitted routes and queues work offline", async ({
   if (await start.isVisible()) {
     await start.click()
     await expect(
-      employeePage.locator('[data-offline-status="changes_pending"]')
-    ).toBeVisible()
+      employeePage.locator("[data-offline-provider]").first()
+    ).toHaveAttribute("data-offline-provider", "changes_pending")
   }
 })
 
@@ -113,10 +120,14 @@ test("a cold device gets a connect-once explanation instead of personalised data
   await page.goto("/offline")
   await page.evaluate(() => navigator.serviceWorker.ready)
   await expect(
-    page.getByText("Connect once to prepare this device", { exact: true }).last()
+    page
+      .getByText("Connect once to prepare this device", { exact: true })
+      .last()
   ).toBeVisible()
   await context.setOffline(true)
   await expect(
-    page.getByText("Connect once to prepare this device", { exact: true }).last()
+    page
+      .getByText("Connect once to prepare this device", { exact: true })
+      .last()
   ).toBeVisible()
 })

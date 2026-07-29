@@ -4,7 +4,7 @@ import { expect, test } from "./fixtures"
 
 const endpoint = "https://push.example.test/playwright-device"
 
-test("profile push controls opt in and out only after user action", async ({
+test("dashboard launch opts in and profile controls opt out and back in", async ({
   employeePage,
 }) => {
   const admin = createClient(
@@ -63,10 +63,10 @@ test("profile push controls opt in and out only after user action", async ({
 
   try {
     await employeePage.goto("/dashboard/profile")
-    const enable = employeePage.getByRole("button", {
-      name: "Enable notifications",
+    const disable = employeePage.getByRole("button", {
+      name: "Disable on this browser",
     })
-    await expect(enable).toBeEnabled()
+    await expect(disable).toBeVisible()
     await expect
       .poll(() =>
         employeePage.evaluate(
@@ -75,17 +75,22 @@ test("profile push controls opt in and out only after user action", async ({
               .__permissionRequests.length
         )
       )
-      .toBe(0)
+      .toBe(1)
+    const dismissInstallGuidance = employeePage.getByRole("button", {
+      name: "Dismiss install guidance",
+    })
+    if (await dismissInstallGuidance.isVisible()) {
+      await dismissInstallGuidance.click()
+    }
 
-    await enable.click()
-    await expect(
-      employeePage.getByRole("button", { name: "Disable on this browser" })
-    ).toBeVisible()
-
-    await employeePage
-      .getByRole("button", { name: "Disable on this browser" })
-      .click()
+    await disable.click()
+    const enable = employeePage.getByRole("button", {
+      name: "Enable notifications",
+    })
     await expect(enable).toBeVisible()
+    await enable.click()
+    await expect(disable).toBeVisible()
+    await expect(employeePage.getByText("Offline work")).toHaveCount(0)
   } finally {
     await admin.from("web_push_subscriptions").delete().eq("endpoint", endpoint)
   }

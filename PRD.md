@@ -710,9 +710,13 @@ Acceptance criteria:
 - Global responses include `X-Content-Type-Options`, frame protection, and a strict-origin referrer policy.
 - Installation guidance is hidden when running in standalone mode.
 - Unsupported browsers receive the standard responsive web application without errors or blocked workflows.
-- Push permission is requested only after an authenticated user explicitly
-  enables notifications from their profile. Unsupported or denied permission
-  never blocks the standard application.
+- On an authenticated dashboard launch, a browser whose push permission is
+  still `default` receives an immediate permission request. Approval creates
+  and persists the device subscription; dismissal, denial, unsupported
+  capability, or enrolment failure never blocks the standard application.
+- Profile controls remain available to disable or re-enable push on the current
+  browser. A granted browser with no subscription remains disabled until the
+  user re-enables it from Profile.
 
 #### PWA-04: Automatic role-scoped offline replica
 
@@ -727,10 +731,10 @@ Acceptance criteria:
 - The replica includes dashboard aggregates, jobs and timelines, roster,
   employees visible to the role, templates, schedules, and the current profile.
 - The replica is scoped to membership and organisation and is purged on logout,
-  identity change, explicit removal, or online confirmation that access was
-  revoked.
-- The application reports `Offline ready` only after the required structured
-  data and media working set are durable.
+  identity change, or online confirmation that access was revoked.
+- The internal offline state reaches `Offline ready` only after the required
+  structured data and media working set are durable; routine preparation and
+  synchronisation state is not shown in the application chrome.
 - The service worker caches a versioned public dashboard shell and immutable
   assets. It never caches authenticated HTML, API or Supabase responses, signed
   URLs, or mutation responses.
@@ -744,7 +748,8 @@ Acceptance criteria:
   connection-required state rather than an empty or misleading dashboard.
 - Local data remains readable to anyone who can use the unlocked browser
   profile; V1 assumes a personally controlled, device-lock-protected device and
-  provides a visible removal control rather than a separate application PIN.
+  purges operational data during logout rather than providing a separate
+  application PIN or Profile storage control.
 
 #### PWA-05: Offline navigation and optimistic operations
 
@@ -770,10 +775,11 @@ Acceptance criteria:
 - Pending photos and avatars are stored separately, checked against available
   storage, and retain existing type, size, and count limits.
 - Storage priority is pending user uploads, structured data, active-job
-  originals, then thumbnails. Insufficient capacity produces a persistent
-  warning and prevents a false `Offline ready` state.
-- A global status communicates `Offline`, `Changes pending`, `Syncing`,
-  `Needs attention`, and `Offline ready` without replacing page content.
+  originals, then thumbnails. Insufficient capacity prevents a false
+  `Offline ready` state and retains the failure internally for retry.
+- Connectivity, preparation, pending, sync, storage, lease, and conflict checks
+  run behind the scenes without a global offline badge, popover, or Profile
+  storage card.
 - Offline logout immediately locks the application and purges organisational
   data; a non-sensitive marker completes server sign-out after reconnection.
 
@@ -795,8 +801,8 @@ Acceptance criteria:
 - Repeated acknowledged operations return their prior result without duplicate
   records, audit events, assets, deliveries, or transitions.
 - Independent remote and local changes merge. A true same-record version
-  conflict preserves both representations in a visible Needs attention queue
-  and never silently chooses a winner.
+  conflict preserves both representations in a durable conflict record and
+  never silently chooses a winner.
 - A role change, deactivation, reassignment, archive, lock, or other permission
   failure stops the affected replay and preserves recoverable local work.
 - Submission and other dependent transitions run only after their prerequisites
@@ -1497,10 +1503,11 @@ Checkpoint evidence (2026-07-29):
 - Add role-scoped bootstrap/incremental sync, organisation revisions and
   deletion tombstones, generalised receipts, entity versioning, and typed
   replay for every current operational domain.
-- Add profile-managed opt-in web push for job assignment/reassignment, roster
-  assignment/change, and job submission, approval, and reopen review events.
-  Exclude the actor, persist subscriptions and delivery attempts, and keep push
-  failure non-blocking for the underlying mutation.
+- Add launch-time web-push enrolment with Profile opt-out/re-enable controls for
+  job assignment/reassignment, roster assignment/change, and job submission,
+  approval, and reopen review events. Exclude the actor, persist subscriptions
+  and delivery attempts, and keep push failure non-blocking for the underlying
+  mutation.
 - Reconcile navigation, dependencies, headers, fixtures, shared UI, generated
   Supabase types, environment variables, and remaining reference code.
 - Complete end-to-end coverage, responsive QA, accessibility checks, security
@@ -1686,6 +1693,25 @@ Automated implementation evidence (2026-07-29):
   migration, RLS, environment-variable, or public-route change was required.
   Installed iOS Safari over trusted staging HTTPS remains the required
   real-device acceptance, so S12 and TODO-015 remain `in_progress`.
+- Dashboard/offline/push UI remediation (2026-07-30): removed the employee
+  dashboard's nested roster/work section cards while retaining its greeting,
+  plain headings, current shift, single next shift, and individual job cards.
+  Owner and manager dashboards remain unchanged. Removed the global offline
+  badge/popover from both dashboard shells and the Profile offline-storage card;
+  automatic preparation, hidden provider state, queuing, replay, conflict
+  retention, offline navigation, and logout purge remain intact.
+- Push enrolment now runs once at the authenticated dashboard client boundary.
+  A `default` permission immediately requests access and persists approval;
+  denied, dismissed, unsupported, and failed states remain non-blocking.
+  Existing subscriptions are retained, while granted browsers without a
+  subscription remain opted out until Profile re-enables them.
+- Verification passed changed-file ESLint, `pnpm typecheck`, 2 focused Vitest
+  files / 12 tests, 6 push Playwright checks across desktop Chromium, Mobile
+  Chrome, and Mobile Safari, and 10 hidden-state offline checks across desktop
+  Chromium and Mobile Chrome. No database migration, RLS, environment-variable,
+  public-route, or reference-file change was required. Used the Vercel
+  React/Next.js and Playwright project skills. S12 remains `in_progress` for the
+  existing manual staging and real-device gates.
 
 ## 13. Prototype and production readiness
 
@@ -1764,9 +1790,9 @@ screenshot, trace, monitoring event, or runbook link.
       supported staging devices. Physical-device PWA checks use a trusted HTTPS
       origin; plain-HTTP LAN addresses are not valid service-worker acceptance
       environments.
-- [ ] Profile notification opt-in/out, denied and unsupported states, job and
-      roster deep links, and real-device delivery pass without an unsolicited
-      permission prompt or private payload content.
+- [ ] Launch-time notification opt-in, Profile opt-out/re-enable, denied and
+      unsupported states, job and roster deep links, and real-device delivery
+      pass without private payload content.
 
 #### Security and data
 

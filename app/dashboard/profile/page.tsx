@@ -1,10 +1,7 @@
 import { updateOwnProfileAction } from "@/app/dashboard/profile/actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeForm } from "@/components/employee-form"
-import {
-  OfflineAwareLogoutButton,
-  OfflineStorageSettings,
-} from "@/components/offline-storage-settings"
+import { OfflineAwareLogoutButton } from "@/components/offline-storage-settings"
 import { PushNotificationSettings } from "@/components/push-notification-settings"
 import {
   Card,
@@ -49,10 +46,7 @@ export default async function Page() {
           />
         </CardContent>
       </Card>
-      <PushNotificationSettings
-        publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
-      />
-      <OfflineStorageSettings />
+      <PushNotificationSettings />
     </div>
   )
 }

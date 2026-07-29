@@ -3,8 +3,10 @@
 import Link from "next/link"
 
 import { OfflineDashboardRouter } from "@/components/offline-dashboard-router"
-import { OfflineSyncStatus } from "@/components/offline-sync-status"
-import { OfflineV2Provider, useOfflineV2 } from "@/components/offline-v2-provider"
+import {
+  OfflineV2Provider,
+  useOfflineV2,
+} from "@/components/offline-v2-provider"
 import { Button } from "@/components/ui/button"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 
@@ -34,11 +36,10 @@ function OfflineShellContent() {
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <ServiceWorkerRegistration />
-      <header className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur md:px-6">
+      <header className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur md:px-6">
         <Link className="text-lg font-semibold" href="/dashboard">
           Employee Ops
         </Link>
-        <OfflineSyncStatus />
       </header>
       {snapshot ? (
         <nav
@@ -47,9 +48,7 @@ function OfflineShellContent() {
         >
           {NAVIGATION.filter(
             (item) =>
-              !("operationsOnly" in item) ||
-              !item.operationsOnly ||
-              canOperate
+              !("operationsOnly" in item) || !item.operationsOnly || canOperate
           ).map((item) => (
             <Button
               key={item.href}

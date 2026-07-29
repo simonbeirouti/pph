@@ -6,6 +6,7 @@ import {
   subscribeToPushAction,
   unsubscribeFromPushAction,
 } from "@/app/dashboard/profile/notification-actions"
+import { PushNotificationProvider } from "@/components/push-notification-provider"
 import { PushNotificationSettings } from "@/components/push-notification-settings"
 
 vi.mock("@/app/dashboard/profile/notification-actions", () => ({
@@ -30,12 +31,30 @@ function installPushMocks(permission: NotificationPermission = "default") {
   const subscribe = vi.fn().mockResolvedValue(subscription)
   Object.defineProperty(navigator, "serviceWorker", {
     configurable: true,
-    value: { ready: Promise.resolve({ pushManager: { getSubscription, subscribe } }) },
+    value: {
+      ready: Promise.resolve({
+        pushManager: { getSubscription, subscribe },
+      }),
+    },
   })
   vi.stubGlobal("PushManager", class {})
   const requestPermission = vi.fn().mockResolvedValue("granted")
   vi.stubGlobal("Notification", { permission, requestPermission })
-  return { getSubscription, requestPermission, subscribe, subscription, unsubscribe }
+  return {
+    getSubscription,
+    requestPermission,
+    subscribe,
+    subscription,
+    unsubscribe,
+  }
+}
+
+function renderSettings(key = publicKey) {
+  return render(
+    <PushNotificationProvider publicKey={key}>
+      <PushNotificationSettings />
+    </PushNotificationProvider>
+  )
 }
 
 afterEach(() => {
@@ -45,19 +64,13 @@ afterEach(() => {
 })
 
 describe("push notification settings", () => {
-  it("waits for an explicit click before requesting permission", async () => {
+  it("requests permission on launch and persists an approved subscription", async () => {
     const mocks = installPushMocks()
     vi.mocked(subscribeToPushAction).mockResolvedValue({ ok: true })
-    const user = userEvent.setup()
 
-    render(<PushNotificationSettings publicKey={publicKey} />)
-    const button = await screen.findByRole("button", {
-      name: "Enable notifications",
-    })
-    expect(mocks.requestPermission).not.toHaveBeenCalled()
+    renderSettings()
 
-    await user.click(button)
-
+    await screen.findByRole("button", { name: "Disable on this browser" })
     expect(mocks.requestPermission).toHaveBeenCalledOnce()
     expect(mocks.subscribe).toHaveBeenCalledWith(
       expect.objectContaining({ userVisibleOnly: true })
@@ -67,18 +80,73 @@ describe("push notification settings", () => {
       keys: { auth: "auth", p256dh: "p256dh" },
       userAgent: navigator.userAgent,
     })
-    await screen.findByRole("button", { name: "Disable on this browser" })
   })
 
-  it("shows denied state without requesting permission", async () => {
+  it("shows a launch-time denial without retrying permission", async () => {
     const mocks = installPushMocks("denied")
-    render(<PushNotificationSettings publicKey={publicKey} />)
+    renderSettings()
 
     expect(
       await screen.findByText(/blocked in this browser's site settings/)
     ).toBeVisible()
-    expect(screen.getByRole("button", { name: "Enable notifications" })).toBeDisabled()
+    expect(
+      screen.getByRole("button", { name: "Enable notifications" })
+    ).toBeDisabled()
     expect(mocks.requestPermission).not.toHaveBeenCalled()
+  })
+
+  it("allows a manual retry after the launch prompt is dismissed", async () => {
+    const mocks = installPushMocks()
+    mocks.requestPermission
+      .mockResolvedValueOnce("default")
+      .mockResolvedValueOnce("granted")
+    vi.mocked(subscribeToPushAction).mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Enable notifications" })
+    )
+
+    expect(mocks.requestPermission).toHaveBeenCalledTimes(2)
+    await screen.findByRole("button", { name: "Disable on this browser" })
+  })
+
+  it("recognises an existing subscription without requesting permission", async () => {
+    const mocks = installPushMocks("granted")
+    mocks.getSubscription.mockResolvedValue(mocks.subscription)
+    renderSettings()
+
+    await screen.findByRole("button", { name: "Disable on this browser" })
+    expect(mocks.requestPermission).not.toHaveBeenCalled()
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it("respects a previously disabled browser when permission remains granted", async () => {
+    const mocks = installPushMocks("granted")
+    renderSettings()
+
+    expect(
+      await screen.findByRole("button", { name: "Enable notifications" })
+    ).toBeEnabled()
+    expect(mocks.requestPermission).not.toHaveBeenCalled()
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it("keeps failed automatic enrollment non-blocking", async () => {
+    installPushMocks()
+    vi.mocked(subscribeToPushAction).mockResolvedValue({
+      message: "Push notifications could not be enabled.",
+      ok: false,
+    })
+    renderSettings()
+
+    expect(
+      await screen.findByText("Push notifications could not be enabled.")
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Enable notifications" })
+    ).toBeEnabled()
   })
 
   it("unsubscribes the current browser and deactivates its endpoint", async () => {
@@ -86,10 +154,12 @@ describe("push notification settings", () => {
     mocks.getSubscription.mockResolvedValue(mocks.subscription)
     vi.mocked(unsubscribeFromPushAction).mockResolvedValue({ ok: true })
     const user = userEvent.setup()
-    render(<PushNotificationSettings publicKey={publicKey} />)
+    renderSettings()
 
     await user.click(
-      await screen.findByRole("button", { name: "Disable on this browser" })
+      await screen.findByRole("button", {
+        name: "Disable on this browser",
+      })
     )
 
     await waitFor(() =>
@@ -101,7 +171,7 @@ describe("push notification settings", () => {
   })
 
   it("reports unsupported when VAPID is not configured", async () => {
-    render(<PushNotificationSettings publicKey="" />)
+    renderSettings("")
     expect(
       await screen.findByText(/not configured for this environment/)
     ).toBeVisible()
