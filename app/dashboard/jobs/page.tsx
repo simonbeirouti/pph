@@ -2,12 +2,14 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 
 import { EmployeeJobsList } from "@/components/employee-jobs-list"
+import { AssignedWorkOfflineWorkspace } from "@/components/assigned-work-offline-workspace"
 import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
 import { JobWorkspace } from "@/components/job-workspace"
 import { Button } from "@/components/ui/button"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getEmployeeAssignedJobs,
+  getAssignedWorkerOfflineWorkPack,
   getJobDetail,
   getOwnerJobBoardData,
 } from "@/lib/jobs/data"
@@ -58,9 +60,10 @@ export default async function Page({
   }
 
   if (membership.role === "employee" || mode === "my-work") {
-    const [jobs, detail] = await Promise.all([
+    const [jobs, detail, offlinePack] = await Promise.all([
       getEmployeeAssignedJobs(),
       selectedJobId ? getJobDetail(selectedJobId) : null,
+      getAssignedWorkerOfflineWorkPack(),
     ])
     if (selectedJobId && !detail) notFound()
 
@@ -76,8 +79,16 @@ export default async function Page({
             </Button>
           </div>
         ) : null}
-        <EmployeeJobsList jobs={jobs} timezone={membership.timezone} />
-        <EmployeeJobDetail detail={detail} timezone={membership.timezone} />
+        <AssignedWorkOfflineWorkspace
+          fallback={
+            <>
+              <EmployeeJobsList jobs={jobs} timezone={membership.timezone} />
+              <EmployeeJobDetail detail={detail} timezone={membership.timezone} />
+            </>
+          }
+          initialPack={offlinePack}
+          selectedJobId={selectedJobId}
+        />
       </div>
     )
   }

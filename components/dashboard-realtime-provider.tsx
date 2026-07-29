@@ -12,7 +12,6 @@ import {
   type ReactNode,
 } from "react"
 import { useRouter } from "next/navigation"
-import { WifiOffIcon } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/browser"
 import {
@@ -53,6 +52,9 @@ export function DashboardRealtimeProvider({
   const router = useRouter()
   const { membershipId, organisationId, role } = membership
   const [supabase] = useState(createClient)
+  const [browserOnline, setBrowserOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  )
   const [status, setStatus] = useState<RealtimeConnectionStatus>("connecting")
   const listenersRef = useRef(
     new Map<InvalidationListener, ReadonlySet<RealtimeDomain>>()
@@ -80,6 +82,26 @@ export function DashboardRealtimeProvider({
   }, [])
 
   useEffect(() => {
+    const handleOnline = () => setBrowserOnline(true)
+    const handleOffline = () => {
+      if (degradedTimerRef.current) {
+        clearTimeout(degradedTimerRef.current)
+        degradedTimerRef.current = null
+      }
+      setStatus("connecting")
+      setBrowserOnline(false)
+    }
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!browserOnline) return
+
     let active = true
     const topic = realtimeTopic({ membershipId, organisationId, role })
     const channel = supabase
@@ -127,6 +149,7 @@ export function DashboardRealtimeProvider({
     }
   }, [
     markDisconnected,
+    browserOnline,
     membershipId,
     organisationId,
     role,
@@ -144,8 +167,9 @@ export function DashboardRealtimeProvider({
       const hiddenAt = hiddenAtRef.current
       hiddenAtRef.current = null
       if (
-        status !== "connected" ||
-        (hiddenAt !== null && Date.now() - hiddenAt >= STALE_TAB_MS)
+        browserOnline &&
+        (status !== "connected" ||
+          (hiddenAt !== null && Date.now() - hiddenAt >= STALE_TAB_MS))
       ) {
         scheduleRefresh()
       }
@@ -154,7 +178,7 @@ export function DashboardRealtimeProvider({
     document.addEventListener("visibilitychange", handleVisibilityChange)
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange)
-  }, [scheduleRefresh, status])
+  }, [browserOnline, scheduleRefresh, status])
 
   const subscribe = useCallback(
     (domains: readonly RealtimeDomain[], listener: InvalidationListener) => {
@@ -173,15 +197,6 @@ export function DashboardRealtimeProvider({
         className="sr-only"
         data-realtime-status={status}
       />
-      {status === "degraded" ? (
-        <div
-          className="fixed right-4 bottom-4 z-50 flex max-w-sm items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm shadow-lg"
-          role="status"
-        >
-          <WifiOffIcon className="size-4 text-muted-foreground" />
-          Live updates are reconnecting. Your data will refresh automatically.
-        </div>
-      ) : null}
     </RealtimeContext.Provider>
   )
 }

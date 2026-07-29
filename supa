@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f "$PROJECT_ROOT/.env.supabase" ]; then
+  set -a
+  source "$PROJECT_ROOT/.env.supabase"
+  set +a
+fi
+
+exec pnpm exec supabase --workdir "$PROJECT_ROOT" "$@"

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   registerServiceWorker,
+  resetDevelopmentServiceWorker,
   ServiceWorkerRegistration,
 } from "@/components/service-worker-registration"
 
@@ -34,16 +35,41 @@ describe("service-worker registration", () => {
     ).resolves.toBeNull()
   })
 
-  it("does not render UI or block the application when registration rejects", async () => {
-    const register = vi.fn().mockRejectedValue(new Error("unavailable"))
+  it("clears stale development workers and shell caches without rendering UI", async () => {
+    const unregister = vi.fn().mockResolvedValue(true)
+    const getRegistrations = vi
+      .fn()
+      .mockResolvedValue([
+        { unregister } as unknown as ServiceWorkerRegistration,
+      ])
+    const deleteCache = vi.fn().mockResolvedValue(true)
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
-      value: { register },
+      value: { getRegistrations },
+    })
+    Object.defineProperty(window, "caches", {
+      configurable: true,
+      value: {
+        delete: deleteCache,
+        keys: vi.fn().mockResolvedValue(["pph-shell-v3", "unrelated"]),
+      },
     })
 
     const { container } = render(<ServiceWorkerRegistration />)
 
     expect(container).toBeEmptyDOMElement()
-    await waitFor(() => expect(register).toHaveBeenCalledOnce())
+    await waitFor(() => expect(unregister).toHaveBeenCalledOnce())
+    expect(deleteCache).toHaveBeenCalledExactlyOnceWith("pph-shell-v3")
+  })
+
+  it("contains development cleanup failures", async () => {
+    await expect(
+      resetDevelopmentServiceWorker(
+        {
+          getRegistrations: vi.fn().mockRejectedValue(new Error("unavailable")),
+        } as unknown as ServiceWorkerContainer,
+        undefined
+      )
+    ).resolves.toBeUndefined()
   })
 })

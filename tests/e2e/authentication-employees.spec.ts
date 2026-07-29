@@ -112,8 +112,10 @@ test("credential login succeeds and failures remain generic", async ({
 })
 
 test("employee cannot access the owner directory", async ({ employeePage }) => {
-  const response = await employeePage.goto("/dashboard/employees")
-  expect(response?.status()).toBe(404)
+  await employeePage.goto("/dashboard/employees")
+  await expect(
+    employeePage.getByRole("heading", { name: "This page could not be found." })
+  ).toBeVisible()
 })
 
 test("owner opens employee details in a sheet without navigation", async ({
@@ -147,7 +149,7 @@ test("owner opens employee details in a sheet without navigation", async ({
     sheet.getByRole("button", { name: "Deactivate access" })
   ).toBeVisible()
   await expect(
-    sheet.getByRole("button", { name: "Save profile" })
+    sheet.getByRole("button", { name: "Save changes" })
   ).not.toBeVisible()
   const fileChooserPromise = ownerPage.waitForEvent("filechooser")
   await sheet
@@ -163,7 +165,7 @@ test("owner opens employee details in a sheet without navigation", async ({
     name: "alex.png",
   })
   await expect(
-    sheet.getByRole("button", { name: "Save profile" })
+    sheet.getByRole("button", { name: "Save changes" })
   ).toBeVisible()
   await expect(
     sheet.getByRole("img", { name: "Alex Employee profile photo" })
@@ -270,10 +272,8 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     await ownerPage.getByRole("button", { name: "Create and invite" }).click()
     await expect(ownerPage.getByRole("dialog")).not.toBeVisible()
     await expect(
-      ownerPage
-        .getByRole("region", { name: /Notifications/ })
-        .getByText("Employee created and invitation sent.")
-    ).toBeVisible()
+      ownerPage.getByRole("row", { name: `Open ${displayName} details` })
+    ).toContainText("sent")
     const ownerJobsPage = await ownerPage.context().newPage()
     await ownerJobsPage.goto("/dashboard/jobs")
     await expect(

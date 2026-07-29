@@ -69,6 +69,10 @@ import {
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
+import {
+  formatShortZonedDate,
+  formatShortZonedDateTime,
+} from "@/lib/date-format"
 import type {
   JobBoardEmployee,
   JobDetail,
@@ -319,7 +323,9 @@ function JobDetailBody({
         </div>
       ) : null}
 
-      {showProgress ? <EvidenceGallery detail={detail} /> : null}
+      {showProgress ? (
+        <EvidenceGallery detail={detail} timezone={timezone} />
+      ) : null}
 
       {showProgress ? (
         <Accordion
@@ -465,9 +471,7 @@ function OwnerJobActions({
             <Button
               disabled={pending}
               onClick={() =>
-                run(() =>
-                  archiveJobAction(detail.id, detail.submissionVersion)
-                )
+                run(() => archiveJobAction(detail.id, detail.submissionVersion))
               }
               type="button"
             >
@@ -766,7 +770,13 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
   )
 }
 
-function EvidenceGallery({ detail }: { detail: JobDetail }) {
+function EvidenceGallery({
+  detail,
+  timezone,
+}: {
+  detail: JobDetail
+  timezone: string
+}) {
   const router = useRouter()
   const [pendingId, setPendingId] = useState<number | null>(null)
   if (!detail.evidence.length) return null
@@ -782,7 +792,7 @@ function EvidenceGallery({ detail }: { detail: JobDetail }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer */}
             <img
-              alt={`Completion evidence added ${new Date(asset.createdAt).toLocaleDateString()}`}
+              alt={`Completion evidence added ${formatShortZonedDate(asset.createdAt, timezone)}`}
               className="aspect-square w-full object-cover"
               src={asset.signedUrl}
             />
@@ -973,11 +983,5 @@ function useCloseJob() {
 }
 
 function formatDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    month: "short",
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatShortZonedDateTime(value, timezone)
 }

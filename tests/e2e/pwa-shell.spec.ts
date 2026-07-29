@@ -66,7 +66,7 @@ test("publishes signed-out install metadata and valid PNG icons", async ({
   }
 })
 
-test("serves a lifecycle-only service worker with strict headers", async ({
+test("serves an offline-shell service worker with strict headers", async ({
   request,
 }) => {
   const response = await request.get("/sw.js")
@@ -86,13 +86,18 @@ test("serves a lifecycle-only service worker with strict headers", async ({
   expect(worker).toContain("skipWaiting()")
   expect(worker).toContain('addEventListener("activate"')
   expect(worker).toContain("clients.claim()")
-  expect(worker).not.toMatch(
-    /addEventListener\(["'](?:fetch|push|sync|notificationclick)/
-  )
-  expect(worker).not.toContain("caches.")
+  expect(worker).toContain('addEventListener("fetch"')
+  expect(worker).toContain('addEventListener("push"')
+  expect(worker).toContain('addEventListener("notificationclick"')
+  expect(worker).toContain('const OFFLINE_URL = "/offline"')
+  expect(worker).toContain('url.pathname.startsWith("/_next/static/")')
+  expect(worker).not.toMatch(/addEventListener\(["']sync/)
+  expect(worker).not.toContain("job.title")
+  expect(worker).not.toContain("signedUrl")
+  expect(worker).not.toContain("supabase")
 })
 
-test("registers the root service worker without creating caches", async ({
+test("registers the root service worker with only the public shell cache", async ({
   employeePage,
 }) => {
   await employeePage.goto("/login")
@@ -117,7 +122,49 @@ test("registers the root service worker without creating caches", async ({
 
   expect(result.scope).toBe(`${new URL(employeePage.url()).origin}/`)
   expect(result.scriptUrl).toBe(`${new URL(employeePage.url()).origin}/sw.js`)
-  expect(result.caches).toEqual([])
+  expect(result.caches).toEqual(["pph-shell-v5"])
+})
+
+test("revalidates Next.js assets instead of serving stale PWA code", async ({
+  employeePage,
+}) => {
+  await employeePage.goto("/dashboard")
+  const assetUrl = await employeePage
+    .locator('script[src^="/_next/static/"]')
+    .first()
+    .getAttribute("src")
+  expect(assetUrl).toBeTruthy()
+
+  const result = await employeePage.evaluate(async (url) => {
+    await navigator.serviceWorker.ready
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) =>
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          () => resolve(),
+          { once: true }
+        )
+      )
+    }
+
+    const cache = await caches.open("pph-shell-v5")
+    await cache.put(
+      url,
+      new Response("stale-static-asset", {
+        headers: { "content-type": "application/javascript" },
+      })
+    )
+
+    const response = await fetch(url)
+    const body = await response.text()
+    const refreshed = await cache.match(url)
+    const refreshedBody = await refreshed?.text()
+
+    return { body, refreshedBody }
+  }, assetUrl!)
+
+  expect(result.body).not.toBe("stale-static-asset")
+  expect(result.refreshedBody).toBe(result.body)
 })
 
 test("keeps Auth and the application usable without service-worker support", async ({
@@ -133,7 +180,7 @@ test("keeps Auth and the application usable without service-worker support", asy
   await employeePage.goto("/dashboard")
 
   await expect(
-    employeePage.getByRole("heading", { name: "Hi, Alex Employee" })
+    employeePage.getByRole("heading", { name: /^Hi, Alex/ })
   ).toBeVisible()
   await expect(
     employeePage.getByRole("region", { name: "Install Employee Ops" })
@@ -155,7 +202,7 @@ test("contains registration failures without blocking employee work", async ({
   await employeePage.goto("/dashboard")
 
   await expect(
-    employeePage.getByRole("heading", { name: "Hi, Alex Employee" })
+    employeePage.getByRole("heading", { name: /^Hi, Alex/ })
   ).toBeVisible()
 })
 

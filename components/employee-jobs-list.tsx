@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { formatShortZonedDateTime } from "@/lib/date-format"
 import type { JobCard } from "@/lib/jobs/types"
 import { cn } from "@/lib/utils"
 
@@ -129,11 +130,5 @@ function PriorityBadge({ priority }: { priority: JobCard["priority"] }) {
 }
 
 function formatDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    month: "short",
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatShortZonedDateTime(value, timezone)
 }

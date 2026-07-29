@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { formatShortWeekdayZonedDate } from "@/lib/date-format"
 import {
   formatDuration,
   formatLocalTime,
@@ -24,12 +25,7 @@ export function EmployeeShiftSummary({
         <div className="rounded-md border p-3" key={shift.id}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium">
-              {new Intl.DateTimeFormat("en-AU", {
-                day: "numeric",
-                month: "short",
-                timeZone: timezone,
-                weekday: "short",
-              }).format(new Date(shift.startsAt))}
+              {formatShortWeekdayZonedDate(shift.startsAt, timezone)}
             </p>
             {summary.current?.id === shift.id ? (
               <Badge>Working now</Badge>

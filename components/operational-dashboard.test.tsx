@@ -107,7 +107,7 @@ describe("owner operational dashboard", () => {
     )
   })
 
-  it("uses equal scrollable job panels and keeps roster in the action grid", () => {
+  it("uses borderless scrollable panels and keeps roster in the action grid", () => {
     const data: OwnerDashboardData = {
       awaitingReview: 0,
       outstanding: 0,
@@ -126,16 +126,19 @@ describe("owner operational dashboard", () => {
     )
 
     for (const title of ["Urgent jobs", "Recently submitted"]) {
-      const card = screen.getByText(title).closest('[data-slot="card"]')
-      expect(card).toHaveClass("h-[28rem]")
-      expect(card?.querySelector('[data-slot="card-content"]')).toHaveClass(
-        "overflow-y-auto"
-      )
+      const panel = screen
+        .getByRole("heading", { name: title })
+        .closest("section")
+      expect(panel).toHaveClass("h-[28rem]")
+      expect(panel?.lastElementChild).toHaveClass("overflow-y-auto")
+      expect(panel?.closest('[data-slot="card"]')).toBeNull()
     }
 
-    expect(
-      screen.getByText("Today’s roster").closest('[data-slot="card"]')
-    ).toHaveClass("xl:col-span-2")
+    const roster = screen
+      .getByRole("heading", { name: "Today’s roster" })
+      .closest("section")
+    expect(roster).toHaveClass("xl:col-span-2")
+    expect(roster?.closest('[data-slot="card"]')).toBeNull()
     expect(
       screen.getByText("Working now").closest("a")?.querySelector("svg")
     ).toHaveClass("size-10")

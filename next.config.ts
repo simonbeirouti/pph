@@ -1,8 +1,14 @@
 import type { NextConfig } from "next"
+import { networkInterfaces } from "node:os"
 
 const isPlaywrightServer = process.env.PPH_PLAYWRIGHT_SERVER === "1"
+const allowedDevOrigins = Object.values(networkInterfaces())
+  .flatMap((interfaces) => interfaces ?? [])
+  .filter((network) => !network.internal)
+  .map((network) => network.address)
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins,
   distDir: isPlaywrightServer ? ".next-playwright" : ".next",
   experimental: {
     serverActions: {
@@ -25,6 +31,10 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), geolocation=(), microphone=()",
+          },
         ],
       },
       {
@@ -42,6 +52,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: "default-src 'self'; script-src 'self'",
           },
+          { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
     ]

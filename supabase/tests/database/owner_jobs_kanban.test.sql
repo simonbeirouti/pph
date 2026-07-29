@@ -76,6 +76,20 @@ select throws_like(
   '%jobs_minimum_completion_photos_range%',
   'completion photo count is constrained'
 );
+insert into public.roster_shifts (
+  organisation_id,
+  employee_membership_id,
+  starts_at,
+  ends_at,
+  created_by
+)
+values (
+  1001,
+  1103,
+  now() + interval '3650 days',
+  now() + interval '3650 days 2 hours',
+  1101
+);
 select throws_like(
   $$
     insert into public.roster_shifts (
@@ -88,8 +102,8 @@ select throws_like(
     values (
       1001,
       1103,
-      now() - interval '1 hour',
-      now() + interval '1 hour',
+      now() + interval '3650 days 1 hour',
+      now() + interval '3650 days 3 hours',
       1101
     )
   $$,

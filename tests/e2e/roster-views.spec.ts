@@ -268,7 +268,7 @@ test("owner creates and exactly edits shifts from the employee sheet", async ({
       name: "Open Alex Employee details",
     })
     await alexRow.getByRole("cell", { name: "Operator" }).click()
-    const sheet = ownerPage.getByRole("dialog")
+    const sheet = ownerPage.getByRole("dialog", { name: "Alex Employee" })
     await expect
       .poll(async () => ({
         dialogs: await sheet.count(),
@@ -286,17 +286,46 @@ test("owner creates and exactly edits shifts from the employee sheet", async ({
     await expect(
       sheet.getByRole("button", { name: "Save profile" })
     ).toHaveCount(0)
-    await createDialog.getByRole("button", { name: "Create shift" }).click()
-    await expect(createDialog).not.toBeVisible()
+    const createButton = createDialog.getByRole("button", {
+      name: "Create shift",
+    })
+    await createButton.click()
 
-    const { data: createdShift } = await supabase
-      .from("roster_shifts")
-      .select("id")
-      .eq("organisation_id", 1001)
-      .eq("notes", note)
-      .single()
+    const createdShift = await expect
+      .poll(
+        async () => {
+          const { data } = await supabase
+            .from("roster_shifts")
+            .select("id")
+            .eq("organisation_id", 1001)
+            .eq("notes", note)
+            .maybeSingle()
+          return data
+        },
+        { timeout: 15_000 }
+      )
+      .not.toBeNull()
+      .then(async () => {
+        const { data } = await supabase
+          .from("roster_shifts")
+          .select("id")
+          .eq("organisation_id", 1001)
+          .eq("notes", note)
+          .single()
+        return data
+      })
     expect(createdShift).not.toBeNull()
-    await sheet.locator(`[data-shift-id="${createdShift!.id}"]`).click()
+    await expect(createDialog).not.toBeVisible({ timeout: 15_000 })
+    await sheet.getByRole("button", { name: "Close" }).click()
+    await ownerPage.reload()
+    await ownerPage
+      .getByRole("row", { name: "Open Alex Employee details" })
+      .getByRole("cell", { name: "Operator" })
+      .click()
+    const refreshedSheet = ownerPage.getByRole("dialog", {
+      name: "Alex Employee",
+    })
+    await refreshedSheet.locator(`[data-shift-id="${createdShift!.id}"]`).click()
     const editDialog = ownerPage.getByRole("dialog", { name: "Edit shift" })
     await expect(editDialog.getByLabel("Date")).toHaveValue(targetDate)
     await expect(editDialog.getByLabel("Start")).toHaveValue("09:07")
@@ -510,15 +539,14 @@ test("owner creates a shift with a scheduled job from the roster calendar", asyn
       }
 
       await ownerPage.reload()
-      const dayCanvas = ownerPage
-        .locator(`[data-roster-day-canvas][data-roster-date="${targetDate}"]`)
-        .first()
-      const dayBox = await dayCanvas.boundingBox()
-      expect(dayBox).not.toBeNull()
-      const oneHour = dayBox!.height / 24
       const shiftButton = ownerPage
         .getByRole("button", { name: new RegExp(note) })
         .first()
+      const dayCanvas = shiftButton
+        .locator("xpath=ancestor::*[@data-team-shift-canvas][1]")
+      const dayBox = await dayCanvas.boundingBox()
+      expect(dayBox).not.toBeNull()
+      const oneHour = dayBox!.height / 24
       const shiftBox = await shiftButton.boundingBox()
       expect(shiftBox).not.toBeNull()
       await ownerPage.mouse.move(
@@ -734,6 +762,10 @@ test("employee sees a self-scoped read-only roster with allocated jobs", async (
   const allocatedJob = await createAssignableJob(allocatedTitle)
   const startsAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
   const endsAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+  await supabase
+    .from("roster_shifts")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", 1301)
   const { data: employeeShift, error: shiftError } = await supabase
     .from("roster_shifts")
     .insert({
@@ -782,7 +814,7 @@ test("employee sees a self-scoped read-only roster with allocated jobs", async (
       employeePage.getByText(
         "Your read-only weekly roster and allocated jobs.",
         { exact: true }
-      )
+      ).first()
     ).toBeVisible()
     await expect(
       employeePage.getByRole("button", { name: "Add shift" })

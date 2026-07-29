@@ -15,6 +15,14 @@ export default async function Page() {
   const membership = await requireActiveMembership()
   if (membership.role === "employee") {
     const data = await getEmployeeDashboardData()
+    logDashboardPayload({
+      jobs: data.jobs.length,
+      nextActionable: Boolean(data.nextActionable),
+      role: membership.role,
+      shiftCurrent: Boolean(data.shifts.current),
+      shiftUpcoming: data.shifts.upcoming.length,
+      timezone: membership.timezone,
+    })
     return (
       <EmployeeOperationalDashboard
         data={data}
@@ -24,6 +32,17 @@ export default async function Page() {
     )
   }
   const data = await getOwnerDashboardData()
+  logDashboardPayload({
+    awaitingReview: data.awaitingReview,
+    outstanding: data.outstanding,
+    recentlySubmitted: data.recentlySubmitted.length,
+    role: membership.role,
+    rosterToday: data.todayRoster.length,
+    timezone: membership.timezone,
+    urgent: data.urgent.length,
+    urgentCount: data.urgentCount,
+    workingNow: data.workingNow,
+  })
   return (
     <div className="grid gap-4">
       {membership.role === "manager" ? (
@@ -49,4 +68,12 @@ export default async function Page() {
       />
     </div>
   )
+}
+
+function logDashboardPayload(
+  payload: Record<string, boolean | number | string>
+) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info(`[dashboard-debug] shared payload ${JSON.stringify(payload)}`)
+  }
 }

@@ -14,6 +14,7 @@
   ],
   "exclude": [
     "node_modules",
-    "components/ref-files/**"
+    "components/ref-files/**",
+    "supabase/functions/**"
   ]
 }

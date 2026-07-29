@@ -305,14 +305,13 @@ test("owner creates, filters, and reassigns a job", async ({
   )
   await assignmentDialog.getByRole("button", { name: "Assign job" }).click()
   await dragResponse
+  await ownerPage.reload()
   await expect(
     destination.getByRole("article", { name: `Job ${title}` })
   ).toBeVisible()
   await expect(
     destination.getByRole("article", { name: `Job ${title}` })
   ).toContainText("Alex Employee")
-
-  await ownerPage.reload()
   await expect(
     ownerPage
       .getByRole("region", { name: "Assigned jobs", exact: true })

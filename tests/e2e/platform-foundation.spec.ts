@@ -29,9 +29,13 @@ test("sidebar toggles and links to the current profile", async ({
   const mobile = testInfo.project.name.includes("mobile")
 
   await expect(dashboardLink).toBeVisible({ visible: !mobile })
-  await toggle.click()
+  if (mobile) await toggle.tap()
+  else await toggle.click()
 
   if (mobile) {
+    await expect(
+      ownerPage.locator('[data-sidebar="sidebar"][data-mobile="true"]')
+    ).toBeVisible()
     await expect(dashboardLink).toBeVisible()
     await ownerPage.getByRole("button", { name: "Close navigation" }).click()
     await expect(dashboardLink).toBeHidden()
@@ -59,6 +63,47 @@ test("sidebar toggles and links to the current profile", async ({
   await expect(
     ownerPage.getByRole("heading", { name: "Olivia Owner" })
   ).toBeVisible()
+})
+
+test("mobile touch activates shared buttons, tabs, and selects", async ({
+  ownerPage,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.includes("mobile"))
+  const runtimeErrors: string[] = []
+  ownerPage.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      /ChunkLoadError|Hydration failed|hydration mismatch/i.test(message.text())
+    ) {
+      runtimeErrors.push(message.text())
+    }
+  })
+  ownerPage.on("pageerror", (error) => {
+    if (
+      /ChunkLoadError|Hydration failed|hydration mismatch/i.test(error.message)
+    ) {
+      runtimeErrors.push(error.message)
+    }
+  })
+  await ownerPage.goto("/dashboard/jobs")
+
+  await ownerPage.getByRole("button", { name: "Create job" }).tap()
+  const dialog = ownerPage.getByRole("dialog", { name: "Create job" })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Close" }).tap()
+  await expect(dialog).toBeHidden()
+
+  const archived = ownerPage.getByRole("tab", { name: "Archived" })
+  await archived.tap()
+  await expect(archived).toHaveAttribute("aria-selected", "true")
+
+  const urgency = ownerPage.getByRole("combobox", {
+    name: "Filter by urgency",
+  })
+  await urgency.tap()
+  await ownerPage.getByRole("option", { name: "Urgent", exact: true }).tap()
+  await expect(urgency).toContainText("Urgent")
+  expect(runtimeErrors).toEqual([])
 })
 
 test("sidebar and breadcrumb reflect the current page", async ({

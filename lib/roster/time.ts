@@ -1,3 +1,4 @@
+import { formatZonedTime } from "@/lib/date-format"
 import type {
   RosterCalendarDate,
   RosterCalendarRange,
@@ -179,11 +180,7 @@ export function minutesInLocalDay(
 }
 
 export function formatLocalTime(instant: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: timezone,
-  }).format(new Date(instant))
+  return formatZonedTime(instant, timezone)
 }
 
 export function localTimeInputForInstant(
@@ -214,7 +211,8 @@ export function addMinutesToClockTime(value: string, minutes: number) {
   const startMinutes = clockMinutes(value)
   if (startMinutes === null || !Number.isFinite(minutes)) return value
   const dayMinutes = 24 * 60
-  const result = ((startMinutes + Math.round(minutes)) % dayMinutes + dayMinutes) %
+  const result =
+    (((startMinutes + Math.round(minutes)) % dayMinutes) + dayMinutes) %
     dayMinutes
   return `${pad(Math.floor(result / 60))}:${pad(result % 60)}`
 }

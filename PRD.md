@@ -3,7 +3,7 @@
 ## Document status
 
 - Status: Approved for implementation
-- Version: 1.8
+- Version: 1.9
 - Last updated: 29 July 2026
 - Product timezone default: Australia/Melbourne
 - Technical stack: Next.js 16, TypeScript, Supabase, Resend, Tailwind CSS, shadcn/ui, Playwright
@@ -706,7 +706,9 @@ Acceptance criteria:
 - Global responses include `X-Content-Type-Options`, frame protection, and a strict-origin referrer policy.
 - Installation guidance is hidden when running in standalone mode.
 - Unsupported browsers receive the standard responsive web application without errors or blocked workflows.
-- Push permission is never requested in V1.
+- Push permission is requested only after an authenticated user explicitly
+  enables notifications from their profile. Unsupported or denied permission
+  never blocks the standard application.
 
 #### PWA-04: Offline employee work pack
 
@@ -726,8 +728,12 @@ Acceptance criteria:
 - An offline reload opens a generic application shell and then renders the
   available cached work pack without caching authenticated HTML or Supabase
   responses in the service worker.
-- The interface clearly shows Offline, last updated, pending-change count, and
+- Temporary connectivity loss does not replace the assigned-work experience or
+  add a persistent online/offline banner. The application continues from the
+  cached work pack and keeps routine Realtime reconnection silent.
+- Unsynchronised work remains visible beside the affected job through
   per-operation `pending`, `syncing`, `failed`, or `needs_attention` state.
+  Only failed or `needs_attention` work introduces prominent recovery UI.
 - Before offline storage is enabled, the employee is told that cached job data
   and pending photos remain readable to anyone who can use the unlocked device;
   V1 assumes a personally controlled, device-lock-protected browser profile and
@@ -765,8 +771,10 @@ returns so that retries do not duplicate or corrupt my job history.
 
 Acceptance criteria:
 
-- Foreground synchronisation runs on application launch, focus, a successful
-  connectivity probe, and an explicit Sync now action.
+- Foreground synchronisation runs automatically on application launch, focus,
+  the browser's online event, and periodic successful connectivity probes while
+  queued work exists. Routine replay never depends on the worker selecting a
+  manual Sync action.
 - Synchronisation refreshes the Supabase session and revalidates active
   membership, organisation, current assignment, and job state before replay.
 - Operations replay in dependency order through idempotent, transactional
@@ -780,8 +788,9 @@ Acceptance criteria:
   inactive memberships stop replay and preserve local work as Needs attention.
 - Submission runs only after dependent evidence has synchronised and the server
   confirms all evidence requirements.
-- Failed operations remain visible with a safe retry path; the application never
-  claims queued work has reached the server before acknowledgement.
+- Failed operations remain visible with a safe retry path and continue
+  automatic foreground retry where safe; the application never claims queued
+  work has reached the server before acknowledgement.
 - Browser Background Sync may be added later as progressive enhancement but is
   not the primary or required synchronisation mechanism.
 
@@ -1121,13 +1130,16 @@ Requirements:
   versioned, membership-scoped IndexedDB stores.
 - Purge local operational data on logout or membership change and after online
   confirmation that the employee is inactive.
-- Use foreground/manual synchronisation as the reliable baseline. Treat browser
+- Use automatic foreground synchronisation as the reliable baseline, with
+  manual recovery reserved for actionable failures or conflicts. Treat browser
   Background Sync as a future progressive enhancement.
 - Serve production and staging over HTTPS.
 - Configure global and `/sw.js` security headers through `next.config.ts`.
 - Treat install guidance as progressive enhancement; the web application remains fully usable without PWA support.
-- Keep push subscriptions, VAPID keys, offline owner/admin/roster mutations,
-  and background-only synchronisation outside V1.
+- Keep offline owner/admin/roster mutations and background-only
+  synchronisation outside V1. Web-push subscriptions are an opt-in V1
+  capability for affected job assignees, rostered employees, and eligible job
+  reviewers.
 
 ### 8.5 Environment configuration
 
@@ -1148,9 +1160,7 @@ Each implementation step should inspect the relevant reference implementation be
 
 The remaining schedule prototype cluster may still inform S08 recurrence,
 occurrence positioning, optimistic schedule movement, and timezone-aware
-generation. `query-provider.tsx` remains explicitly reserved for the S10
-offline persistence audit, and `supabase/json.ts` remains as a generic JSON
-payload reference.
+generation. `supabase/json.ts` remains as a generic JSON payload reference.
 
 S01 consumed and verified the Supabase browser, server, admin, environment,
 session-cookie, and thin root Proxy prototypes. Those six obsolete reference
@@ -1321,24 +1331,24 @@ implementation, permissions, tests, documentation, and checkpoint verification
 are complete. `Verified` is reserved for confirmation during the final
 integrated V1 release review.
 
-Current release decision: **NO-GO**. S11 and S12 have not started, so the
-application is not yet approved for production.
+Current release decision: **NO-GO**. S11 is complete and S12 is in progress, so
+the application is not yet approved for production.
 
-| Step | Capability                             | Status     | Checkpoint | Verification summary                                                                            |
-| ---- | -------------------------------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline    | `complete` | `8a07533`  | Baseline documents, environment contract, and reference assets recorded                         |
-| S01  | Platform foundation                    | `complete` | `2e26642`  | Lint, types, unit, database, desktop/mobile E2E, and build passed                               |
-| S02  | Authentication and employees           | `complete` | `049a0e9`  | Invitation, activation, employee lifecycle, storage, and isolation passed                       |
-| S03  | Progressive Web App shell              | `complete` | `b43f944`  | Manifest, install assets, service-worker lifecycle, headers, and degradation passed             |
-| S04  | Owner jobs and Kanban                  | `complete` | `f00c938`  | Workflow, assignment, permissions, and desktop/mobile board journeys passed                     |
-| S05  | Employee execution and owner review    | `complete` | `ef897ef`  | Evidence, submission, review, notification, and private-storage checks passed                   |
-| S06  | Roster data and views                  | `complete` | `ca99a70`  | Organisation and employee views, time handling, and scheduling passed                           |
-| S07  | Roster interactions                    | `complete` | `18c1987`  | Desktop/mobile creation, exact editing, archive, and transactional assignment passed            |
-| S08  | Templates and job schedules            | `complete` | `26e65e6`  | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                 |
-| S09  | Operational dashboards                 | `complete` | `26e65e6`  | Role-specific composition, filters, loading states, and responsive journeys passed              |
-| S10  | Access governance and review hierarchy | `complete` | `f8431ee`  | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed |
-| S11  | Offline assigned-worker completion     | `planned`  | —          | Required before production                                                                      |
-| S12  | Integration and production hardening   | `planned`  | —          | Final automated and manual release gate                                                         |
+| Step | Capability                             | Status        | Checkpoint   | Verification summary                                                                                 |
+| ---- | -------------------------------------- | ------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| S00  | Product and implementation baseline    | `complete`    | `8a07533`    | Baseline documents, environment contract, and reference assets recorded                              |
+| S01  | Platform foundation                    | `complete`    | `2e26642`    | Lint, types, unit, database, desktop/mobile E2E, and build passed                                    |
+| S02  | Authentication and employees           | `complete`    | `049a0e9`    | Invitation, activation, employee lifecycle, storage, and isolation passed                            |
+| S03  | Progressive Web App shell              | `complete`    | `b43f944`    | Manifest, install assets, service-worker lifecycle, headers, and degradation passed                  |
+| S04  | Owner jobs and Kanban                  | `complete`    | `f00c938`    | Workflow, assignment, permissions, and desktop/mobile board journeys passed                          |
+| S05  | Employee execution and owner review    | `complete`    | `ef897ef`    | Evidence, submission, review, notification, and private-storage checks passed                        |
+| S06  | Roster data and views                  | `complete`    | `ca99a70`    | Organisation and employee views, time handling, and scheduling passed                                |
+| S07  | Roster interactions                    | `complete`    | `18c1987`    | Desktop/mobile creation, exact editing, archive, and transactional assignment passed                 |
+| S08  | Templates and job schedules            | `complete`    | `26e65e6`    | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                      |
+| S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                   |
+| S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed      |
+| S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed |
+| S12  | Integration and production hardening   | `in_progress` | working tree | Automated implementation gate passed; manual staging/real-device review and release decision remain  |
 
 ### Step 1: Platform foundation — complete
 
@@ -1396,7 +1406,7 @@ application is not yet approved for production.
 - Verify owner, manager, employee, inactive, and cross-organisation boundaries
   in database, server, component, and browser tests.
 
-### Step 11: Offline assigned-worker job completion — planned
+### Step 11: Offline assigned-worker job completion — complete
 
 - Add the membership-scoped IndexedDB work pack, pending-photo store, operation
   outbox, generic offline shell, and visible synchronisation states.
@@ -1407,14 +1417,114 @@ application is not yet approved for production.
 - Do not begin S12 until offline database, unit/component, desktop/mobile
   Playwright, online regression, lint, type-check, and build checks pass.
 
-### Step 12: Integration and production hardening — planned
+Checkpoint evidence (2026-07-29):
+
+- Added the offline assigned-worker portion of the squashed release-candidate
+  migration `20260729074337_offline_push_realtime_hardening.sql`, regenerated
+  combined Supabase types, and passed all 15 targeted database assertions
+  covering versioning, idempotency, conflicts, dependencies, assignment,
+  membership, and organisation boundaries.
+- Added the membership-scoped TanStack work pack, four isolated/versioned
+  IndexedDB databases, consent and purge controls, durable ordered operation
+  outbox, separate photo blobs, deterministic signed resumable uploads, and the
+  production-only offline entry-shell recovery route.
+- Passed 36 unit files / 165 tests, TypeScript, targeted and repository ESLint,
+  the production build, and 20 desktop/mobile production-runtime PWA journeys.
+  The end-to-end offline journey verified reload recovery and exactly one
+  authoritative start, note, photo, and submission receipt.
+- Used the Supabase, Supabase Postgres, Vercel React/Next.js, and Playwright
+  project skills. Consumed the reserved query-provider persistence reference
+  contract into repository-native modules and removed the reference duplicate.
+  No environment variables changed.
+- Resolved TODO-014. Foreground/manual synchronisation remains the reliable
+  baseline; Background Sync remains deferred.
+
+### Step 12: Integration and production hardening — in progress
 
 - Resolve all deferred cross-step TODOs.
+- Add profile-managed opt-in web push for job assignment/reassignment, roster
+  assignment/change, and job submission, approval, and reopen review events.
+  Exclude the actor, persist subscriptions and delivery attempts, and keep push
+  failure non-blocking for the underlying mutation.
 - Reconcile navigation, dependencies, headers, fixtures, shared UI, generated
   Supabase types, environment variables, and remaining reference code.
 - Complete end-to-end coverage, responsive QA, accessibility checks, security
   verification, operational documentation, and staging readiness.
 - Record every automated result and manual reviewer decision in section 13.
+
+Automated implementation evidence (2026-07-29):
+
+- Added the web-push schema, Realtime invalidation hardening, and subscription
+  grants to the squashed release-candidate migration
+  `20260729074337_offline_push_realtime_hardening.sql`; regenerated combined
+  types; and passed all 10 pgTAP files / 316 assertions plus schema lint.
+- Added active-membership/RLS-scoped multi-device push subscriptions,
+  transactionally deduplicated job and roster events/deliveries, actor
+  exclusion, generic same-origin payloads, Profile opt-in/out, denied and
+  unsupported states, service-worker deep links, and the JWT-protected
+  `dispatch-web-push` Edge Function. The Edge runtime bundled and served the
+  dispatcher successfully.
+- Added retry/permanent-failure delivery state, `404`/`410` subscription
+  deactivation, non-blocking delivery semantics, safe mutation logging, and the
+  deployment/backup/rollback/incident runbook.
+- Reconciled the lockfile and generated types; hardened Proxy exclusions,
+  service-worker/global headers, Realtime version invalidations, roster
+  submissions, collision-safe database/browser fixtures, and production
+  App-Router assertions.
+- Passed frozen-lockfile install, diff check, ESLint, TypeScript, 38 unit files /
+  174 tests, 10 database files / 316 assertions, production build, and the full
+  production-runtime Playwright gate: 84 passed and 4 intentional
+  project-level skips across desktop/mobile.
+- Added `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to `.env.example`; removed example
+  Supabase key values. Real values still require local/deployment/Edge secrets.
+- Resolved TODO-003, TODO-004, TODO-007, TODO-008, TODO-010, and TODO-011.
+  S12 remains in progress until the named manual staging and real-device review
+  below is completed.
+- Responsive QA remediation removed redundant outer cards from the owner
+  dashboard job, submitted, and roster sections, and replaced the mobile
+  sidebar toggle path with an explicit 44px touch target that opens the
+  navigation drawer. Targeted component and mobile-browser verification is
+  recorded with the working-tree release candidate.
+- Mobile/PWA interaction remediation moved Next.js static assets from
+  cache-first to network-first service-worker handling and rotated the public
+  shell cache. This prevents updated server markup from hydrating against stale
+  React/Base UI bundles. Normal development now unregisters production service
+  workers and removes their shell caches so Turbopack updates cannot be
+  intercepted, while production and the explicit PWA test server retain the
+  worker lifecycle.
+- Consumed the reference localized-rendering contract into a repository-native
+  deterministic timezone formatter. Server and Safari now produce identical
+  date/time markup, preventing the dashboard-wide hydration failure that made
+  client components appear unresponsive. The Playwright matrix now includes an
+  iPhone WebKit project, and targeted touch tests cover shared buttons, tabs,
+  selects, and the navigation drawer.
+- The production build passed. The four critical mobile interaction,
+  service-worker registration, cache-rotation, and deliberately poisoned-cache
+  checks then passed five consecutive runs in both Mobile Chrome and Mobile
+  Safari/WebKit (40/40).
+- Removed the temporary pre-hydration mobile interaction instrumentation,
+  hydration marker, diagnostic API, and its tests after the component and
+  real-device interaction issues were isolated. No interaction-debugging client
+  hooks or diagnostic endpoint ship in the release candidate.
+- Real-device offline remediation removed persistent online/offline and
+  Realtime-reconnecting chrome, prevents Realtime refresh/channel activity
+  while offline, and keeps the assigned-work shell local-only until a browser
+  online event or successful same-origin reachability probe. Queued operations
+  retry automatically without a routine Sync control, while failed and
+  `needs_attention` work remains visible beside the affected job.
+- The browser Supabase client now replaces a loopback hostname with the page
+  hostname only during LAN development, so Realtime and resumable uploads do
+  not point back at a physical phone. Production URLs are never rewritten.
+- Rotated the shell cache to `pph-shell-v5` and changed failed navigation from
+  a second offline redirect to a direct cached-document response, preserving
+  the requested job URL and avoiding WebKit's second-navigation failure mode.
+- The isolated production PWA check passed 21 targeted mobile checks with one
+  intentional WebKit service-worker replay skip. Mobile Chrome asserted zero
+  Supabase requests while offline and exactly-once automatic replay after
+  reconnect. Playwright does not cover this WebKit service-worker acceptance
+  boundary, so real Safari over trusted HTTPS remains a required manual staging
+  check.
 
 ## 13. Prototype and production readiness
 
@@ -1426,15 +1536,15 @@ must not be silently reduced to obtain approval.
 
 ### Prototype acceptance
 
-- [ ] Critical owner, manager, and employee Playwright journeys pass.
-- [ ] Owner pages work at desktop width.
-- [ ] Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
+- [x] Critical owner, manager, and employee Playwright journeys pass.
+- [x] Owner pages work at desktop width.
+- [x] Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
 - [ ] Employee offline start, notes, photos, queued submission, foreground sync, and
       Needs attention recovery work at a mobile viewport.
-- [ ] RLS tests demonstrate role and organisation isolation.
-- [ ] No real email is sent by automated tests.
+- [x] RLS tests demonstrate role and organisation isolation.
+- [x] No real email is sent by automated tests.
 - [ ] The deployed application passes manifest, icon, service-worker, and installability checks.
-- [ ] Lint, type-check, unit tests, and production build pass.
+- [x] Lint, type-check, unit tests, and production build pass.
 
 ### 13.1 Automated pre-production gate
 
@@ -1442,20 +1552,20 @@ Run from a clean checkout against the release candidate. Record the commit,
 date, environment, command output or CI URL, and reviewer. Do not reset a
 shared or production database.
 
-| Gate                | Command or evidence                                                                    | Required result                                                            | Status/evidence |
-| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------- |
-| Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [ ]             |
-| Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [ ]             |
-| Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [ ]             |
-| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [ ]             |
-| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [ ]             |
-| Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [ ]             |
-| Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [ ]             |
-| Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [ ]             |
-| Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [ ]             |
-| Offline/idempotency | S11 database and Playwright suites                                                     | Replay is exactly once; conflicts retain recoverable local work            | [ ]             |
-| Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [ ]             |
-| Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]             |
+| Gate                | Command or evidence                                                                    | Required result                                                            | Status/evidence                  |
+| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------- |
+| Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [x] 2026-07-29 local             |
+| Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [x] frozen install               |
+| Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [x] pass                         |
+| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [x] 174 pass                     |
+| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [x] 316 pass                     |
+| Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [x] no errors                    |
+| Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [x] regenerated                  |
+| Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [x] pass                         |
+| Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [x] 84 pass, 4 intentional skips |
+| Offline/idempotency | S11 database and Playwright suites                                                     | Replay is exactly once; conflicts retain recoverable local work            | [x] pass                         |
+| Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [x] pass                         |
+| Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]                              |
 
 If `pnpm db:types` changes the checked-in file, review and commit the change,
 then rerun the affected checks. The final gate must run against that exact
@@ -1489,7 +1599,12 @@ screenshot, trace, monitoring event, or runbook link.
       screen-reader announcements receive an accessibility review.
 - [ ] Install, launch, update, offline shell, storage denial, quota pressure,
       stale work-pack, logout purge, and service-worker-disabled behaviour pass on
-      supported staging devices.
+      supported staging devices. Physical-device PWA checks use a trusted HTTPS
+      origin; plain-HTTP LAN addresses are not valid service-worker acceptance
+      environments.
+- [ ] Profile notification opt-in/out, denied and unsupported states, job and
+      roster deep links, and real-device delivery pass without an unsolicited
+      permission prompt or private payload content.
 
 #### Security and data
 
@@ -1516,17 +1631,17 @@ screenshot, trace, monitoring event, or runbook link.
 
 ### 13.3 Release decision record
 
-| Field                       | Value                              |
-| --------------------------- | ---------------------------------- |
-| Release commit              | Pending                            |
-| Staging deployment          | Pending                            |
-| Automated-gate evidence     | Pending                            |
-| Product reviewer/date       | Pending                            |
-| Accessibility reviewer/date | Pending                            |
-| Security/data reviewer/date | Pending                            |
-| Operations reviewer/date    | Pending                            |
-| Waivers and expiries        | None recorded                      |
-| Decision                    | **NO-GO — S11 and S12 incomplete** |
+| Field                       | Value                                                          |
+| --------------------------- | -------------------------------------------------------------- |
+| Release commit              | Pending                                                        |
+| Staging deployment          | Pending                                                        |
+| Automated-gate evidence     | 2026-07-29 local gate passed                                   |
+| Product reviewer/date       | Pending                                                        |
+| Accessibility reviewer/date | Pending                                                        |
+| Security/data reviewer/date | Pending                                                        |
+| Operations reviewer/date    | Pending                                                        |
+| Waivers and expiries        | None recorded                                                  |
+| Decision                    | **NO-GO — manual staging review and release artifact pending** |
 
 ### Production readiness
 
@@ -1547,15 +1662,15 @@ Add a TODO as soon as an active step identifies work owned by a later step.
 Resolve it only when the integrated behaviour and its regression test pass. If
 resolution changes product behaviour, update this document first.
 
-| ID       | Introduced      | Target | Work                                                                                              | Status    |
-| -------- | --------------- | ------ | ------------------------------------------------------------------------------------------------- | --------- |
-| TODO-003 | Schema steps    | S12    | Regenerate and verify final combined Supabase types                                               | `planned` |
-| TODO-004 | All steps       | S12    | Reconcile dependencies and remove unused packages                                                 | `planned` |
-| TODO-007 | All steps       | S12    | Consolidate shared Supabase and Playwright fixtures without weakening isolation                   | `planned` |
-| TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `planned` |
-| TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `planned` |
-| TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `planned` |
-| TODO-014 | S03/S05/S10     | S11    | Add the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `planned` |
+| ID       | Introduced      | Target | Work                                                                                              | Status     |
+| -------- | --------------- | ------ | ------------------------------------------------------------------------------------------------- | ---------- |
+| TODO-003 | Schema steps    | S12    | Regenerate and verify final combined Supabase types                                               | `complete` |
+| TODO-004 | All steps       | S12    | Reconcile dependencies and remove unused packages                                                 | `complete` |
+| TODO-007 | All steps       | S12    | Consolidate shared Supabase and Playwright fixtures without weakening isolation                   | `complete` |
+| TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `complete` |
+| TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `complete` |
+| TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete` |
+| TODO-014 | S03/S05/S10     | S11    | Add the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete` |
 
 Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
 TODO-012, and TODO-013.
@@ -1583,7 +1698,6 @@ The following are explicitly outside V1:
 - Offline roster/calendar, owner, review, administration, template, and
   schedule support.
 - Background-only synchronisation.
-- Push notifications.
 - Job email notifications beyond submission-to-review, and all roster email
   notifications.
 - Non-image job attachments.
@@ -1594,8 +1708,9 @@ The following are explicitly outside V1:
 
 ## 16. Open work after V1
 
-- Add email or push notifications for assignment, reassignment, owner
-  feedback, reopened jobs, and roster changes.
+- Add email notifications for assignment, reassignment, owner feedback,
+  reopened jobs, and roster changes, plus configurable push preferences and
+  additional push event categories beyond the V1 affected-user contract.
 - Add platform-admin and multi-organisation support.
 - Add configurable company onboarding and owner self-service signup.
 - Add richer reporting, exports, and employee workload analytics.

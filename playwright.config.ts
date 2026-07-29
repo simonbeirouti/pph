@@ -82,6 +82,7 @@ export default defineConfig({
     command: `pnpm dev --hostname 127.0.0.1 --port ${playwrightPort}`,
     env: {
       ...localSupabaseEnvironment,
+      NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER: "1",
       PPH_PLAYWRIGHT_SERVER: "1",
     },
     reuseExistingServer: !process.env.CI,
@@ -96,6 +97,10 @@ export default defineConfig({
     {
       name: "mobile-chrome",
       use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "mobile-safari",
+      use: { ...devices["iPhone 15"] },
     },
   ],
 })

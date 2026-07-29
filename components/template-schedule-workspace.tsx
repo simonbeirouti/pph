@@ -84,6 +84,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { formatMediumZonedDateTime } from "@/lib/date-format"
 import {
   INITIAL_TEMPLATE_ACTION_STATE,
   type JobSchedule,
@@ -925,9 +926,5 @@ function describeRecurrence(schedule: JobSchedule) {
 }
 
 function formatInstant(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatMediumZonedDateTime(value, timezone)
 }

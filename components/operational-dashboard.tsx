@@ -29,6 +29,7 @@ import type {
   EmployeeDashboardData,
   OwnerDashboardData,
 } from "@/lib/dashboard/data"
+import { formatShortZonedDateTime, formatZonedTime } from "@/lib/date-format"
 import type { JobCard } from "@/lib/jobs/types"
 
 export function OwnerOperationalDashboard({
@@ -107,13 +108,13 @@ export function OwnerOperationalDashboard({
           timezone={timezone}
           submitted
         />
-        <Card className="xl:col-span-2">
-          <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center">
+        <section className="xl:col-span-2">
+          <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center">
             <div>
-              <CardTitle>Today’s roster</CardTitle>
-              <CardDescription>
+              <h2 className="text-lg font-semibold">Today’s roster</h2>
+              <p className="text-sm text-muted-foreground">
                 Every shift intersecting today in {timezone}.
-              </CardDescription>
+              </p>
             </div>
             <Button
               nativeButton={false}
@@ -123,41 +124,39 @@ export function OwnerOperationalDashboard({
             >
               Open roster
             </Button>
-          </CardHeader>
-          <CardContent>
-            {data.todayRoster.length ? (
-              <div className="grid gap-2">
-                {data.todayRoster.map((shift) => (
-                  <Link
-                    className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-                    href={`/dashboard/employees/${shift.employeeMembershipId}`}
-                    key={shift.id}
-                  >
-                    <div>
-                      <p className="font-medium">{shift.employeeName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatRange(shift.startsAt, shift.endsAt, timezone)}
-                      </p>
-                    </div>
-                    {shift.workingNow ? (
-                      <Badge>Working now</Badge>
-                    ) : (
-                      <Badge variant="outline">Scheduled</Badge>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No one is rostered today.{" "}
-                <Link className="underline" href="/dashboard/roster">
-                  Add a shift
+          </div>
+          {data.todayRoster.length ? (
+            <div className="grid gap-2">
+              {data.todayRoster.map((shift) => (
+                <Link
+                  className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                  href={`/dashboard/employees/${shift.employeeMembershipId}`}
+                  key={shift.id}
+                >
+                  <div>
+                    <p className="font-medium">{shift.employeeName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatRange(shift.startsAt, shift.endsAt, timezone)}
+                    </p>
+                  </div>
+                  {shift.workingNow ? (
+                    <Badge>Working now</Badge>
+                  ) : (
+                    <Badge variant="outline">Scheduled</Badge>
+                  )}
                 </Link>
-                .
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No one is rostered today.{" "}
+              <Link className="underline" href="/dashboard/roster">
+                Add a shift
+              </Link>
+              .
+            </p>
+          )}
+        </section>
       </div>
     </div>
   )
@@ -306,12 +305,12 @@ function DashboardJobs({
   title: string
 }) {
   return (
-    <Card className="flex h-[28rem] min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
+    <section className="flex h-[28rem] min-h-0 flex-col">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {jobs.length ? (
           <div className="grid gap-2">
             {jobs.map((job) => (
@@ -344,20 +343,14 @@ function DashboardJobs({
         ) : (
           <p className="text-sm text-muted-foreground">{empty}</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
 
 function formatDate(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatShortZonedDateTime(value, timezone)
 }
 function formatRange(start: string, end: string, timezone: string) {
-  return `${formatDate(start, timezone)}–${new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", timeZone: timezone }).format(new Date(end))}`
+  return `${formatDate(start, timezone)}–${formatZonedTime(end, timezone)}`
 }

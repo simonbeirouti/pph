@@ -219,6 +219,54 @@ export type Database = {
           },
         ]
       }
+      job_operation_receipts: {
+        Row: {
+          client_operation_id: string
+          created_at: string
+          id: number
+          job_id: number
+          membership_id: number
+          operation_type: Database["public"]["Enums"]["job_operation_type"]
+          organisation_id: number
+          result: Json
+        }
+        Insert: {
+          client_operation_id: string
+          created_at?: string
+          id?: never
+          job_id: number
+          membership_id: number
+          operation_type: Database["public"]["Enums"]["job_operation_type"]
+          organisation_id: number
+          result: Json
+        }
+        Update: {
+          client_operation_id?: string
+          created_at?: string
+          id?: never
+          job_id?: number
+          membership_id?: number
+          operation_type?: Database["public"]["Enums"]["job_operation_type"]
+          organisation_id?: number
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_operation_receipts_job_organisation_fkey"
+            columns: ["job_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "job_operation_receipts_membership_organisation_fkey"
+            columns: ["membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
       job_schedule_occurrences: {
         Row: {
           attempt_count: number
@@ -533,6 +581,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         Insert: {
           archived_at?: string | null
@@ -566,6 +615,7 @@ export type Database = {
           template_id?: number | null
           title: string
           updated_at?: string
+          version?: number
         }
         Update: {
           archived_at?: string | null
@@ -599,6 +649,7 @@ export type Database = {
           template_id?: number | null
           title?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -784,6 +835,154 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notification_deliveries: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          delivered_at: string | null
+          event_id: number
+          id: number
+          last_attempt_at: string | null
+          last_error: string | null
+          next_attempt_at: string
+          organisation_id: number
+          recipient_membership_id: number
+          response_status: number | null
+          status: Database["public"]["Enums"]["push_delivery_status"]
+          subscription_id: number
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_id: number
+          id?: never
+          last_attempt_at?: string | null
+          last_error?: string | null
+          next_attempt_at?: string
+          organisation_id: number
+          recipient_membership_id: number
+          response_status?: number | null
+          status?: Database["public"]["Enums"]["push_delivery_status"]
+          subscription_id: number
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_id?: number
+          id?: never
+          last_attempt_at?: string | null
+          last_error?: string | null
+          next_attempt_at?: string
+          organisation_id?: number
+          recipient_membership_id?: number
+          response_status?: number | null
+          status?: Database["public"]["Enums"]["push_delivery_status"]
+          subscription_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_deliveries_recipient_organisation_fkey"
+            columns: ["recipient_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "push_notification_deliveries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "push_notification_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_deliveries_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_deliveries_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "web_push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_notification_events: {
+        Row: {
+          actor_membership_id: number | null
+          created_at: string
+          deep_link: string
+          event_key: string
+          event_type: Database["public"]["Enums"]["push_event_type"]
+          id: number
+          job_id: number | null
+          label: string
+          organisation_id: number
+          roster_shift_id: number | null
+        }
+        Insert: {
+          actor_membership_id?: number | null
+          created_at?: string
+          deep_link: string
+          event_key: string
+          event_type: Database["public"]["Enums"]["push_event_type"]
+          id?: never
+          job_id?: number | null
+          label: string
+          organisation_id: number
+          roster_shift_id?: number | null
+        }
+        Update: {
+          actor_membership_id?: number | null
+          created_at?: string
+          deep_link?: string
+          event_key?: string
+          event_type?: Database["public"]["Enums"]["push_event_type"]
+          id?: never
+          job_id?: number | null
+          label?: string
+          organisation_id?: number
+          roster_shift_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_events_actor_organisation_fkey"
+            columns: ["actor_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "push_events_job_organisation_fkey"
+            columns: ["job_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "push_events_roster_shift_fkey"
+            columns: ["roster_shift_id"]
+            isOneToOne: false
+            referencedRelation: "roster_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_events_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roster_shifts: {
         Row: {
           archived_at: string | null
@@ -855,6 +1054,56 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organisations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_push_subscriptions: {
+        Row: {
+          active: boolean
+          auth: string
+          created_at: string
+          deactivated_at: string | null
+          endpoint: string
+          id: number
+          membership_id: number
+          organisation_id: number
+          p256dh: string
+          updated_at: string
+          user_agent: string
+        }
+        Insert: {
+          active?: boolean
+          auth: string
+          created_at?: string
+          deactivated_at?: string | null
+          endpoint: string
+          id?: never
+          membership_id: number
+          organisation_id: number
+          p256dh: string
+          updated_at?: string
+          user_agent?: string
+        }
+        Update: {
+          active?: boolean
+          auth?: string
+          created_at?: string
+          deactivated_at?: string | null
+          endpoint?: string
+          id?: never
+          membership_id?: number
+          organisation_id?: number
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_subscriptions_membership_organisation_fkey"
+            columns: ["membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
           },
         ]
       }
@@ -936,6 +1185,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1058,6 +1308,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1283,6 +1534,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1330,6 +1582,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1337,6 +1590,20 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      replay_job_operation: {
+        Args: {
+          p_client_operation_id: string
+          p_expected_version: number
+          p_job_id: number
+          p_operation_type: Database["public"]["Enums"]["job_operation_type"]
+          p_payload?: Json
+        }
+        Returns: {
+          job_version: number
+          operation_status: string
+          result: Json
+        }[]
       }
       retry_job_notification: {
         Args: { p_delivery_id: number }
@@ -1481,6 +1748,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1542,6 +1810,7 @@ export type Database = {
           template_id: number | null
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1624,6 +1893,7 @@ export type Database = {
     Enums: {
       invite_delivery_status: "pending" | "sent" | "failed"
       job_notification_status: "queued" | "sending" | "sent" | "failed"
+      job_operation_type: "start" | "note" | "photo" | "submit"
       job_priority: "low" | "normal" | "high" | "urgent"
       job_schedule_occurrence_status: "pending" | "generated" | "failed"
       job_schedule_recurrence: "daily" | "weekly"
@@ -1636,6 +1906,21 @@ export type Database = {
         | "system"
       membership_role: "owner" | "manager" | "employee"
       membership_status: "invited" | "active" | "inactive"
+      push_delivery_status:
+        | "queued"
+        | "sending"
+        | "delivered"
+        | "retry"
+        | "permanent_failure"
+      push_event_type:
+        | "job_assignment"
+        | "job_reassignment"
+        | "job_submission"
+        | "job_approved_or_archived"
+        | "job_reopened"
+        | "roster_assignment"
+        | "roster_changed"
+        | "roster_archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1765,6 +2050,7 @@ export const Constants = {
     Enums: {
       invite_delivery_status: ["pending", "sent", "failed"],
       job_notification_status: ["queued", "sending", "sent", "failed"],
+      job_operation_type: ["start", "note", "photo", "submit"],
       job_priority: ["low", "normal", "high", "urgent"],
       job_schedule_occurrence_status: ["pending", "generated", "failed"],
       job_schedule_recurrence: ["daily", "weekly"],
@@ -1778,6 +2064,23 @@ export const Constants = {
       ],
       membership_role: ["owner", "manager", "employee"],
       membership_status: ["invited", "active", "inactive"],
+      push_delivery_status: [
+        "queued",
+        "sending",
+        "delivered",
+        "retry",
+        "permanent_failure",
+      ],
+      push_event_type: [
+        "job_assignment",
+        "job_reassignment",
+        "job_submission",
+        "job_approved_or_archived",
+        "job_reopened",
+        "roster_assignment",
+        "roster_changed",
+        "roster_archived",
+      ],
     },
   },
 } as const

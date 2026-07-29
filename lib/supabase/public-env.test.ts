@@ -2,7 +2,10 @@
 
 import { describe, expect, it } from "vitest"
 
-import { parseSupabasePublicConfig } from "@/lib/supabase/public-env"
+import {
+  parseSupabasePublicConfig,
+  resolveBrowserSupabaseUrl,
+} from "@/lib/supabase/public-env"
 
 describe("parseSupabasePublicConfig", () => {
   it("returns a valid public configuration", () => {
@@ -33,5 +36,34 @@ describe("parseSupabasePublicConfig", () => {
     } catch (error) {
       expect(String(error)).not.toContain("sensitive-value")
     }
+  })
+})
+
+describe("resolveBrowserSupabaseUrl", () => {
+  it("uses the page host for a loopback Supabase URL during LAN development", () => {
+    expect(
+      resolveBrowserSupabaseUrl(
+        "http://127.0.0.1:54321",
+        "172.16.11.247",
+        "development"
+      )
+    ).toBe("http://172.16.11.247:54321")
+  })
+
+  it("does not rewrite production or already remote Supabase URLs", () => {
+    expect(
+      resolveBrowserSupabaseUrl(
+        "https://project.supabase.co",
+        "172.16.11.247",
+        "development"
+      )
+    ).toBe("https://project.supabase.co")
+    expect(
+      resolveBrowserSupabaseUrl(
+        "http://127.0.0.1:54321",
+        "app.example.com",
+        "production"
+      )
+    ).toBe("http://127.0.0.1:54321")
   })
 })

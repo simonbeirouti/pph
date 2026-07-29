@@ -16,10 +16,84 @@ type RoleFixtures = {
 
 const password = "Password123!"
 
+async function restoreSeedAccount(email: string) {
+  const seed = {
+    "employee@example.test": {
+      firstName: "Alex",
+      id: 1103,
+      jobTitle: "Operator",
+      lastName: "Employee",
+      phone: "0400 000 002",
+      role: "employee" as const,
+      status: "active" as const,
+    },
+    "inactive@example.test": {
+      firstName: "Casey",
+      id: 1104,
+      jobTitle: "Former Operator",
+      lastName: "Inactive",
+      phone: "0400 000 003",
+      role: "employee" as const,
+      status: "inactive" as const,
+    },
+    "owner@example.test": {
+      firstName: "Olivia",
+      id: 1101,
+      jobTitle: "Owner",
+      lastName: "Owner",
+      phone: "0400 000 004",
+      role: "owner" as const,
+      status: "active" as const,
+    },
+  }[email]
+  if (!seed) return
+
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  await admin
+    .from("memberships")
+    .update({
+      deactivated_at: seed.status === "inactive" ? new Date().toISOString() : null,
+      role: seed.role,
+      status: seed.status,
+    })
+    .eq("id", seed.id)
+  await admin
+    .from("employee_profiles")
+    .update({
+      first_name: seed.firstName,
+      job_title: seed.jobTitle,
+      last_name: seed.lastName,
+      phone: seed.phone,
+    })
+    .eq("membership_id", seed.id)
+  await admin
+    .from("roster_shifts")
+    .delete()
+    .eq("organisation_id", 1001)
+    .neq("id", 1301)
+  await admin
+    .from("roster_shifts")
+    .update({
+      archived_at: null,
+      employee_membership_id: 1103,
+      ends_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      locked_at: null,
+      locked_by: null,
+      notes: "Seeded current shift",
+      starts_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    })
+    .eq("id", 1301)
+}
+
 export async function authenticate(
   context: BrowserContext,
   email: string
 ): Promise<void> {
+  await restoreSeedAccount(email)
   const cookies: { name: string; value: string }[] = []
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

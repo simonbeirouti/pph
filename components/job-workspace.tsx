@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatShortZonedDateTime } from "@/lib/date-format"
 import {
   columnsForJobView,
   jobMatchesView,
@@ -924,11 +925,5 @@ function PriorityBadge({ priority }: { priority: JobCard["priority"] }) {
 }
 
 function formatDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    month: "short",
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatShortZonedDateTime(value, timezone)
 }

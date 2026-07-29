@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useState, useTransition } from "react"
+import { useEffect, useState, useTransition, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
@@ -36,6 +36,7 @@ import {
   INITIAL_ACTION_STATE,
   type ActionState,
 } from "@/lib/forms/action-state"
+import { formatShortWeekdayZonedDate } from "@/lib/date-format"
 import {
   addMinutesToClockTime,
   clockTimeDurationMinutes,
@@ -65,10 +66,8 @@ function ShiftForm({
     employeeMembershipId,
     shift?.id ?? null
   )
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    action,
-    INITIAL_ACTION_STATE
-  )
+  const [state, setState] = useState<ActionState>(INITIAL_ACTION_STATE)
+  const [pending, startSaving] = useTransition()
   const date =
     state.values?.date ??
     (shift
@@ -87,8 +86,16 @@ function ShiftForm({
     if (state.ok) onSaved()
   }, [onSaved, state.ok])
 
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    startSaving(async () => {
+      setState(await action(INITIAL_ACTION_STATE, formData))
+    })
+  }
+
   return (
-    <form action={formAction} className="grid gap-4">
+    <form className="grid gap-4" onSubmit={submit}>
       {state.message ? (
         <Alert variant={state.ok ? "default" : "destructive"}>
           <AlertDescription>{state.message}</AlertDescription>
@@ -274,12 +281,7 @@ export function EmployeeRosterShiftManager({
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
-                  {new Intl.DateTimeFormat("en-AU", {
-                    day: "numeric",
-                    month: "short",
-                    timeZone: timezone,
-                    weekday: "short",
-                  }).format(new Date(shift.startsAt))}
+                  {formatShortWeekdayZonedDate(shift.startsAt, timezone)}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {formatLocalTime(shift.startsAt, timezone)}–

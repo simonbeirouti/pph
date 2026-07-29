@@ -12,6 +12,7 @@ describe("root Proxy matcher", () => {
     "/favicon.ico",
     "/avatar.webp",
     "/sw.js",
+    "/offline",
     "/manifest.webmanifest",
   ])("excludes %s", (url) => {
     expect(

@@ -37,10 +37,8 @@ export function AppSidebar({
   membership: MembershipContext
 }) {
   const pathname = usePathname()
-  const { isMobile, setOpenMobile } = useSidebar()
-  const closeMobileSidebar = () => {
-    if (isMobile) setOpenMobile(false)
-  }
+  const { setOpenMobile } = useSidebar()
+  const closeMobileSidebar = () => setOpenMobile(false)
   const isRouteActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
 

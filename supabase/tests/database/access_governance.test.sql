@@ -2,6 +2,12 @@ begin;
 
 select plan(25);
 
+create temporary table role_audit_baseline as
+select count(*)::bigint as row_count
+from public.membership_role_audit
+where organisation_id = 1001;
+grant select on role_audit_baseline to authenticated;
+
 select enum_has_labels(
   'public',
   'membership_role',
@@ -249,7 +255,7 @@ select lives_ok(
 );
 select is(
   (
-    select count(*)
+    select count(*) - (select row_count from role_audit_baseline)
     from public.membership_role_audit
     where organisation_id = 1001
   ),

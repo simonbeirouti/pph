@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -121,7 +121,7 @@ describe("DashboardRealtimeProvider", () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
-  it("shows degraded status after a sustained failure and refreshes on recovery", async () => {
+  it("keeps degraded connectivity unobtrusive and refreshes on recovery", async () => {
     renderProvider()
     await act(async () => {})
     expect(subscribe).toHaveBeenCalledOnce()
@@ -135,15 +135,16 @@ describe("DashboardRealtimeProvider", () => {
       "connecting"
     )
     act(() => vi.advanceTimersByTime(4_999))
-    expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    expect(document.querySelector("[role=status]")).not.toBeInTheDocument()
 
     act(() => vi.advanceTimersByTime(1))
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Live updates are reconnecting"
+    expect(document.querySelector("[data-realtime-status]")).toHaveAttribute(
+      "data-realtime-status",
+      "degraded"
     )
+    expect(document.querySelector("[role=status]")).not.toBeInTheDocument()
 
     act(() => updateStatus?.("SUBSCRIBED"))
-    expect(screen.queryByRole("status")).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(150))
     expect(refresh).toHaveBeenCalledOnce()
   })

@@ -1,10 +1,11 @@
-import { LogOutIcon } from "lucide-react"
-
-import { logoutAction } from "@/app/dashboard/actions"
 import { updateOwnProfileAction } from "@/app/dashboard/profile/actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeForm } from "@/components/employee-form"
-import { Button } from "@/components/ui/button"
+import {
+  OfflineAwareLogoutButton,
+  OfflineStorageSettings,
+} from "@/components/offline-storage-settings"
+import { PushNotificationSettings } from "@/components/push-notification-settings"
 import {
   Card,
   CardContent,
@@ -30,12 +31,7 @@ export default async function Page() {
             {profile.displayName}
           </h1>
         </div>
-        <form action={logoutAction}>
-          <Button type="submit" variant="outline">
-            <LogOutIcon />
-            Log out
-          </Button>
-        </form>
+        <OfflineAwareLogoutButton />
       </div>
       <Card>
         <CardHeader>
@@ -53,6 +49,10 @@ export default async function Page() {
           />
         </CardContent>
       </Card>
+      <PushNotificationSettings
+        publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
+      />
+      <OfflineStorageSettings />
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -277,6 +277,42 @@ function SidebarTrigger({
       <PanelLeftIcon />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
+  )
+}
+
+function SidebarMobileTrigger({
+  className,
+  onClick,
+  onTouchEnd,
+  ...props
+}: React.ComponentProps<"button">) {
+  const { openMobile, setOpenMobile } = useSidebar()
+
+  return (
+    <button
+      type="button"
+      aria-expanded={openMobile}
+      data-sidebar="mobile-trigger"
+      data-slot="sidebar-mobile-trigger"
+      className={cn(
+        buttonVariants({ size: "icon-lg", variant: "ghost" }),
+        "md:hidden",
+        className
+      )}
+      onClick={(event) => {
+        onClick?.(event)
+        setOpenMobile(true)
+      }}
+      onTouchEnd={(event) => {
+        onTouchEnd?.(event)
+        event.preventDefault()
+        setOpenMobile(true)
+      }}
+      {...props}
+    >
+      <PanelLeftIcon />
+      <span className="sr-only">Open Sidebar</span>
+    </button>
   )
 }
 
@@ -721,6 +757,7 @@ export {
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,
+  SidebarMobileTrigger,
   SidebarTrigger,
   useSidebar,
 }

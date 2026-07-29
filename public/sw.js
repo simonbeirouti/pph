@@ -1,7 +1,170 @@
+const SHELL_CACHE = "pph-shell-v5"
+const OFFLINE_URL = "/offline"
+const PUBLIC_ASSETS = [
+  OFFLINE_URL,
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-maskable-512.png",
+]
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting())
+  event.waitUntil(
+    caches
+      .open(SHELL_CACHE)
+      .then(async (cache) => {
+        await cache.addAll(PUBLIC_ASSETS.slice(1))
+        const offlineResponse = await fetch(OFFLINE_URL)
+        await cache.put(OFFLINE_URL, offlineResponse.clone())
+        const html = await offlineResponse.text()
+        const assetPaths = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+          .map((match) => match[1])
+          .filter((path) => path.startsWith("/_next/static/"))
+        await cache.addAll([...new Set(assetPaths)])
+      })
+      .then(() => self.skipWaiting())
+  )
 })
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names
+            .filter(
+              (name) => name.startsWith("pph-shell-") && name !== SHELL_CACHE
+            )
+            .map((name) => caches.delete(name))
+        )
+      )
+      .then(() => self.clients.claim())
+  )
+})
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request
+  if (request.method !== "GET") return
+  const url = new URL(request.url)
+  if (url.origin !== self.location.origin) return
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      url.pathname === OFFLINE_URL
+        ? fetch(request).catch(async () => {
+            const cache = await caches.open(SHELL_CACHE)
+            return cache.match(OFFLINE_URL, { ignoreSearch: true })
+          })
+        : fetch(request).catch(async () => {
+            const cache = await caches.open(SHELL_CACHE)
+            return (
+              (await cache.match(OFFLINE_URL, { ignoreSearch: true })) ||
+              Response.error()
+            )
+          })
+    )
+    return
+  }
+
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      fetch(request)
+        .then(async (response) => {
+          if (response.ok) {
+            const cache = await caches.open(SHELL_CACHE)
+            await cache.put(request, response.clone())
+          }
+          return response
+        })
+        .catch(async () => {
+          const cached = await caches.match(request)
+          return cached || Response.error()
+        })
+    )
+    return
+  }
+
+  if (url.pathname.startsWith("/icons/")) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            if (response.ok) {
+              const copy = response.clone()
+              void caches
+                .open(SHELL_CACHE)
+                .then((cache) => cache.put(request, copy))
+            }
+            return response
+          })
+      )
+    )
+  }
+})
+
+self.addEventListener("push", (event) => {
+  let payload = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch {
+    payload = {}
+  }
+  const allowedLabels = new Set([
+    "Job assigned",
+    "Job assignment changed",
+    "Job submitted for review",
+    "Job approved or archived",
+    "Job reopened with feedback",
+    "Roster assigned",
+    "Roster changed",
+    "Roster archived",
+  ])
+  const label = allowedLabels.has(payload.label)
+    ? payload.label
+    : "Work updated"
+  const candidateUrl =
+    typeof payload.url === "string"
+      ? new URL(payload.url, self.location.origin)
+      : null
+  const url =
+    candidateUrl &&
+    candidateUrl.origin === self.location.origin &&
+    /^\/dashboard\/(jobs|roster)(?:\/|\?|$)/.test(
+      `${candidateUrl.pathname}${candidateUrl.search}`
+    )
+      ? `${candidateUrl.pathname}${candidateUrl.search}`
+      : "/dashboard"
+
+  event.waitUntil(
+    self.registration.showNotification(label, {
+      body: "Open Employee Ops to view the update.",
+      data: { url },
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: `${label}:${url}`,
+    })
+  )
+})
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const target = new URL(
+    event.notification.data?.url || "/dashboard",
+    self.location.origin
+  ).href
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (clients) => {
+        for (const client of clients) {
+          if (new URL(client.url).origin === self.location.origin) {
+            await client.focus()
+            if ("navigate" in client) await client.navigate(target)
+            return
+          }
+        }
+        await self.clients.openWindow(target)
+      })
+  )
 })
