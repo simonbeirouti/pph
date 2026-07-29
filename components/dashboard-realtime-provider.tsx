@@ -116,6 +116,7 @@ export function DashboardRealtimeProvider({
           for (const [listener, domains] of listenersRef.current) {
             if (domains.has(event.domain)) listener(event)
           }
+          window.dispatchEvent(new Event("pph:offline-invalidate"))
           scheduleRefresh()
         }
       )

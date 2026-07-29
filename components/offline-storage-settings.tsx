@@ -16,11 +16,18 @@ import {
   hasOfflineConsent,
   purgeOfflineData,
 } from "@/lib/offline/storage"
+import {
+  getOfflineV2Identity,
+  purgeOfflineV2Data,
+  setOfflineLogoutPending,
+} from "@/lib/offline-v2/storage"
 
 export function OfflineStorageSettings() {
   const [enabled, setEnabled] = useState<boolean | null>(null)
   useEffect(() => {
-    void hasOfflineConsent().then(setEnabled)
+    void Promise.all([hasOfflineConsent(), getOfflineV2Identity()]).then(
+      ([legacy, identity]) => setEnabled(legacy || Boolean(identity))
+    )
   }, [])
 
   return (
@@ -32,7 +39,7 @@ export function OfflineStorageSettings() {
         </CardTitle>
         <CardDescription>
           {enabled
-            ? "Assigned work and pending photos are stored in this browser for up to 24 hours."
+            ? "Your permitted dashboard data and pending work are stored on this device with a seven-day authorisation lease."
             : "Offline work is not stored in this browser."}
         </CardDescription>
       </CardHeader>
@@ -40,7 +47,10 @@ export function OfflineStorageSettings() {
         <Button
           disabled={!enabled}
           onClick={() => {
-            void purgeOfflineData().then(() => setEnabled(false))
+            void Promise.all([
+              purgeOfflineData(),
+              purgeOfflineV2Data(),
+            ]).then(() => setEnabled(false))
           }}
           variant="outline"
         >
@@ -59,7 +69,20 @@ export function OfflineAwareLogoutButton() {
       disabled={pending}
       onClick={() => {
         setPending(true)
-        void purgeOfflineData().finally(() => logoutAction())
+        if (!navigator.onLine) {
+          void (async () => {
+            await setOfflineLogoutPending(true)
+            await Promise.all([
+              purgeOfflineData(),
+              purgeOfflineV2Data({ preserveLogoutMarker: true }),
+            ])
+            window.location.replace("/offline?logged-out=1")
+          })()
+          return
+        }
+        void Promise.all([purgeOfflineData(), purgeOfflineV2Data()]).finally(
+          () => logoutAction()
+        )
       }}
       type="button"
       variant="outline"

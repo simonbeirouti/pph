@@ -101,7 +101,7 @@ export async function createCalendarRosterShiftAction(
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.rpc("create_roster_shift_with_jobs", {
+  const { data, error } = await supabase.rpc("create_roster_shift_with_jobs", {
     p_employee_membership_id: parsed.data.employeeMembershipId,
     p_ends_at: endsAt,
     p_job_ids: parsed.data.jobIds,
@@ -124,6 +124,7 @@ export async function createCalendarRosterShiftAction(
   revalidatePath("/dashboard")
 
   return {
+    destinationId: data?.id,
     message: parsed.data.jobIds.length
       ? `Shift created and ${parsed.data.jobIds.length} job${
           parsed.data.jobIds.length === 1 ? "" : "s"

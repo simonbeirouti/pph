@@ -1,11 +1,17 @@
-const SHELL_CACHE = "pph-shell-v5"
-const OFFLINE_URL = "/offline"
+const SHELL_CACHE = "pph-dashboard-shell-v7"
+const DASHBOARD_SHELL_URL = "/offline"
 const PUBLIC_ASSETS = [
-  OFFLINE_URL,
+  DASHBOARD_SHELL_URL,
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
 ]
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "PPH_OFFLINE_SHELL_VERSION") {
+    event.ports[0]?.postMessage({ version: SHELL_CACHE })
+  }
+})
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -13,9 +19,12 @@ self.addEventListener("install", (event) => {
       .open(SHELL_CACHE)
       .then(async (cache) => {
         await cache.addAll(PUBLIC_ASSETS.slice(1))
-        const offlineResponse = await fetch(OFFLINE_URL)
-        await cache.put(OFFLINE_URL, offlineResponse.clone())
-        const html = await offlineResponse.text()
+        const shellResponse = await fetch(DASHBOARD_SHELL_URL)
+        if (!shellResponse.ok) {
+          throw new Error("Unable to install the offline dashboard shell")
+        }
+        await cache.put(DASHBOARD_SHELL_URL, shellResponse.clone())
+        const html = await shellResponse.text()
         const assetPaths = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
           .map((match) => match[1])
           .filter((path) => path.startsWith("/_next/static/"))
@@ -33,7 +42,10 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           names
             .filter(
-              (name) => name.startsWith("pph-shell-") && name !== SHELL_CACHE
+              (name) =>
+                (name.startsWith("pph-shell-") ||
+                  name.startsWith("pph-dashboard-shell-")) &&
+                name !== SHELL_CACHE
             )
             .map((name) => caches.delete(name))
         )
@@ -49,16 +61,23 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === "navigate") {
+    const isDashboardNavigation =
+      url.pathname === DASHBOARD_SHELL_URL ||
+      url.pathname === "/dashboard" ||
+      url.pathname.startsWith("/dashboard/")
+    if (!isDashboardNavigation) return
     event.respondWith(
-      url.pathname === OFFLINE_URL
-        ? fetch(request).catch(async () => {
+      url.pathname === DASHBOARD_SHELL_URL
+        ? fetch(request, { cache: "no-store" }).catch(async () => {
             const cache = await caches.open(SHELL_CACHE)
-            return cache.match(OFFLINE_URL, { ignoreSearch: true })
+            return cache.match(DASHBOARD_SHELL_URL, { ignoreSearch: true })
           })
-        : fetch(request).catch(async () => {
+        : fetch(request, { cache: "no-store" }).catch(async () => {
             const cache = await caches.open(SHELL_CACHE)
             return (
-              (await cache.match(OFFLINE_URL, { ignoreSearch: true })) ||
+              (await cache.match(DASHBOARD_SHELL_URL, {
+                ignoreSearch: true,
+              })) ||
               Response.error()
             )
           })
@@ -77,7 +96,7 @@ self.addEventListener("fetch", (event) => {
           return response
         })
         .catch(async () => {
-          const cached = await caches.match(request)
+          const cached = await caches.match(request, { ignoreSearch: true })
           return cached || Response.error()
         })
     )

@@ -672,6 +672,7 @@ grant select, insert, update (
   updated_at,
   deactivated_at
 ) on public.web_push_subscriptions to authenticated;
+
 grant usage, select on sequence public.web_push_subscriptions_id_seq to authenticated;
 grant select on public.push_notification_events to authenticated;
 grant select on public.push_notification_deliveries to authenticated;
@@ -965,3 +966,549 @@ grant update (
   updated_at,
   deactivated_at
 ) on public.web_push_subscriptions to authenticated;
+
+-- Offline-first dashboard synchronization foundation
+
+-- Complete offline-first dashboard foundation.
+
+alter table public.organisations
+  add column version integer not null default 1
+  constraint organisations_version_positive check (version > 0);
+alter table public.memberships
+  add column version integer not null default 1
+  constraint memberships_version_positive check (version > 0);
+alter table public.employee_profiles
+  add column version integer not null default 1
+  constraint employee_profiles_version_positive check (version > 0);
+alter table public.roster_shifts
+  add column version integer not null default 1
+  constraint roster_shifts_version_positive check (version > 0);
+alter table public.job_templates
+  add column version integer not null default 1
+  constraint job_templates_version_positive check (version > 0);
+alter table public.job_schedules
+  add column version integer not null default 1
+  constraint job_schedules_version_positive check (version > 0);
+alter table public.job_schedule_occurrences
+  add column version integer not null default 1
+  constraint job_schedule_occurrences_version_positive check (version > 0);
+
+create function private.bump_offline_entity_version()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.version := old.version + 1;
+  return new;
+end;
+$$;
+
+create trigger organisations_bump_offline_version
+before update on public.organisations
+for each row execute function private.bump_offline_entity_version();
+create trigger memberships_bump_offline_version
+before update on public.memberships
+for each row execute function private.bump_offline_entity_version();
+create trigger employee_profiles_bump_offline_version
+before update on public.employee_profiles
+for each row execute function private.bump_offline_entity_version();
+create trigger roster_shifts_bump_offline_version
+before update on public.roster_shifts
+for each row execute function private.bump_offline_entity_version();
+create trigger job_templates_bump_offline_version
+before update on public.job_templates
+for each row execute function private.bump_offline_entity_version();
+create trigger job_schedules_bump_offline_version
+before update on public.job_schedules
+for each row execute function private.bump_offline_entity_version();
+create trigger job_schedule_occurrences_bump_offline_version
+before update on public.job_schedule_occurrences
+for each row execute function private.bump_offline_entity_version();
+
+revoke all on function private.bump_offline_entity_version()
+  from public, anon, authenticated, service_role;
+
+create table public.organisation_sync_changes (
+  revision bigint generated always as identity primary key,
+  organisation_id bigint not null
+    references public.organisations(id) on delete restrict,
+  entity_type text not null
+    constraint organisation_sync_changes_entity_type_not_blank
+    check (btrim(entity_type) <> ''),
+  entity_id bigint not null,
+  operation text not null
+    constraint organisation_sync_changes_operation
+    check (operation in ('upsert', 'delete')),
+  scope_membership_id bigint,
+  operations_only boolean not null default false,
+  changed_at timestamptz not null default now(),
+  constraint organisation_sync_changes_scope_organisation_fkey
+    foreign key (scope_membership_id, organisation_id)
+    references public.memberships(id, organisation_id)
+    on delete set null
+);
+
+create index organisation_sync_changes_organisation_revision_idx
+  on public.organisation_sync_changes (organisation_id, revision);
+create index organisation_sync_changes_scope_revision_idx
+  on public.organisation_sync_changes (
+    organisation_id,
+    scope_membership_id,
+    revision
+  )
+  where not operations_only;
+
+alter table public.organisation_sync_changes enable row level security;
+revoke all on public.organisation_sync_changes from public, anon, authenticated;
+grant all on public.organisation_sync_changes to service_role;
+
+create function private.record_organisation_sync_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_entity jsonb := case
+    when tg_op = 'DELETE' then to_jsonb(old)
+    else to_jsonb(new)
+  end;
+  v_job_id bigint;
+  v_operations_only boolean := false;
+  v_scope_membership_id bigint;
+begin
+  if tg_table_name = 'organisations' then
+    v_entity := v_entity || jsonb_build_object(
+      'organisation_id',
+      v_entity->>'id'
+    );
+  elsif tg_table_name = 'memberships' and tg_op = 'DELETE' then
+    v_operations_only := true;
+  elsif tg_table_name = 'memberships' then
+    v_scope_membership_id := (v_entity->>'id')::bigint;
+  elsif tg_table_name = 'employee_profiles' then
+    v_scope_membership_id := (v_entity->>'membership_id')::bigint;
+  elsif tg_table_name = 'roster_shifts' then
+    v_scope_membership_id := (v_entity->>'employee_membership_id')::bigint;
+  elsif tg_table_name = 'jobs' then
+    v_scope_membership_id := nullif(
+      v_entity->>'assignee_membership_id',
+      ''
+    )::bigint;
+  elsif tg_table_name in ('job_updates', 'job_assets') then
+    v_job_id := (v_entity->>'job_id')::bigint;
+    select job.assignee_membership_id
+    into v_scope_membership_id
+    from public.jobs as job
+    where job.id = v_job_id
+      and job.organisation_id = (v_entity->>'organisation_id')::bigint;
+  elsif tg_table_name in (
+    'job_templates',
+    'job_schedules',
+    'job_schedule_occurrences',
+    'job_notification_deliveries',
+    'membership_role_audit'
+  ) then
+    v_operations_only := true;
+  end if;
+
+  insert into public.organisation_sync_changes (
+    organisation_id,
+    entity_type,
+    entity_id,
+    operation,
+    scope_membership_id,
+    operations_only
+  )
+  values (
+    (v_entity->>'organisation_id')::bigint,
+    tg_table_name,
+    (v_entity->>'id')::bigint,
+    case when tg_op = 'DELETE' then 'delete' else 'upsert' end,
+    v_scope_membership_id,
+    v_operations_only
+  );
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger organisations_record_sync_change
+after insert or update or delete on public.organisations
+for each row execute function private.record_organisation_sync_change();
+create trigger memberships_record_sync_change
+after insert or update or delete on public.memberships
+for each row execute function private.record_organisation_sync_change();
+create trigger employee_profiles_record_sync_change
+after insert or update or delete on public.employee_profiles
+for each row execute function private.record_organisation_sync_change();
+create trigger roster_shifts_record_sync_change
+after insert or update or delete on public.roster_shifts
+for each row execute function private.record_organisation_sync_change();
+create trigger jobs_record_sync_change
+after insert or update or delete on public.jobs
+for each row execute function private.record_organisation_sync_change();
+create trigger job_updates_record_sync_change
+after insert or update or delete on public.job_updates
+for each row execute function private.record_organisation_sync_change();
+create trigger job_assets_record_sync_change
+after insert or update or delete on public.job_assets
+for each row execute function private.record_organisation_sync_change();
+create trigger job_templates_record_sync_change
+after insert or update or delete on public.job_templates
+for each row execute function private.record_organisation_sync_change();
+create trigger job_schedules_record_sync_change
+after insert or update or delete on public.job_schedules
+for each row execute function private.record_organisation_sync_change();
+create trigger job_schedule_occurrences_record_sync_change
+after insert or update or delete on public.job_schedule_occurrences
+for each row execute function private.record_organisation_sync_change();
+create trigger job_notification_deliveries_record_sync_change
+after insert or update or delete on public.job_notification_deliveries
+for each row execute function private.record_organisation_sync_change();
+create trigger membership_role_audit_record_sync_change
+after insert or update or delete on public.membership_role_audit
+for each row execute function private.record_organisation_sync_change();
+
+revoke all on function private.record_organisation_sync_change()
+  from public, anon, authenticated, service_role;
+
+create table public.offline_operation_receipts (
+  id bigint generated always as identity primary key,
+  organisation_id bigint not null,
+  membership_id bigint not null,
+  entity_type text not null
+    constraint offline_operation_receipts_entity_type_not_blank
+    check (btrim(entity_type) <> ''),
+  entity_id text,
+  client_operation_id uuid not null,
+  operation_type text not null
+    constraint offline_operation_receipts_operation_type_not_blank
+    check (btrim(operation_type) <> ''),
+  result jsonb not null,
+  created_at timestamptz not null default now(),
+  constraint offline_operation_receipts_membership_operation_unique
+    unique (membership_id, client_operation_id),
+  constraint offline_operation_receipts_membership_organisation_fkey
+    foreign key (membership_id, organisation_id)
+    references public.memberships(id, organisation_id)
+    on delete restrict
+);
+
+create index offline_operation_receipts_organisation_created_idx
+  on public.offline_operation_receipts (organisation_id, created_at desc);
+
+alter table public.offline_operation_receipts enable row level security;
+
+create policy offline_operation_receipts_select_authorised
+on public.offline_operation_receipts
+for select
+to authenticated
+using (
+  organisation_id = (
+    select context.organisation_id
+    from private.current_membership_actual() as context
+  )
+  and (
+    membership_id = (
+      select context.membership_id
+      from private.current_membership_actual() as context
+    )
+    or (
+      select private.is_operations_role(context.role)
+      from private.current_membership_actual() as context
+    )
+  )
+);
+
+revoke all on public.offline_operation_receipts from public, anon, authenticated;
+grant select on public.offline_operation_receipts to authenticated;
+grant all on public.offline_operation_receipts to service_role;
+
+create function public.get_offline_sync_revision()
+returns bigint
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor record;
+  v_revision bigint;
+begin
+  select *
+  into v_actor
+  from private.current_membership_actual() as context;
+  if v_actor.membership_id is null then
+    raise exception 'active membership required' using errcode = '42501';
+  end if;
+
+  select coalesce(max(change.revision), 0)
+  into v_revision
+  from public.organisation_sync_changes as change
+  where change.organisation_id = v_actor.organisation_id;
+  return v_revision;
+end;
+$$;
+
+create function public.get_offline_sync_changes(p_after_revision bigint)
+returns table (
+  revision bigint,
+  entity_type text,
+  entity_id bigint,
+  operation text,
+  changed_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor record;
+begin
+  select *
+  into v_actor
+  from private.current_membership_actual() as context;
+  if v_actor.membership_id is null then
+    raise exception 'active membership required' using errcode = '42501';
+  end if;
+
+  return query
+  select
+    change.revision,
+    change.entity_type,
+    change.entity_id,
+    change.operation,
+    change.changed_at
+  from public.organisation_sync_changes as change
+  where change.organisation_id = v_actor.organisation_id
+    and change.revision > greatest(coalesce(p_after_revision, 0), 0)
+    and (
+      private.is_operations_role(v_actor.role)
+      or (
+        not change.operations_only
+        and (
+          change.scope_membership_id is null
+          or change.scope_membership_id = v_actor.membership_id
+        )
+      )
+    )
+  order by change.revision
+  limit 5000;
+end;
+$$;
+
+revoke all on function public.get_offline_sync_revision(),
+  public.get_offline_sync_changes(bigint)
+  from public, anon;
+grant execute on function public.get_offline_sync_revision(),
+  public.get_offline_sync_changes(bigint)
+  to authenticated;
+
+-- Offline operation receipt claims
+
+create function public.claim_offline_operation(
+  p_client_operation_id uuid,
+  p_entity_type text,
+  p_entity_id text,
+  p_operation_type text
+)
+returns table (
+  claimed boolean,
+  result jsonb
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor record;
+  v_receipt public.offline_operation_receipts;
+begin
+  select *
+  into v_actor
+  from private.current_membership_actual();
+
+  if v_actor.membership_id is null then
+    raise exception 'active membership required' using errcode = '42501';
+  end if;
+  if btrim(coalesce(p_entity_type, '')) = ''
+    or btrim(coalesce(p_operation_type, '')) = '' then
+    raise exception 'operation metadata required' using errcode = '22023';
+  end if;
+
+  insert into public.offline_operation_receipts (
+    organisation_id,
+    membership_id,
+    entity_type,
+    entity_id,
+    client_operation_id,
+    operation_type,
+    result
+  )
+  values (
+    v_actor.organisation_id,
+    v_actor.membership_id,
+    p_entity_type,
+    nullif(p_entity_id, ''),
+    p_client_operation_id,
+    p_operation_type,
+    jsonb_build_object('status', 'processing')
+  )
+  on conflict (membership_id, client_operation_id) do nothing
+  returning * into v_receipt;
+
+  if v_receipt.id is not null then
+    return query
+      select true, v_receipt.result;
+    return;
+  end if;
+
+  select *
+  into v_receipt
+  from public.offline_operation_receipts receipt
+  where receipt.membership_id = v_actor.membership_id
+    and receipt.client_operation_id = p_client_operation_id;
+
+  return query
+    select false, v_receipt.result;
+end;
+$$;
+
+create function public.complete_offline_operation(
+  p_client_operation_id uuid,
+  p_result jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor record;
+  v_result jsonb;
+begin
+  select *
+  into v_actor
+  from private.current_membership_actual();
+
+  if v_actor.membership_id is null then
+    raise exception 'active membership required' using errcode = '42501';
+  end if;
+
+  update public.offline_operation_receipts receipt
+  set result = coalesce(p_result, '{}'::jsonb)
+  where receipt.membership_id = v_actor.membership_id
+    and receipt.client_operation_id = p_client_operation_id
+  returning receipt.result into v_result;
+
+  if v_result is null then
+    raise exception 'offline operation receipt not found'
+      using errcode = 'P0002';
+  end if;
+  return v_result;
+end;
+$$;
+
+revoke all on function public.claim_offline_operation(
+  uuid, text, text, text
+) from public, anon;
+grant execute on function public.claim_offline_operation(
+  uuid, text, text, text
+) to authenticated;
+
+revoke all on function public.complete_offline_operation(
+  uuid, jsonb
+) from public, anon;
+grant execute on function public.complete_offline_operation(
+  uuid, jsonb
+) to authenticated;
+
+-- Synchronization change-feed delete scope correction
+
+alter table public.organisation_sync_changes
+  drop constraint organisation_sync_changes_scope_organisation_fkey;
+
+alter table public.organisation_sync_changes
+  add constraint organisation_sync_changes_scope_organisation_fkey
+  foreign key (scope_membership_id, organisation_id)
+  references public.memberships(id, organisation_id)
+  on delete set null (scope_membership_id);
+
+-- Manager job participant identity access
+
+create or replace function public.list_job_participant_identities(
+  p_job_id bigint
+)
+returns table (
+  membership_id bigint,
+  display_name text,
+  role public.membership_role
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor record;
+  v_job public.jobs;
+begin
+  select context.membership_id, context.organisation_id, context.role
+  into v_actor
+  from private.current_membership_context() as context;
+
+  if v_actor.membership_id is null then
+    raise exception 'active membership required' using errcode = '42501';
+  end if;
+
+  select *
+  into v_job
+  from public.jobs as job
+  where job.id = p_job_id
+    and job.organisation_id = v_actor.organisation_id;
+
+  if v_job.id is null
+    or (
+      v_actor.role not in ('owner', 'manager')
+      and v_job.assignee_membership_id <> v_actor.membership_id
+    ) then
+    raise exception 'job is unavailable' using errcode = 'P0002';
+  end if;
+
+  return query
+  select
+    membership.id,
+    coalesce(
+      nullif(
+        btrim(profile.first_name || ' ' || profile.last_name),
+        ''
+      ),
+      split_part(membership.email, '@', 1)
+    ),
+    membership.role
+  from public.memberships as membership
+  left join public.employee_profiles as profile
+    on profile.membership_id = membership.id
+    and profile.organisation_id = membership.organisation_id
+  where membership.organisation_id = v_actor.organisation_id
+    and (
+      membership.id in (
+        v_job.created_by,
+        v_job.assignee_membership_id
+      )
+      or membership.id in (
+        select job_update.author_membership_id
+        from public.job_updates as job_update
+        where job_update.job_id = v_job.id
+          and job_update.organisation_id = v_actor.organisation_id
+          and job_update.author_membership_id is not null
+      )
+    );
+end;
+$$;

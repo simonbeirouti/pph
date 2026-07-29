@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { createCalendarRosterShiftAction } from "@/app/dashboard/roster/actions"
 import { FieldErrors } from "@/components/employee-form"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { RosterDatePicker } from "@/components/roster-date-picker"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,7 @@ import {
 import {
   addMinutesToClockTime,
   clockTimeDurationMinutes,
+  zonedLocalDateTimeToUtc,
 } from "@/lib/roster/time"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type {
@@ -113,8 +115,69 @@ function RosterShiftCreateForm({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
+  const action = async (state: ActionState, formData: FormData) => {
+    if (!offline.isOffline) {
+      return createCalendarRosterShiftAction(state, formData)
+    }
+    const date = String(formData.get("date") ?? "")
+    const startTime = String(formData.get("startTime") ?? "")
+    const endTime = String(formData.get("endTime") ?? "")
+    const formTimezone = String(formData.get("timezone") ?? timezone)
+    const employeeId = Number(formData.get("employeeMembershipId"))
+    const startsAt = zonedLocalDateTimeToUtc(
+      `${date}T${startTime}`,
+      formTimezone
+    )
+    const endsAt = zonedLocalDateTimeToUtc(
+      `${date}T${endTime}`,
+      formTimezone
+    )
+    const localId = crypto.randomUUID()
+    const temporaryId = -Date.now()
+    const now = new Date().toISOString()
+    await offline.queue({
+      entityId: localId,
+      entityType: "roster_shift",
+      kind: "roster.create",
+      payload: {
+        date,
+        employeeMembershipId: employeeId,
+        endTime,
+        jobIds: formData.getAll("jobIds").map(Number),
+        notes: String(formData.get("notes") ?? ""),
+        startTime,
+        temporaryId,
+        timezone: formTimezone,
+      },
+      optimistic: (snapshot) => ({
+        ...snapshot,
+        roster: {
+          ...snapshot.roster,
+          shifts: [
+            ...snapshot.roster.shifts,
+            {
+              archivedAt: null,
+              createdAt: now,
+              createdByMembershipId: snapshot.membership.membershipId,
+              employeeMembershipId: employeeId,
+              endsAt,
+              id: temporaryId,
+              lockedAt: null,
+              lockedByMembershipId: null,
+              notes: String(formData.get("notes") ?? ""),
+              organisationId: snapshot.membership.organisationId,
+              startsAt,
+              updatedAt: now,
+            },
+          ],
+        },
+      }),
+    })
+    return { message: "Shift saved on this device.", ok: true }
+  }
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    createCalendarRosterShiftAction,
+    action,
     INITIAL_ACTION_STATE
   )
   const [date, setDate] = useState(draft.date)
@@ -140,9 +203,9 @@ function RosterShiftCreateForm({
   useEffect(() => {
     if (!state.ok) return
     toast.success(state.message)
-    router.refresh()
+    if (!offline.isOffline) router.refresh()
     onSaved()
-  }, [onSaved, router, state.message, state.ok])
+  }, [offline.isOffline, onSaved, router, state.message, state.ok])
 
   const changeStartTime = (nextStart: string) => {
     const duration = clockTimeDurationMinutes(startTime, endTime)

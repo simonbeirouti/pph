@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { resendEmployeeInvitationAction } from "@/app/dashboard/employees/actions"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { Button } from "@/components/ui/button"
 import { INITIAL_ACTION_STATE } from "@/lib/forms/action-state"
 
@@ -16,6 +17,7 @@ export function EmployeeInvitationAction({
   membershipId: number
   status: "invited" | "active" | "inactive"
 }) {
+  const offline = useOfflineV2Actions()
   const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(
     deliveryStatus
   )
@@ -25,11 +27,22 @@ export function EmployeeInvitationAction({
 
   const sendInvitation = () => {
     startTransition(async () => {
-      const result = await resendEmployeeInvitationAction(
-        membershipId,
-        INITIAL_ACTION_STATE,
-        new FormData()
-      )
+      const queued = await offline.queue({
+        entityId: membershipId,
+        entityType: "notification",
+        kind: "membership.invitation.resend",
+      })
+      const result = queued
+        ? {
+            invitation: "pending" as const,
+            message: "Invitation retry queued.",
+            ok: true,
+          }
+        : await resendEmployeeInvitationAction(
+            membershipId,
+            INITIAL_ACTION_STATE,
+            new FormData()
+          )
       if (result.invitation) setCurrentDeliveryStatus(result.invitation)
       if (result.ok) {
         toast.success(result.message)

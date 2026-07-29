@@ -55,6 +55,7 @@ export type TemplateEmployee = {
 }
 
 export type TemplateActionState = {
+  destinationId?: number
   errors?: Record<string, string[]>
   message?: string
   ok: boolean

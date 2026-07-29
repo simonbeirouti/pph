@@ -4,6 +4,10 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react"
 import { CalendarIcon, PencilIcon } from "lucide-react"
 
 import { createJobAction, updateJobAction } from "@/app/dashboard/jobs/actions"
+import {
+  updateJobEverywhere,
+  useOfflineV2Actions,
+} from "@/components/offline-v2-actions"
 import { FieldErrors } from "@/components/employee-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -44,7 +48,10 @@ import type {
 } from "@/lib/jobs/types"
 import { INITIAL_JOB_ACTION_STATE } from "@/lib/jobs/types"
 import type { JobTemplateOption } from "@/lib/templates/types"
-import { isoToLocalDateTime } from "@/lib/jobs/validation"
+import {
+  isoToLocalDateTime,
+  localDateTimeToIso,
+} from "@/lib/jobs/validation"
 
 type JobFormAction = (
   state: JobActionState,
@@ -65,6 +72,43 @@ export function JobCreateDialog({
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
+  const offline = useOfflineV2Actions()
+  const action: JobFormAction = async (_state, formData) => {
+    if (!offline.isOffline) return createJobAction(_state, formData)
+    const payload = formPayload(formData)
+    const localId = crypto.randomUUID()
+    const temporaryId = -Date.now()
+    const now = new Date().toISOString()
+    const job: JobCard = {
+      assigneeMembershipId: positiveNumber(
+        String(payload.assigneeMembershipId ?? "")
+      ),
+      description: String(payload.description ?? ""),
+      dueAt: nullableLocalDateTime(payload.dueAt, timezone),
+      id: temporaryId,
+      location: String(payload.location ?? ""),
+      minimumCompletionPhotos: Number(payload.minimumCompletionPhotos ?? 0),
+      priority: String(payload.priority ?? "normal") as JobCard["priority"],
+      requiresCompletionNote: Boolean(payload.requiresCompletionNote),
+      scheduledAt: nullableLocalDateTime(payload.scheduledAt, timezone),
+      status: "assigned",
+      title: String(payload.title ?? ""),
+      updatedAt: now,
+    }
+    await offline.queue({
+      entityId: localId,
+      entityType: "job",
+      kind: "job.create",
+      payload: { ...payload, temporaryId },
+      optimistic: (snapshot) => ({
+        ...snapshot,
+        jobs: snapshot.jobs
+          ? { ...snapshot.jobs, jobs: [job, ...snapshot.jobs.jobs] }
+          : null,
+      }),
+    })
+    return { job, message: "Job saved on this device.", ok: true }
+  }
 
   return (
     <>
@@ -80,7 +124,7 @@ export function JobCreateDialog({
             </DialogDescription>
           </DialogHeader>
           <JobForm
-            action={createJobAction}
+            action={action}
             employees={employees}
             idPrefix="create-job-"
             onSaved={(job) => {
@@ -114,7 +158,43 @@ export function JobEditDialog({
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
-  const action = useMemo(() => updateJobAction.bind(null, job.id), [job.id])
+  const offline = useOfflineV2Actions()
+  const action = useMemo<JobFormAction>(
+    () => async (state, formData) => {
+      if (!offline.isOffline) {
+        return updateJobAction(job.id, state, formData)
+      }
+      const payload = formPayload(formData)
+      const updated: JobCard = {
+        ...job,
+        assigneeMembershipId: positiveNumber(
+          String(payload.assigneeMembershipId ?? "")
+        ),
+        description: String(payload.description ?? ""),
+        dueAt: nullableLocalDateTime(payload.dueAt, timezone),
+        location: String(payload.location ?? ""),
+        minimumCompletionPhotos: Number(
+          payload.minimumCompletionPhotos ?? 0
+        ),
+        priority: String(payload.priority ?? "normal") as JobCard["priority"],
+        requiresCompletionNote: Boolean(payload.requiresCompletionNote),
+        scheduledAt: nullableLocalDateTime(payload.scheduledAt, timezone),
+        title: String(payload.title ?? ""),
+        updatedAt: new Date().toISOString(),
+      }
+      await offline.queue({
+        entityId: job.id,
+        entityType: "job",
+        expectedVersion: job.version ?? null,
+        kind: "job.update",
+        payload,
+        optimistic: (snapshot) =>
+          updateJobEverywhere(snapshot, job.id, () => updated),
+      })
+      return { job: updated, message: "Job saved on this device.", ok: true }
+    },
+    [job, offline, timezone]
+  )
 
   return (
     <>
@@ -155,6 +235,36 @@ export function JobEditDialog({
       </Dialog>
     </>
   )
+}
+
+function formPayload(formData: FormData) {
+  return {
+    assigneeMembershipId: String(
+      formData.get("assigneeMembershipId") ?? ""
+    ),
+    description: String(formData.get("description") ?? ""),
+    dueAt: String(formData.get("dueAt") ?? ""),
+    location: String(formData.get("location") ?? ""),
+    minimumCompletionPhotos: String(
+      formData.get("minimumCompletionPhotos") ?? "0"
+    ),
+    priority: String(formData.get("priority") ?? "normal"),
+    requiresCompletionNote: formData.has("requiresCompletionNote"),
+    rosterShiftId: String(formData.get("rosterShiftId") ?? ""),
+    scheduledAt: String(formData.get("scheduledAt") ?? ""),
+    templateId: String(formData.get("templateId") ?? ""),
+    title: String(formData.get("title") ?? ""),
+  }
+}
+
+function positiveNumber(value: string) {
+  const number = Number(value)
+  return Number.isSafeInteger(number) && number > 0 ? number : null
+}
+
+function nullableLocalDateTime(value: unknown, timezone: string) {
+  const local = String(value ?? "")
+  return local ? localDateTimeToIso(local, timezone) : null
 }
 
 function JobForm({

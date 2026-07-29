@@ -27,6 +27,10 @@ import {
   submitJobAction,
 } from "@/app/dashboard/jobs/actions"
 import {
+  updateJobEverywhere,
+  useOfflineV2Actions,
+} from "@/components/offline-v2-actions"
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -80,6 +84,8 @@ import type {
 } from "@/lib/jobs/types"
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { mimeTypeForImageUpload } from "@/lib/uploads/image"
+import { extensionForImageMimeType } from "@/lib/uploads/image"
+import { optimizeJobEvidenceFile } from "@/lib/uploads/job-evidence-optimizer"
 import { cn } from "@/lib/utils"
 
 type Role = "employee" | "owner"
@@ -212,6 +218,7 @@ function JobDetailBody({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   const [comment, setComment] = useState("")
   const [note, setNote] = useState("")
@@ -231,11 +238,51 @@ function JobDetailBody({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        router.refresh()
+        if (!offline.isOffline) router.refresh()
       } else {
         toast.error(result.message)
       }
     })
+  }
+
+  async function queueJob(
+    kind:
+      | "job.start"
+      | "job.note"
+      | "job.comment"
+      | "job.submit",
+    payload: Record<string, unknown> = {}
+  ) {
+    const queued = await offline.queue({
+      entityId: detail.id,
+      entityType: "job",
+      expectedVersion: detail.version ?? null,
+      kind,
+      payload,
+      optimistic: (snapshot) =>
+        updateJobEverywhere(snapshot, detail.id, (current) => ({
+          ...current,
+          ...(kind === "job.start"
+            ? {
+                startedAt:
+                  typeof current.startedAt === "string"
+                    ? current.startedAt
+                    : new Date().toISOString(),
+                status: "in_progress",
+              }
+            : {}),
+          ...(kind === "job.note"
+            ? { noteCount: Number(current.noteCount ?? 0) + 1 }
+            : {}),
+          ...(kind === "job.submit"
+            ? {
+                status: "in_review",
+                submittedAt: new Date().toISOString(),
+              }
+            : {}),
+        })),
+    })
+    return queued
   }
 
   return (
@@ -278,7 +325,13 @@ function JobDetailBody({
       {canStart ? (
         <Button
           disabled={pending}
-          onClick={() => run(() => startJobAction(detail.id))}
+          onClick={() =>
+            run(async () =>
+              (await queueJob("job.start"))
+                ? { message: "Job started.", ok: true }
+                : startJobAction(detail.id)
+            )
+          }
           type="button"
         >
           {pending ? <LoaderCircleIcon className="animate-spin" /> : null}
@@ -302,7 +355,10 @@ function JobDetailBody({
               disabled={pending || !note.trim()}
               onClick={() =>
                 run(
-                  () => addJobNoteAction(detail.id, note),
+                  async () =>
+                    (await queueJob("job.note", { body: note }))
+                      ? { message: "Note saved.", ok: true }
+                      : addJobNoteAction(detail.id, note),
                   () => setNote("")
                 )
               }
@@ -315,7 +371,13 @@ function JobDetailBody({
           <EvidenceUploader detail={detail} />
           <Button
             disabled={pending || !requirementReady}
-            onClick={() => run(() => submitJobAction(detail.id))}
+            onClick={() =>
+              run(async () =>
+                (await queueJob("job.submit"))
+                  ? { message: "Submission saved.", ok: true }
+                  : submitJobAction(detail.id)
+              )
+            }
             type="button"
           >
             Submit for review
@@ -375,7 +437,10 @@ function JobDetailBody({
                   disabled={pending || !comment.trim()}
                   onClick={() =>
                     run(
-                      () => addJobCommentAction(detail.id, comment),
+                      async () =>
+                        (await queueJob("job.comment", { body: comment }))
+                          ? { message: "Comment saved.", ok: true }
+                          : addJobCommentAction(detail.id, comment),
                       () => setComment("")
                     )
                   }
@@ -402,6 +467,7 @@ function OwnerJobActions({
   employees: readonly JobBoardEmployee[]
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   const [reopenOpen, setReopenOpen] = useState(false)
   const [feedback, setFeedback] = useState("")
@@ -422,10 +488,40 @@ function OwnerJobActions({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        router.refresh()
+        if (!offline.isOffline) router.refresh()
       } else {
         toast.error(result.message)
       }
+    })
+  }
+
+  async function queueOwnerJobOperation(
+    kind:
+      | "job.archive"
+      | "job.reopen"
+      | "job.notification.retry",
+    payload: Record<string, unknown>
+  ) {
+    return offline.queue({
+      entityId: detail.id,
+      entityType: kind === "job.notification.retry" ? "notification" : "job",
+      expectedVersion: detail.version ?? null,
+      kind,
+      payload,
+      optimistic:
+        kind === "job.notification.retry"
+          ? undefined
+          : (snapshot) =>
+              updateJobEverywhere(snapshot, detail.id, (current) => ({
+                ...current,
+                ...(kind === "job.archive"
+                  ? { archivedAt: new Date().toISOString(), status: "archived" }
+                  : {
+                      archivedAt: null,
+                      status: "assigned",
+                      submittedAt: null,
+                    }),
+              })),
     })
   }
 
@@ -455,7 +551,14 @@ function OwnerJobActions({
                 className="mt-3"
                 disabled={pending}
                 onClick={() =>
-                  run(() => retryJobNotificationAction(notification.id))
+                  run(async () =>
+                    (await queueOwnerJobOperation(
+                      "job.notification.retry",
+                      { deliveryId: notification.id }
+                    ))
+                      ? { message: "Email retry queued.", ok: true }
+                      : retryJobNotificationAction(notification.id)
+                  )
                 }
                 size="sm"
                 type="button"
@@ -471,7 +574,13 @@ function OwnerJobActions({
             <Button
               disabled={pending}
               onClick={() =>
-                run(() => archiveJobAction(detail.id, detail.submissionVersion))
+                run(async () =>
+                  (await queueOwnerJobOperation("job.archive", {
+                    submissionVersion: detail.submissionVersion,
+                  }))
+                    ? { message: "Approval saved.", ok: true }
+                    : archiveJobAction(detail.id, detail.submissionVersion)
+                )
               }
               type="button"
             >
@@ -561,13 +670,19 @@ function OwnerJobActions({
               disabled={pending || !feedback.trim() || !assignee}
               onClick={() =>
                 run(
-                  () =>
-                    reopenJobAction({
+                  async () =>
+                    (await queueOwnerJobOperation("job.reopen", {
                       assigneeMembershipId: Number(assignee),
                       feedback,
-                      jobId: detail.id,
                       submissionVersion: detail.submissionVersion,
-                    }),
+                    }))
+                      ? { message: "Reopen saved.", ok: true }
+                      : reopenJobAction({
+                          assigneeMembershipId: Number(assignee),
+                          feedback,
+                          jobId: detail.id,
+                          submissionVersion: detail.submissionVersion,
+                        }),
                   () => {
                     setFeedback("")
                     setReopenOpen(false)
@@ -587,6 +702,7 @@ function OwnerJobActions({
 
 function EvidenceUploader({ detail }: { detail: JobDetail }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const inputRef = useRef<HTMLInputElement>(null)
   const attemptRef = useRef(0)
   const optimizationControllerRef = useRef<AbortController | null>(null)
@@ -622,8 +738,6 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
     }
 
     try {
-      const { optimizeJobEvidenceFile } =
-        await import("@/lib/uploads/job-evidence-optimizer")
       const optimized = await optimizeJobEvidenceFile(sourceFile, {
         signal: controller.signal,
       })
@@ -638,6 +752,45 @@ function EvidenceUploader({ detail }: { detail: JobDetail }) {
       const mimeType = mimeTypeForImageUpload(file)
       if (!mimeType) {
         toast.error("Choose a JPEG, PNG, WebP, HEIC, or HEIF image.")
+        reset()
+        return
+      }
+      const temporaryAssetId = -Date.now()
+      if (
+        await offline.queue({
+          blob: file,
+          entityId: detail.id,
+          entityType: "job",
+          expectedVersion: detail.version ?? null,
+          kind: "job.evidence.add",
+          payload: {
+            extension: extensionForImageMimeType(mimeType),
+            mimeType,
+            sizeBytes: file.size,
+            temporaryAssetId,
+          },
+          optimistic: (snapshot) =>
+            updateJobEverywhere(snapshot, detail.id, (current) => ({
+              ...current,
+              evidence: [
+                ...(current.evidence ?? []),
+                {
+                  createdAt: new Date().toISOString(),
+                  id: temporaryAssetId,
+                  mimeType,
+                  removable: true,
+                  signedUrl: URL.createObjectURL(file),
+                  sizeBytes: file.size,
+                  uploadedByMembershipId:
+                    snapshot.membership.membershipId,
+                },
+              ],
+              pendingEvidenceCount:
+                Number(current.pendingEvidenceCount ?? 0) + 1,
+            })),
+        })
+      ) {
+        toast.success("Photo saved on this device")
         reset()
         return
       }
@@ -778,6 +931,7 @@ function EvidenceGallery({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pendingId, setPendingId] = useState<number | null>(null)
   if (!detail.evidence.length) return null
 
@@ -803,14 +957,37 @@ function EvidenceGallery({
                 disabled={pendingId === asset.id}
                 onClick={async () => {
                   setPendingId(asset.id)
-                  const result = await removeJobEvidenceAction(
-                    detail.id,
-                    asset.id
-                  )
+                  const queued = await offline.queue({
+                    entityId: detail.id,
+                    entityType: "job",
+                    expectedVersion: detail.version ?? null,
+                    kind: "job.evidence.remove",
+                    payload: { assetId: asset.id },
+                    optimistic: (snapshot) =>
+                      updateJobEverywhere(
+                        snapshot,
+                        detail.id,
+                        (current) => ({
+                          ...current,
+                          evidence: Array.isArray(current.evidence)
+                            ? current.evidence.filter(
+                                (item) =>
+                                  typeof item !== "object" ||
+                                  item === null ||
+                                  !("id" in item) ||
+                                  item.id !== asset.id
+                              )
+                            : [],
+                        })
+                      ),
+                  })
+                  const result = queued
+                    ? { message: "Photo removal saved.", ok: true }
+                    : await removeJobEvidenceAction(detail.id, asset.id)
                   if (result.ok) toast.success(result.message)
                   else toast.error(result.message)
                   setPendingId(null)
-                  router.refresh()
+                  if (!queued) router.refresh()
                 }}
                 size="icon-sm"
                 type="button"
@@ -972,13 +1149,14 @@ function DetailTerm({
 
 function useCloseJob() {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   return () => {
     const params = new URLSearchParams(window.location.search)
     params.delete("job")
     const query = params.toString()
-    router.replace(`/dashboard/jobs${query ? `?${query}` : ""}`, {
-      scroll: false,
-    })
+    const href = `/dashboard/jobs${query ? `?${query}` : ""}`
+    if (offline.isOffline) offline.navigate?.(href, { replace: true })
+    else router.replace(href, { scroll: false })
   }
 }
 

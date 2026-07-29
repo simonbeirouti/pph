@@ -5,8 +5,10 @@ import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import { DashboardRealtimeProvider } from "@/components/dashboard-realtime-provider"
+import { OfflineDashboardBoundary } from "@/components/offline-dashboard-router"
+import { OfflineSyncStatus } from "@/components/offline-sync-status"
+import { OfflineV2Provider } from "@/components/offline-v2-provider"
 import { PwaInstallCard } from "@/components/pwa-install-card"
-import { QueryProvider } from "@/components/query-provider"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { ViewerTimezoneSync } from "@/components/viewer-timezone-sync"
 import { Separator } from "@/components/ui/separator"
@@ -31,16 +33,18 @@ export default async function DashboardLayout({
     (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value !== "false"
 
   return (
-    <QueryProvider
-      identity={
-        membership.role === "owner"
-          ? null
-          : {
-              membershipId: membership.membershipId,
-              organisationId: membership.organisationId,
-              role: membership.role,
-            }
-      }
+    <OfflineV2Provider
+      serverMembership={{
+        avatarPath: membership.avatarPath,
+        displayName: membership.displayName,
+        email: membership.email,
+        membershipId: membership.membershipId,
+        organisationId: membership.organisationId,
+        organisationName: membership.organisationName,
+        organisationTimezone: membership.organisationTimezone,
+        role: membership.role,
+        timezone: membership.timezone,
+      }}
     >
       <SidebarProvider
         className="h-svh overflow-hidden overscroll-none"
@@ -59,8 +63,8 @@ export default async function DashboardLayout({
           <SidebarInset className="min-h-0 overflow-hidden">
             <ServiceWorkerRegistration />
             {membership.role !== "owner" ? <PwaInstallCard /> : null}
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-              <div className="flex items-center gap-2 px-4">
+            <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+              <div className="flex min-w-0 items-center gap-2">
                 <SidebarMobileTrigger
                   className="-ml-2 size-11"
                   aria-label="Toggle navigation"
@@ -75,13 +79,16 @@ export default async function DashboardLayout({
                 />
                 <DashboardBreadcrumb />
               </div>
+              <OfflineSyncStatus />
             </header>
             <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-contain p-4 md:p-6">
-              {children}
+              <OfflineDashboardBoundary>
+                {children}
+              </OfflineDashboardBoundary>
             </main>
           </SidebarInset>
         </DashboardRealtimeProvider>
       </SidebarProvider>
-    </QueryProvider>
+    </OfflineV2Provider>
   )
 }

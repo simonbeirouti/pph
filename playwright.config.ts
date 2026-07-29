@@ -54,6 +54,7 @@ function readLocalSupabaseEnvironment() {
 
 const localSupabaseEnvironment = readLocalSupabaseEnvironment()
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000"
+const productionServer = process.env.PPH_PLAYWRIGHT_PRODUCTION === "1"
 const playwrightPort = new URL(baseURL).port || "80"
 
 if (!/^\d+$/.test(playwrightPort)) {
@@ -79,13 +80,15 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: `pnpm dev --hostname 127.0.0.1 --port ${playwrightPort}`,
+    command: productionServer
+      ? `pnpm build && pnpm start --hostname 127.0.0.1 --port ${playwrightPort}`
+      : `pnpm dev --hostname 127.0.0.1 --port ${playwrightPort}`,
     env: {
       ...localSupabaseEnvironment,
       NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER: "1",
       PPH_PLAYWRIGHT_SERVER: "1",
     },
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && !productionServer,
     timeout: 120_000,
     url: `${baseURL}/login`,
   },
@@ -100,7 +103,7 @@ export default defineConfig({
     },
     {
       name: "mobile-safari",
-      use: { ...devices["iPhone 15"] },
+      use: { ...devices["iPhone 15"], browserName: "webkit" },
     },
   ],
 })

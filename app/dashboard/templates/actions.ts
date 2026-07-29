@@ -53,7 +53,7 @@ export async function saveTemplateAction(
     p_requires_completion_note: parsed.data.requiresCompletionNote,
     p_title: parsed.data.title,
   }
-  const { error } = templateId
+  const { data, error } = templateId
     ? await supabase.rpc("upsert_job_template", {
         ...args,
         p_template_id: templateId,
@@ -63,7 +63,11 @@ export async function saveTemplateAction(
   if (error) return { message: "Unable to save the template.", ok: false }
   revalidatePath("/dashboard/templates")
   revalidatePath("/dashboard/jobs")
-  return { message: "Template saved.", ok: true }
+  return {
+    destinationId: data?.id,
+    message: "Template saved.",
+    ok: true,
+  }
 }
 
 export async function setTemplateActiveAction(
@@ -123,7 +127,7 @@ export async function saveScheduleAction(
         ? [...new Set(parsed.data.weekdays)].toSorted((a, b) => a - b)
         : [],
   }
-  const { error } = scheduleId
+  const { data, error } = scheduleId
     ? await supabase.rpc("upsert_job_schedule", {
         ...args,
         p_schedule_id: scheduleId,
@@ -139,7 +143,11 @@ export async function saveScheduleAction(
     }
   }
   revalidatePath("/dashboard/templates")
-  return { message: "Schedule saved.", ok: true }
+  return {
+    destinationId: data?.id,
+    message: "Schedule saved.",
+    ok: true,
+  }
 }
 
 export async function setScheduleEnabledAction(

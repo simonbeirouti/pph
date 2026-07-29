@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner"
 
 import { changeMembershipRoleAction } from "@/app/dashboard/employees/actions"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -67,6 +68,7 @@ export function EmployeeEditor({
   const [role, setRole] = useState<MembershipRole>(currentRole)
   const [savedRole, setSavedRole] = useState<MembershipRole>(currentRole)
   const [pending, startTransition] = useTransition()
+  const offline = useOfflineV2Actions()
   const profileSaveRef = useRef<(() => Promise<ActionState>) | null>(null)
 
   const markProfileDirty = useCallback(() => setProfileDirty(true), [])
@@ -98,7 +100,28 @@ export function EmployeeEditor({
       }
 
       if (savingRole) {
-        roleResult = await changeMembershipRoleAction(membershipId, role)
+        const queued = await offline.queue({
+          entityId: membershipId,
+          entityType: "membership",
+          kind: "membership.role",
+          payload: { role },
+          optimistic: (snapshot) => ({
+            ...snapshot,
+            people: snapshot.people
+              ? {
+                  ...snapshot.people,
+                  employees: snapshot.people.employees.map((employee) =>
+                    employee.membershipId === membershipId
+                      ? { ...employee, role }
+                      : employee
+                  ),
+                }
+              : null,
+          }),
+        })
+        roleResult = queued
+          ? { message: "Role change saved on this device.", ok: true }
+          : await changeMembershipRoleAction(membershipId, role)
         if (!roleResult.ok) {
           setRole(savedRole)
           toast.error(roleResult.message)

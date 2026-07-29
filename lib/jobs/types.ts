@@ -19,6 +19,7 @@ export type JobCard = {
   status: JobStatus
   title: string
   updatedAt: string
+  version?: number
 }
 
 export type JobBoardEmployee = {

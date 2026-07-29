@@ -30,6 +30,7 @@ import {
 } from "@/app/dashboard/roster/actions"
 import { RosterShiftCreateDialog } from "@/components/roster-shift-create-dialog"
 import { RosterShiftEditDialog } from "@/components/roster-shift-edit-dialog"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1282,7 +1283,20 @@ export function RosterCalendar({
   timezone: string
   today: string
 }) {
+  const offline = useOfflineV2Actions()
   const router = useRouter()
+  const navigateRosterRoute = (
+    href: string,
+    options?: { replace?: boolean }
+  ) => {
+    if (offline.isOffline) {
+      offline.navigate?.(href, options)
+    } else if (options?.replace) {
+      router.replace(href, { scroll: false })
+    } else {
+      router.push(href)
+    }
+  }
   const mobileScrollRef = useRef<HTMLDivElement>(null)
   const minuteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1399,13 +1413,13 @@ export function RosterCalendar({
       )
       const date = dates[index]
       if (!date || date.date === selectedDate) return
-      router.replace(
+      navigateRosterRoute(
         rosterHref({
           date: date.date,
           employeeMembershipId: navigationEmployeeId,
           mode,
         }),
-        { scroll: false }
+        { replace: true }
       )
     }, 120)
   }
@@ -1433,13 +1447,35 @@ export function RosterCalendar({
     setUpdatingShiftId(shift.id)
     setSelectedShift(null)
     startShiftUpdate(async () => {
-      const result = await updateCalendarRosterShiftAction({
+      const input = {
         employeeMembershipId: shift.employeeMembershipId,
         endsAt,
         shiftId: shift.id,
         startsAt,
         updatedAt: shift.updatedAt,
+      }
+      const queued = await offline.queue({
+        entityId: shift.id,
+        entityType: "roster_shift",
+        kind: "roster.update",
+        payload: input,
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          roster: {
+            ...snapshot.roster,
+            shifts: snapshot.roster.shifts.map((item) =>
+              item.id === shift.id ? { ...item, endsAt, startsAt } : item
+            ),
+          },
+        }),
       })
+      const result = queued
+        ? {
+            message: "Shift saved on this device.",
+            ok: true,
+            updatedAt: shift.updatedAt,
+          }
+        : await updateCalendarRosterShiftAction(input)
       if (result.ok) {
         if (result.updatedAt) {
           setOptimisticShift({
@@ -1450,7 +1486,7 @@ export function RosterCalendar({
           })
         }
         toast.success(result.message)
-        router.refresh()
+        if (!queued) router.refresh()
       } else {
         toast.error(result.message)
         setOptimisticShift(null)
@@ -1462,19 +1498,49 @@ export function RosterCalendar({
     if (activeUpdatingShiftId !== null) return
     setContextActionShiftId(shift.id)
     try {
-      const result = await setCalendarRosterShiftLockAction({
+      const input = {
         employeeMembershipId: shift.employeeMembershipId,
         locked: !shift.lockedAt,
         shiftId: shift.id,
         updatedAt: shift.updatedAt,
+      }
+      const queued = await offline.queue({
+        entityId: shift.id,
+        entityType: "roster_shift",
+        kind: "roster.lock",
+        payload: input,
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          roster: {
+            ...snapshot.roster,
+            shifts: snapshot.roster.shifts.map((item) =>
+              item.id === shift.id
+                ? {
+                    ...item,
+                    lockedAt: input.locked
+                      ? new Date().toISOString()
+                      : null,
+                  }
+                : item
+            ),
+          },
+        }),
       })
+      const result = queued
+        ? {
+            message: input.locked
+              ? "Shift lock saved on this device."
+              : "Shift unlock saved on this device.",
+            ok: true,
+          }
+        : await setCalendarRosterShiftLockAction(input)
       if (result.ok) toast.success(result.message)
       else toast.error(result.message)
     } catch {
       toast.error("Unable to change the shift lock.")
     } finally {
       setContextActionShiftId(null)
-      router.refresh()
+      if (!offline.isOffline) router.refresh()
     }
   }
   const menuActions: ShiftMenuActions | null = readOnly
@@ -1498,11 +1564,31 @@ export function RosterCalendar({
     if (!shift || activeUpdatingShiftId !== null) return
     setContextActionShiftId(shift.id)
     try {
-      const result = await archiveEmployeeRosterShiftAction(
-        shift.employeeMembershipId,
-        shift.id,
-        shift.updatedAt
-      )
+      const queued = await offline.queue({
+        entityId: shift.id,
+        entityType: "roster_shift",
+        kind: "roster.archive",
+        payload: {
+          employeeMembershipId: shift.employeeMembershipId,
+          updatedAt: shift.updatedAt,
+        },
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          roster: {
+            ...snapshot.roster,
+            shifts: snapshot.roster.shifts.filter(
+              (item) => item.id !== shift.id
+            ),
+          },
+        }),
+      })
+      const result = queued
+        ? { message: "Shift deletion saved on this device.", ok: true }
+        : await archiveEmployeeRosterShiftAction(
+            shift.employeeMembershipId,
+            shift.id,
+            shift.updatedAt
+          )
       if (result.ok) {
         toast.success(result.message)
         setDeletingShift(null)
@@ -1513,7 +1599,7 @@ export function RosterCalendar({
       toast.error("Unable to delete the shift.")
     } finally {
       setContextActionShiftId(null)
-      router.refresh()
+      if (!offline.isOffline) router.refresh()
     }
   }
 
@@ -1553,7 +1639,7 @@ export function RosterCalendar({
                 onValueChange={(value) => {
                   const employeeMembershipId =
                     value === "all" ? undefined : Number(value)
-                  router.push(
+                  navigateRosterRoute(
                     rosterHref({
                       date: selectedDate,
                       employeeMembershipId,
@@ -1676,22 +1762,22 @@ export function RosterCalendar({
           const distance = (event.changedTouches[0]?.clientX ?? startX) - startX
           if (Math.abs(distance) < 48) return
           if (selectedIndex === 0 && distance > 0) {
-            router.replace(
+            navigateRosterRoute(
               rosterHref({
                 date: addLocalDays(selectedDate, -1),
                 employeeMembershipId: navigationEmployeeId,
                 mode,
               }),
-              { scroll: false }
+              { replace: true }
             )
           } else if (selectedIndex === dates.length - 1 && distance < 0) {
-            router.replace(
+            navigateRosterRoute(
               rosterHref({
                 date: addLocalDays(selectedDate, 1),
                 employeeMembershipId: navigationEmployeeId,
                 mode,
               }),
-              { scroll: false }
+              { replace: true }
             )
           }
         }}
@@ -1746,7 +1832,7 @@ export function RosterCalendar({
             onSaved={(updatedShift) => {
               setOptimisticShift(updatedShift)
               setEditingShift(null)
-              router.refresh()
+              if (!offline.isOffline) router.refresh()
             }}
             shift={editingShift}
             timezone={timezone}

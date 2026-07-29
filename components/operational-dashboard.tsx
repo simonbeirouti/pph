@@ -16,6 +16,10 @@ import { toast } from "sonner"
 
 import { startJobAction } from "@/app/dashboard/jobs/actions"
 import { EmployeeShiftSummary } from "@/components/employee-shift-summary"
+import {
+  updateJobEverywhere,
+  useOfflineV2Actions,
+} from "@/components/offline-v2-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -225,9 +229,31 @@ function EmployeeQueueRow({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   const start = () =>
     startTransition(async () => {
+      if (
+        await offline.queue({
+          entityId: job.id,
+          entityType: "job",
+          expectedVersion: job.version ?? null,
+          kind: "job.start",
+          optimistic: (snapshot) =>
+            updateJobEverywhere(snapshot, job.id, (current) => ({
+              ...current,
+              startedAt:
+                typeof current.startedAt === "string"
+                  ? current.startedAt
+                  : new Date().toISOString(),
+              status: "in_progress",
+            })),
+        })
+      ) {
+        toast.success("Job started on this device")
+        offline.navigate?.(`/dashboard/jobs?job=${job.id}`)
+        return
+      }
       const result = await startJobAction(job.id)
       if (result.ok) {
         toast.success("Job started")

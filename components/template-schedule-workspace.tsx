@@ -29,6 +29,7 @@ import {
   setScheduleEnabledAction,
   setTemplateActiveAction,
 } from "@/app/dashboard/templates/actions"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -128,6 +129,7 @@ export function TemplateScheduleWorkspace({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [templateDialog, setTemplateDialog] = useState<
     JobTemplate | "new" | null
   >(null)
@@ -162,13 +164,13 @@ export function TemplateScheduleWorkspace({
         <div className="flex w-full items-center gap-3 sm:w-auto">
           <Tabs
             className="min-w-0 flex-1 sm:w-auto sm:flex-none"
-            onValueChange={(value) =>
-              router.push(
-                `/dashboard/templates?view=${
-                  value === "schedules" ? "schedules" : "templates"
-                }`
-              )
-            }
+            onValueChange={(value) => {
+              const href = `/dashboard/templates?view=${
+                value === "schedules" ? "schedules" : "templates"
+              }`
+              if (offline.isOffline) offline.navigate?.(href)
+              else router.push(href)
+            }}
             value={initialView}
           >
             <TabsList
@@ -286,6 +288,7 @@ export function TemplateScheduleWorkspace({
                       template.id === scheduleDialog.templateId
                   )
             }
+            timezone={timezone}
           />
         ) : null}
       </ResponsiveWorkspaceDialog>
@@ -303,6 +306,7 @@ function TemplateCard({
   template: JobTemplate
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   return (
     <Card className={!template.isActive ? "opacity-70" : undefined}>
@@ -333,11 +337,31 @@ function TemplateCard({
                 onClick={() =>
                   startTransition(async () => {
                     try {
-                      await setTemplateActiveAction(
-                        template.id,
-                        !template.isActive
-                      )
-                      router.refresh()
+                      const isActive = !template.isActive
+                      const queued = await offline.queue({
+                        entityId: template.id,
+                        entityType: "job_template",
+                        kind: "template.active",
+                        payload: { isActive },
+                        optimistic: (snapshot) => ({
+                          ...snapshot,
+                          templates: snapshot.templates
+                            ? {
+                                ...snapshot.templates,
+                                templates: snapshot.templates.templates.map(
+                                  (item) =>
+                                    item.id === template.id
+                                      ? { ...item, isActive }
+                                      : item
+                                ),
+                              }
+                            : null,
+                        }),
+                      })
+                      if (!queued) {
+                        await setTemplateActiveAction(template.id, isActive)
+                        router.refresh()
+                      }
                     } catch {
                       toast.error("Unable to update the template")
                     }
@@ -479,6 +503,7 @@ function ScheduleCard({
   timezone: string
 }) {
   const router = useRouter()
+  const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
   const failed = schedule.occurrences.filter(
     (occurrence) => occurrence.status === "failed"
@@ -487,7 +512,7 @@ function ScheduleCard({
     try {
       await action()
       toast.success(success)
-      router.refresh()
+      if (!offline.isOffline) router.refresh()
     } catch {
       toast.error("The schedule could not be updated")
     }
@@ -523,11 +548,37 @@ function ScheduleCard({
                 onClick={() =>
                   startTransition(() =>
                     run(
-                      () =>
-                        setScheduleEnabledAction(
+                      async () => {
+                        const isEnabled = !schedule.isEnabled
+                        if (
+                          await offline.queue({
+                            entityId: schedule.id,
+                            entityType: "job_schedule",
+                            kind: "schedule.enabled",
+                            payload: { isEnabled },
+                            optimistic: (snapshot) => ({
+                              ...snapshot,
+                              templates: snapshot.templates
+                                ? {
+                                    ...snapshot.templates,
+                                    schedules:
+                                      snapshot.templates.schedules.map(
+                                        (item) =>
+                                          item.id === schedule.id
+                                            ? { ...item, isEnabled }
+                                            : item
+                                      ),
+                                  }
+                                : null,
+                            }),
+                          })
+                        )
+                          return
+                        await setScheduleEnabledAction(
                           schedule.id,
-                          !schedule.isEnabled
-                        ),
+                          isEnabled
+                        )
+                      },
                       schedule.isEnabled
                         ? "Schedule paused"
                         : "Schedule resumed"
@@ -549,7 +600,29 @@ function ScheduleCard({
                     return
                   startTransition(() =>
                     run(
-                      () => deleteScheduleAction(schedule.id),
+                      async () => {
+                        if (
+                          await offline.queue({
+                            entityId: schedule.id,
+                            entityType: "job_schedule",
+                            kind: "schedule.delete",
+                            optimistic: (snapshot) => ({
+                              ...snapshot,
+                              templates: snapshot.templates
+                                ? {
+                                    ...snapshot.templates,
+                                    schedules:
+                                      snapshot.templates.schedules.filter(
+                                        (item) => item.id !== schedule.id
+                                      ),
+                                  }
+                                : null,
+                            }),
+                          })
+                        )
+                          return
+                        await deleteScheduleAction(schedule.id)
+                      },
                       "Schedule deleted"
                     )
                   )
@@ -612,7 +685,20 @@ function ScheduleCard({
             disabled={pending}
             onClick={() =>
               startTransition(() =>
-                run(() => retryScheduleAction(schedule.id), "Retry requested")
+                run(
+                  async () => {
+                    if (
+                      await offline.queue({
+                        entityId: schedule.id,
+                        entityType: "job_schedule",
+                        kind: "schedule.retry",
+                      })
+                    )
+                      return
+                    await retryScheduleAction(schedule.id)
+                  },
+                  "Retry requested"
+                )
               )
             }
             size="sm"
@@ -635,9 +721,57 @@ function TemplateForm({
   onSaved: () => void
   template?: JobTemplate
 }) {
+  const offline = useOfflineV2Actions()
   const action = useMemo(
-    () => saveTemplateAction.bind(null, template?.id ?? null),
-    [template?.id]
+    () => async (
+      state: typeof INITIAL_TEMPLATE_ACTION_STATE,
+      formData: FormData
+    ) => {
+      if (!offline.isOffline) {
+        return saveTemplateAction(template?.id ?? null, state, formData)
+      }
+      const payload = templateFormPayload(formData)
+      const localId = crypto.randomUUID()
+      const temporaryId = template?.id ?? -Date.now()
+      const now = new Date().toISOString()
+      const next: JobTemplate = {
+        assigneeMembershipId: nullablePositiveNumber(
+          payload.assigneeMembershipId
+        ),
+        createdAt: template?.createdAt ?? now,
+        description: payload.description,
+        id: temporaryId,
+        isActive: template?.isActive ?? true,
+        location: payload.location,
+        minimumCompletionPhotos: Number(payload.minimumCompletionPhotos),
+        priority: payload.priority as JobTemplate["priority"],
+        requiresCompletionNote: payload.requiresCompletionNote,
+        title: payload.title,
+        updatedAt: now,
+      }
+      await offline.queue({
+        entityId: template?.id ?? localId,
+        entityType: "job_template",
+        kind: template ? "template.update" : "template.create",
+        payload: { ...payload, temporaryId },
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          templates: snapshot.templates
+            ? {
+                ...snapshot.templates,
+                templates: [
+                  next,
+                  ...snapshot.templates.templates.filter(
+                    (item) => item.id !== temporaryId
+                  ),
+                ],
+              }
+            : null,
+        }),
+      })
+      return { message: "Template saved on this device.", ok: true }
+    },
+    [offline, template]
   )
   const [state, formAction, pending] = useActionState(
     action,
@@ -745,15 +879,67 @@ function ScheduleForm({
   onSaved,
   schedule,
   templates,
+  timezone,
 }: {
   employees: readonly TemplateEmployee[]
   onSaved: () => void
   schedule?: JobSchedule
   templates: readonly JobTemplate[]
+  timezone: string
 }) {
+  const offline = useOfflineV2Actions()
   const action = useMemo(
-    () => saveScheduleAction.bind(null, schedule?.id ?? null),
-    [schedule?.id]
+    () => async (
+      state: typeof INITIAL_TEMPLATE_ACTION_STATE,
+      formData: FormData
+    ) => {
+      if (!offline.isOffline) {
+        return saveScheduleAction(schedule?.id ?? null, state, formData)
+      }
+      const payload = scheduleFormPayload(formData)
+      const localId = crypto.randomUUID()
+      const temporaryId = schedule?.id ?? -Date.now()
+      const now = new Date().toISOString()
+      const next: JobSchedule = {
+        assigneeMembershipId: Number(payload.assigneeMembershipId),
+        createdAt: schedule?.createdAt ?? now,
+        deletedAt: null,
+        endsOn: payload.endsOn || null,
+        id: temporaryId,
+        isEnabled: payload.isEnabled,
+        localTime: payload.localTime,
+        nextOccurrenceAt: schedule?.nextOccurrenceAt ?? null,
+        occurrences: schedule?.occurrences ?? [],
+        recurrenceType: payload.recurrenceType as JobSchedule["recurrenceType"],
+        startsOn: payload.startsOn,
+        templateId: Number(payload.templateId),
+        timezone: schedule?.timezone ?? timezone,
+        updatedAt: now,
+        weekdays: payload.weekdays.map(Number),
+      }
+      await offline.queue({
+        entityId: schedule?.id ?? localId,
+        entityType: "job_schedule",
+        kind: schedule ? "schedule.update" : "schedule.create",
+        payload: { ...payload, temporaryId },
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          templates: snapshot.templates
+            ? {
+                ...snapshot.templates,
+                schedules: [
+                  next,
+                  ...snapshot.templates.schedules.filter(
+                    (item) => item.id !== temporaryId
+                  ),
+                ],
+              }
+            : null,
+        }),
+      })
+      return { message: "Schedule saved on this device.", ok: true }
+    },
+    [offline, schedule, timezone]
   )
   const [state, formAction, pending] = useActionState(
     action,
@@ -885,6 +1071,42 @@ function ScheduleForm({
       </FieldGroup>
     </form>
   )
+}
+
+function templateFormPayload(formData: FormData) {
+  return {
+    assigneeMembershipId: String(
+      formData.get("assigneeMembershipId") ?? ""
+    ),
+    description: String(formData.get("description") ?? ""),
+    location: String(formData.get("location") ?? ""),
+    minimumCompletionPhotos: String(
+      formData.get("minimumCompletionPhotos") ?? "0"
+    ),
+    priority: String(formData.get("priority") ?? "normal"),
+    requiresCompletionNote: formData.has("requiresCompletionNote"),
+    title: String(formData.get("title") ?? ""),
+  }
+}
+
+function scheduleFormPayload(formData: FormData) {
+  return {
+    assigneeMembershipId: String(
+      formData.get("assigneeMembershipId") ?? ""
+    ),
+    endsOn: String(formData.get("endsOn") ?? ""),
+    isEnabled: formData.has("isEnabled"),
+    localTime: String(formData.get("localTime") ?? ""),
+    recurrenceType: String(formData.get("recurrenceType") ?? "daily"),
+    startsOn: String(formData.get("startsOn") ?? ""),
+    templateId: String(formData.get("templateId") ?? ""),
+    weekdays: formData.getAll("weekdays").map(String),
+  }
+}
+
+function nullablePositiveNumber(value: string) {
+  const number = Number(value)
+  return Number.isSafeInteger(number) && number > 0 ? number : null
 }
 
 function WorkspaceEmpty({

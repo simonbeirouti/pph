@@ -20,6 +20,10 @@ import { toast } from "sonner"
 
 import { reassignJobAction } from "@/app/dashboard/jobs/actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
+import {
+  updateJobEverywhere,
+  useOfflineV2Actions,
+} from "@/components/offline-v2-actions"
 import { JobCreateDialog, JobEditDialog } from "@/components/job-create-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -112,6 +116,7 @@ export function JobWorkspace({
   templates?: readonly JobTemplateOption[]
   timezone: string
 }) {
+  const offline = useOfflineV2Actions()
   const [view, setView] = useState<JobView>(initialView)
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
   const [employeeFilter, setEmployeeFilter] = useState<EmployeeFilter>("all")
@@ -204,7 +209,27 @@ export function JobWorkspace({
     setPendingIds((currentIds) => new Set(currentIds).add(jobId))
 
     try {
-      const result = await reassignJobAction(jobId, assigneeMembershipId)
+      const queued = await offline.queue({
+        entityId: jobId,
+        entityType: "job",
+        expectedVersion: current.version ?? null,
+        kind: "job.reassign",
+        payload: { assigneeMembershipId },
+        optimistic: (stored) =>
+          updateJobEverywhere(stored, jobId, (job) => ({
+            ...job,
+            assigneeMembershipId,
+            status: "assigned",
+            updatedAt: new Date().toISOString(),
+          })),
+      })
+      const result = queued
+        ? {
+            job: optimistic.find((job) => job.id === jobId),
+            message: "Assignment saved on this device.",
+            ok: true,
+          }
+        : await reassignJobAction(jobId, assigneeMembershipId)
       if (!result.ok || !result.job) {
         const restored = jobsRef.current.map((job) =>
           job.id === jobId ? current : job

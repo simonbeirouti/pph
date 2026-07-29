@@ -47,27 +47,22 @@ test("employee completes an assigned job through the offline outbox", async ({
 
   try {
     await employeePage.goto("/dashboard/jobs")
-    await employeePage
-      .getByRole("button", { name: "Enable offline work" })
-      .click()
+    await expect(employeePage.locator("[data-offline-provider]")).toHaveCount(1)
     await expect(
-      employeePage.getByRole("button", { name: "Enable offline work" })
-    ).not.toBeVisible()
-    await employeePage.goto(`/dashboard/jobs?job=${job!.id}`)
+      employeePage.locator('[data-offline-status="offline_ready"]')
+    ).toBeVisible({ timeout: 30_000 })
     await employeePage.evaluate(() => navigator.serviceWorker.ready)
-    await employeePage.reload()
-    await expect(
-      employeePage.getByRole("region", { name: `Job ${title}` })
-    ).toBeVisible()
-    await employeePage.waitForTimeout(1_500)
     const persisted = await employeePage.evaluate(
       () =>
         new Promise<boolean>((resolve, reject) => {
-          const request = indexedDB.open("pph-offline-query-v1")
+          const request = indexedDB.open("pph-offline-v2")
           request.onerror = () => reject(request.error)
           request.onsuccess = () => {
-            const transaction = request.result.transaction("keyval", "readonly")
-            const value = transaction.objectStore("keyval").get("assigned-work")
+            const transaction = request.result.transaction(
+              "snapshots",
+              "readonly"
+            )
+            const value = transaction.objectStore("snapshots").get("active")
             value.onerror = () => reject(value.error)
             value.onsuccess = () => resolve(Boolean(value.result))
           }
@@ -77,25 +72,39 @@ test("employee completes an assigned job through the offline outbox", async ({
 
     offlinePhase = true
     await context.setOffline(true)
-    await employeePage.evaluate(() => window.location.reload())
-    await expect(
-      employeePage.getByRole("heading", { name: "Employee Ops" })
-    ).toBeVisible()
-    await expect(
-      employeePage.getByText("Offline", { exact: true })
-    ).toHaveCount(0)
-    await employeePage.waitForTimeout(500)
+    await employeePage
+      .getByRole("article", { name: `Job ${title}` })
+      .getByRole("button", { name: "Open job" })
+      .click()
     expect(pageErrors).toEqual([])
+    const persistedAfterNavigation = await employeePage.evaluate(
+      () =>
+        new Promise<boolean>((resolve, reject) => {
+          const request = indexedDB.open("pph-offline-v2")
+          request.onerror = () => reject(request.error)
+          request.onsuccess = () => {
+            const value = request.result
+              .transaction("snapshots", "readonly")
+              .objectStore("snapshots")
+              .get("active")
+            value.onerror = () => reject(value.error)
+            value.onsuccess = () => resolve(Boolean(value.result))
+          }
+        })
+    )
+    expect(persistedAfterNavigation).toBe(true)
     await expect(
-      employeePage.getByRole("region", { name: `Job ${title}` })
+      employeePage.getByRole("heading", { name: title })
     ).toBeVisible()
-
     await employeePage.getByRole("button", { name: "Start job" }).click()
     await employeePage.getByLabel("Work note").fill("Completed while offline.")
     await employeePage.getByRole("button", { name: "Add note" }).click()
     await employeePage
-      .getByLabel("Add completion photo")
+      .getByLabel("Completion photos")
       .setInputFiles(path.resolve("public/icons/icon-192.png"))
+    await expect(employeePage.getByText("1 of 1 required")).toBeVisible({
+      timeout: 15_000,
+    })
     await expect(
       employeePage.getByRole("button", { name: "Submit for review" })
     ).toBeEnabled()
@@ -103,21 +112,15 @@ test("employee completes an assigned job through the offline outbox", async ({
       .getByRole("button", { name: "Submit for review" })
       .click()
     await expect(
-      employeePage.getByText("pending", { exact: true })
-    ).toHaveCount(4)
-    await expect(
-      employeePage.getByText("saved on device", { exact: true })
+      employeePage.locator('[data-offline-status="changes_pending"]')
     ).toBeVisible()
-    await expect(
-      employeePage.getByRole("button", { name: "Sync now" })
-    ).toHaveCount(0)
     expect(supabaseRequestsWhileOffline).toEqual([])
 
     offlinePhase = false
     await context.setOffline(false)
     await expect(
-      employeePage.getByText("pending", { exact: true })
-    ).toHaveCount(0, {
+      employeePage.locator('[data-offline-status="offline_ready"]')
+    ).toBeVisible({
       timeout: 30_000,
     })
 
@@ -128,9 +131,9 @@ test("employee completes an assigned job through the offline outbox", async ({
     ] = await Promise.all([
       admin.from("jobs").select("status").eq("id", job!.id).single(),
       admin
-        .from("job_operation_receipts")
+        .from("offline_operation_receipts")
         .select("*", { count: "exact", head: true })
-        .eq("job_id", job!.id),
+        .eq("entity_id", String(job!.id)),
       admin
         .from("job_updates")
         .select("*", { count: "exact", head: true })
@@ -154,7 +157,10 @@ test("employee completes an assigned job through the offline outbox", async ({
       .from("job_notification_deliveries")
       .delete()
       .eq("job_id", job!.id)
-    await admin.from("job_operation_receipts").delete().eq("job_id", job!.id)
+    await admin
+      .from("offline_operation_receipts")
+      .delete()
+      .eq("entity_id", String(job!.id))
     await admin.from("job_assets").delete().eq("job_id", job!.id)
     await admin.from("job_updates").delete().eq("job_id", job!.id)
     await admin.from("jobs").delete().eq("id", job!.id)

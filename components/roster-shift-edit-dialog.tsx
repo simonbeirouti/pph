@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { editCalendarRosterShiftAction } from "@/app/dashboard/roster/actions"
 import { FieldErrors } from "@/components/employee-form"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { RosterDatePicker } from "@/components/roster-date-picker"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -41,6 +42,7 @@ import {
   clockTimeDurationMinutes,
   localDateForInstant,
   localTimeInputForInstant,
+  zonedLocalDateTimeToUtc,
 } from "@/lib/roster/time"
 import type { RosterShift } from "@/lib/roster/types"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -109,12 +111,79 @@ function RosterShiftEditForm({
   shift: RosterShift
   timezone: string
 }) {
-  const action = editCalendarRosterShiftAction.bind(
-    null,
-    shift.id,
-    shift.employeeMembershipId,
-    shift.updatedAt
-  )
+  const offline = useOfflineV2Actions()
+  const action = async (state: ActionState, formData: FormData) => {
+    if (!offline.isOffline) {
+      return editCalendarRosterShiftAction(
+        shift.id,
+        shift.employeeMembershipId,
+        shift.updatedAt,
+        state,
+        formData
+      )
+    }
+    const nextDate = String(formData.get("date") ?? "")
+    const nextStartTime = String(formData.get("startTime") ?? "")
+    const nextEndTime = String(formData.get("endTime") ?? "")
+    const nextTimezone = String(formData.get("timezone") ?? timezone)
+    const nextEmployeeMembershipId = Number(
+      formData.get("employeeMembershipId")
+    )
+    const startsAt = zonedLocalDateTimeToUtc(
+      `${nextDate}T${nextStartTime}`,
+      nextTimezone
+    )
+    const endsAt = zonedLocalDateTimeToUtc(
+      `${nextDate}T${nextEndTime}`,
+      nextTimezone
+    )
+    const notes = String(formData.get("notes") ?? "")
+    const updatedAt = new Date().toISOString()
+    await offline.queue({
+      entityId: shift.id,
+      entityType: "roster_shift",
+      kind: "roster.update",
+      payload: {
+        date: nextDate,
+        employeeMembershipId: nextEmployeeMembershipId,
+        endTime: nextEndTime,
+        notes,
+        originalEmployeeMembershipId: shift.employeeMembershipId,
+        startTime: nextStartTime,
+        timezone: nextTimezone,
+        updatedAt: shift.updatedAt,
+      },
+      optimistic: (snapshot) => ({
+        ...snapshot,
+        roster: {
+          ...snapshot.roster,
+          shifts: snapshot.roster.shifts.map((item) =>
+            item.id === shift.id
+              ? {
+                  ...item,
+                  employeeMembershipId: nextEmployeeMembershipId,
+                  endsAt,
+                  notes,
+                  startsAt,
+                  updatedAt,
+                }
+              : item
+          ),
+        },
+      }),
+    })
+    return {
+      message: "Shift saved on this device.",
+      ok: true,
+      values: {
+        employeeMembershipId: String(nextEmployeeMembershipId),
+        endsAt,
+        notes,
+        startsAt,
+        updatedAt,
+      },
+    }
+  }
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     action,
     INITIAL_ACTION_STATE

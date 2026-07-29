@@ -23,6 +23,7 @@ type EmployeeQueryRow = {
     job_title: string
     last_name: string
     phone: string
+    version: number
   }[]
   id: number
   invite_delivery_status: InviteStatus
@@ -30,6 +31,7 @@ type EmployeeQueryRow = {
   role: MembershipRole
   status: MembershipStatus
   user_id: string | null
+  version: number
 }
 
 export type EmployeeSummary = {
@@ -43,8 +45,10 @@ export type EmployeeSummary = {
   jobTitle: string
   lastName: string
   membershipId: number
+  membershipVersion?: number
   phone: string
   profileId: number
+  profileVersion?: number
   role: MembershipRole
   status: MembershipStatus
   userId: string | null
@@ -96,8 +100,10 @@ async function mapEmployee(row: EmployeeQueryRow): Promise<EmployeeSummary> {
     jobTitle: profile.job_title,
     lastName: profile.last_name,
     membershipId: row.id,
+    membershipVersion: row.version,
     phone: profile.phone,
     profileId: profile.id,
+    profileVersion: profile.version,
     role: row.role,
     status: row.status,
     userId: row.user_id,
@@ -106,6 +112,7 @@ async function mapEmployee(row: EmployeeQueryRow): Promise<EmployeeSummary> {
 
 const EMPLOYEE_FIELDS = `
   id,
+  version,
   user_id,
   email,
   status,
@@ -118,7 +125,8 @@ const EMPLOYEE_FIELDS = `
     last_name,
     phone,
     job_title,
-    avatar_path
+    avatar_path,
+    version
   )
 `
 

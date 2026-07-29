@@ -6,6 +6,7 @@ import { updateEmployeeAction } from "@/app/dashboard/employees/actions"
 import { EmployeeAccessActions } from "@/components/employee-access-actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeInvitationAction } from "@/components/employee-invitation-action"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import {
   EmployeeEditor,
   EmployeeSaveAction,
@@ -40,6 +41,7 @@ export function EmployeeDirectoryTable({
   shiftSummaries: Record<number, EmployeeShiftSummary>
   timezone: string
 }) {
+  const offline = useOfflineV2Actions()
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
     null
   )
@@ -51,6 +53,49 @@ export function EmployeeDirectoryTable({
   const openEmployee = (membershipId: number) => {
     setSelectedEmployeeId(membershipId)
     setOpen(true)
+  }
+  const updateSelectedEmployee = async (
+    state: Parameters<typeof updateEmployeeAction>[1],
+    formData: FormData
+  ) => {
+    if (!selectedEmployee || !offline.isOffline) {
+      return selectedEmployee
+        ? updateEmployeeAction(selectedEmployee.membershipId, state, formData)
+        : { message: "Employee not found.", ok: false }
+    }
+    const avatar = formData.get("avatar")
+    const values = {
+      firstName: String(formData.get("firstName") ?? ""),
+      jobTitle: String(formData.get("jobTitle") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
+      phone: String(formData.get("phone") ?? ""),
+    }
+    await offline.queue({
+      ...(avatar instanceof File && avatar.size ? { blob: avatar } : {}),
+      entityId: selectedEmployee.membershipId,
+      entityType: "employee_profile",
+      kind: "membership.update",
+      payload: values,
+      optimistic: (snapshot) => ({
+        ...snapshot,
+        people: snapshot.people
+          ? {
+              ...snapshot.people,
+              employees: snapshot.people.employees.map((employee) =>
+                employee.membershipId === selectedEmployee.membershipId
+                  ? {
+                      ...employee,
+                      ...values,
+                      displayName:
+                        `${values.firstName} ${values.lastName}`.trim(),
+                    }
+                  : employee
+              ),
+            }
+          : null,
+      }),
+    })
+    return { message: "Employee saved on this device.", ok: true }
   }
 
   return (
@@ -152,10 +197,7 @@ export function EmployeeDirectoryTable({
             membershipId={selectedEmployee.membershipId}
           >
             <EmployeeSheetProfile
-              action={updateEmployeeAction.bind(
-                null,
-                selectedEmployee.membershipId
-              )}
+              action={updateSelectedEmployee}
               employee={selectedEmployee}
               canEdit={
                 actorRole === "owner" || selectedEmployee.role === "employee"

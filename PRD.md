@@ -66,8 +66,9 @@ The product should provide a single, simple workflow from employee invitation th
 - Let owners build and maintain a seven-day roster.
 - Provide reusable job templates and daily or weekly job schedules.
 - Make the application installable as a Progressive Web App on supported desktop and mobile browsers.
-- Let employees continue assigned job work during temporary connectivity loss
-  with explicit local and synchronisation states.
+- Let every signed-in role continue permitted operational work during temporary
+  connectivity loss, including navigation to automatically prepared pages and
+  queued mutations with explicit local and synchronisation states.
 - Establish automated tests that support fast progression from development to prototype and production.
 
 ### 1.3 Success criteria
@@ -81,8 +82,9 @@ V1 is successful when:
 - An owner can review, comment on, reopen, reassign, and archive submitted work.
 - The jobs board clearly separates unassigned, assigned, and review-ready work.
 - The roster accurately represents shifts in both week and day views.
-- An employee can reopen a cached work pack, start work, add notes and photos,
-  and queue submission during temporary connectivity loss.
+- After one successful sign-in and automatic preparation, an owner, manager, or
+  employee can reopen any permitted dashboard route, navigate the application,
+  and continue permitted operational work during temporary connectivity loss.
 - Retried offline operations do not create duplicate notes, assets, audit
   events, or transitions.
 - The application exposes a valid manifest, install icons, and a securely served service worker so supported browsers can install it.
@@ -658,11 +660,13 @@ Acceptance criteria:
 
 ### 3.8 Progressive Web App
 
-V1 provides an installable application shell plus narrowly scoped offline job
-execution for employees. Supabase remains authoritative; IndexedDB stores a
-membership-scoped read cache, pending photo blobs, and an operation outbox.
-Owner mutations, roster/calendar data, administration, push notifications, and
-background-only synchronisation remain online-only or outside V1.
+V1 provides an installable, offline-first authenticated dashboard for every
+role. Supabase remains authoritative; IndexedDB stores a membership-scoped
+normalised replica, pending media blobs, an operation outbox, conflicts, and
+sync metadata. After one successful sign-in and automatic preparation, every
+permitted dashboard route and operational control remains usable during
+temporary connectivity loss. First sign-in, account recovery, password changes,
+and browser push enrolment remain connection-dependent.
 
 The implementation follows the [Next.js Progressive Web App guide](https://nextjs.org/docs/app/guides/progressive-web-apps).
 
@@ -710,89 +714,98 @@ Acceptance criteria:
   enables notifications from their profile. Unsupported or denied permission
   never blocks the standard application.
 
-#### PWA-04: Offline employee work pack
+#### PWA-04: Automatic role-scoped offline replica
 
-As an employee, I want my assigned work available during temporary connectivity
-loss so that I can continue completing a job in the field.
-
-Acceptance criteria:
-
-- While online, the application persists a minimal work pack containing the
-  employee's assigned and in-progress jobs, evidence requirements, relevant
-  notes, and the canonical version of each job.
-- The cache is scoped to the current membership and organisation and is purged
-  on logout, membership change, or successful online detection of deactivation.
-- Cached work packs expire 24 hours after the last successful online refresh,
-  show the last-updated timestamp, and are not presented as usable current work
-  after expiry.
-- An offline reload opens a generic application shell and then renders the
-  available cached work pack without caching authenticated HTML or Supabase
-  responses in the service worker.
-- Temporary connectivity loss does not replace the assigned-work experience or
-  add a persistent online/offline banner. The application continues from the
-  cached work pack and keeps routine Realtime reconnection silent.
-- Unsynchronised work remains visible beside the affected job through
-  per-operation `pending`, `syncing`, `failed`, or `needs_attention` state.
-  Only failed or `needs_attention` work introduces prominent recovery UI.
-- Before offline storage is enabled, the employee is told that cached job data
-  and pending photos remain readable to anyone who can use the unlocked device;
-  V1 assumes a personally controlled, device-lock-protected browser profile and
-  does not add a separate application PIN.
-- Owner, employee administration, roster/calendar, templates, schedules,
-  review, and archive mutations remain online-only.
-
-#### PWA-05: Offline job actions and evidence
-
-As an employee, I want to record job progress while offline so that notes and
-photos are not lost when a worksite has poor connectivity.
+As a signed-in user, I want every permitted dashboard page prepared
+automatically so that an unexpected connection loss does not stop navigation or
+hide operational context.
 
 Acceptance criteria:
 
-- Starting an assigned job, adding a progress note, adding a completion photo,
-  and requesting submission can be queued offline.
-- Each queued operation receives a permanent client-generated UUID and records
-  the job version it was based on.
-- Operations are applied optimistically to the local view and persisted in an
-  IndexedDB outbox before the UI reports them as queued.
-- Photo blobs are stored separately from operation metadata, checked against
-  available browser storage, and retain the existing image type, size, and
-  per-job count limits.
-- The application may request persistent browser storage where supported, but
-  denial cannot block normal online operation.
-- Signed evidence URLs are never cached; pending local blobs are discarded only
-  after authoritative upload acknowledgement or explicit user-approved removal.
-- A queued submission remains dependent on every required note and photo being
-  acknowledged and is revalidated server-side before transition.
+- A successful sign-in automatically stores all structured data the active role
+  may access, all image thumbnails, and full-resolution media for active jobs.
+- The replica includes dashboard aggregates, jobs and timelines, roster,
+  employees visible to the role, templates, schedules, and the current profile.
+- The replica is scoped to membership and organisation and is purged on logout,
+  identity change, explicit removal, or online confirmation that access was
+  revoked.
+- The application reports `Offline ready` only after the required structured
+  data and media working set are durable.
+- The service worker caches a versioned public dashboard shell and immutable
+  assets. It never caches authenticated HTML, API or Supabase responses, signed
+  URLs, or mutation responses.
+- Any `/dashboard/**` reload or deep link can restore the public shell and
+  render the requested permitted route from IndexedDB without a server-rendered
+  navigation.
+- Cached organisational access remains usable for seven days after the most
+  recent successful authorisation refresh. Expiry retains pending work but
+  locks organisational views until access is revalidated.
+- A device that has never completed preparation displays a clear
+  connection-required state rather than an empty or misleading dashboard.
+- Local data remains readable to anyone who can use the unlocked browser
+  profile; V1 assumes a personally controlled, device-lock-protected device and
+  provides a visible removal control rather than a separate application PIN.
 
-#### PWA-06: Idempotent foreground synchronisation
+#### PWA-05: Offline navigation and optimistic operations
 
-As an employee, I want queued work to synchronise safely when connectivity
-returns so that retries do not duplicate or corrupt my job history.
+As a signed-in user, I want permitted pages and controls to behave consistently
+offline so that work can continue in the field.
 
 Acceptance criteria:
 
-- Foreground synchronisation runs automatically on application launch, focus,
-  the browser's online event, and periodic successful connectivity probes while
-  queued work exists. Routine replay never depends on the worker selecting a
-  manual Sync action.
-- Synchronisation refreshes the Supabase session and revalidates active
-  membership, organisation, current assignment, and job state before replay.
-- Operations replay in dependency order through idempotent, transactional
+- Dashboard navigation, route-addressed details, filters, dialogs, forms,
+  calendar controls, and browser back/forward use the local application shell
+  and repository without requiring a React Server Component response.
+- Every permitted job, roster, people, template, schedule, and profile database
+  mutation can be queued offline. Invitation and email retry requests queue
+  where safe; first sign-in, password/account recovery, and push enrolment
+  explain that a connection is required.
+- Each queued operation receives a permanent client UUID, typed entity
+  reference, dependency list, expected entity version, payload, and creation
+  time.
+- Offline-created records use client UUID references until the server returns
+  canonical bigint identifiers; dependent records are rewritten atomically.
+- Operations are persisted before the UI reports success and are applied
+  optimistically to the same view used online.
+- Pending photos and avatars are stored separately, checked against available
+  storage, and retain existing type, size, and count limits.
+- Storage priority is pending user uploads, structured data, active-job
+  originals, then thumbnails. Insufficient capacity produces a persistent
+  warning and prevents a false `Offline ready` state.
+- A global status communicates `Offline`, `Changes pending`, `Syncing`,
+  `Needs attention`, and `Offline ready` without replacing page content.
+- Offline logout immediately locks the application and purges organisational
+  data; a non-sensitive marker completes server sign-out after reconnection.
+
+#### PWA-06: Idempotent foreground synchronisation and conflicts
+
+As a signed-in user, I want queued work to synchronise safely when connectivity
+returns so that retries and concurrent edits do not duplicate or overwrite
+work.
+
+Acceptance criteria:
+
+- Foreground synchronisation runs on application launch, focus, browser online,
+  successful reachability probes while work is pending, and Realtime
+  invalidation while connected.
+- Synchronisation refreshes the session and revalidates active membership,
+  organisation, role, permissions, and current entity versions before replay.
+- Operations replay in deterministic dependency order through transactional
   Supabase RPCs using `(membership_id, client_operation_id)` receipts.
-- A repeated acknowledged operation returns its prior result without creating
-  duplicate notes, assets, audit events, or state changes.
-- Notes merge when the employee remains authorised; an already-started job
-  treats a repeated start as success; photos use deterministic,
-  non-overwriting paths.
-- Version conflicts return a typed result. Reassigned or archived jobs and
-  inactive memberships stop replay and preserve local work as Needs attention.
-- Submission runs only after dependent evidence has synchronised and the server
-  confirms all evidence requirements.
-- Failed operations remain visible with a safe retry path and continue
-  automatic foreground retry where safe; the application never claims queued
-  work has reached the server before acknowledgement.
-- Browser Background Sync may be added later as progressive enhancement but is
-  not the primary or required synchronisation mechanism.
+- Repeated acknowledged operations return their prior result without duplicate
+  records, audit events, assets, deliveries, or transitions.
+- Independent remote and local changes merge. A true same-record version
+  conflict preserves both representations in a visible Needs attention queue
+  and never silently chooses a winner.
+- A role change, deactivation, reassignment, archive, lock, or other permission
+  failure stops the affected replay and preserves recoverable local work.
+- Submission and other dependent transitions run only after their prerequisites
+  are acknowledged and are revalidated by the server.
+- Sync returns canonical entity changes, deletion tombstones, conflict results,
+  client-to-server ID mappings, the organisation revision, and a renewed
+  seven-day access lease.
+- Browser Background Sync may remain a progressive enhancement; foreground
+  synchronisation is the required correctness path.
 
 ## 4. Navigation and route acceptance
 
@@ -1031,12 +1044,13 @@ Updates are append-only in V1.
 - `created_at`
 - `archived_at`
 
-### 6.10 `job_operation_receipts`
+### 6.10 `offline_operation_receipts`
 
 - `id`
 - `organisation_id`
 - `membership_id`
-- `job_id`
+- `entity_type`
+- `entity_id`, nullable for locally created records until acknowledgement
 - `client_operation_id`
 - `operation_type`
 - `result`
@@ -1045,10 +1059,27 @@ Updates are append-only in V1.
 Constraints:
 
 - `(membership_id, client_operation_id)` is unique.
-- Receipts are written atomically with the authoritative job mutation, audit
-  update, and asset metadata they acknowledge.
-- Employees can access receipts only for their own membership and assigned jobs;
-  owners can inspect organisation receipts for support and audit purposes.
+- Receipts are written atomically with the authoritative mutation and related
+  audit or asset metadata they acknowledge.
+- Users can access only receipts for their own membership; owners can inspect
+  organisation receipts through authorised support tooling.
+
+### 6.11 `organisation_sync_changes`
+
+- `revision`, monotonically increasing bigint primary key
+- `organisation_id`
+- `entity_type`
+- `entity_id`
+- `operation`: `upsert` or `delete`
+- `changed_at`
+
+Constraints:
+
+- Authoritative entity changes and deletion tombstones are recorded in the same
+  transaction as their source mutation.
+- Role-scoped sync functions filter the feed and returned canonical entities
+  using the current active membership and normal application permissions.
+- `(organisation_id, revision)` is indexed for incremental foreground sync.
 
 ## 7. Storage and uploads
 
@@ -1075,9 +1106,15 @@ Requirements:
 
 ### 8.1 Next.js
 
-- Use Server Components for initial reads and role-specific page composition.
-- Use Server Actions for authenticated mutations.
-- Use client components only where browser state or interaction is required, including drag/drop, calendar range selection, upload progress, and optimistic updates.
+- Use a Server Component boundary to authenticate the initial dashboard request
+  and provide the minimal serialisable identity/bootstrap context.
+- Render authenticated dashboard routes through one persistent Client Component
+  application shell backed by the role-scoped local repository.
+- Use non-cached Route Handlers for bootstrap, foreground sync, media tickets,
+  and connection-dependent operations. Authenticate and authorise every handler
+  independently.
+- Use client-side history navigation inside `/dashboard/**` so routine route
+  changes do not depend on a new RSC payload.
 - Use the required root-level `proxy.ts` as the single Next.js Proxy entrypoint.
 - Keep the root entrypoint thin: it imports and returns a project-native Supabase session helper from `lib/supabase/proxy.ts`.
 - Preserve the verified S01 cookie propagation and route-gating contract in the project-native root `proxy.ts` and `lib/supabase/proxy.ts`; the original reference prototypes were consumed and removed after verification.
@@ -1100,9 +1137,10 @@ Requirements:
 - Employee policies allow only their membership, roster, assigned jobs, related updates, and related assets.
 - Storage policies mirror the database permissions.
 - Cross-organisation identifiers must fail closed.
-- Offline-capable employee mutations use idempotent RPCs that lock the job,
-  verify membership and assignment, compare the expected job version, apply the
-  mutation, append audit data, and record the operation receipt atomically.
+- Offline-capable mutations use typed idempotent RPCs that lock affected rows in
+  deterministic identifier order, verify membership and permission, compare
+  expected entity versions, apply the mutation, append audit/change-feed data,
+  and record the operation receipt atomically.
 - Receipt lookup never substitutes for current authorisation checks.
 
 ### 8.3 Email
@@ -1123,23 +1161,24 @@ Requirements:
 
 - Use the App Router `app/manifest.ts` metadata convention.
 - Register the service worker from a small client-only component mounted by the application shell.
-- Precache only versioned public application assets, icons, and a generic
-  offline entry shell; never cache authenticated HTML, Supabase responses,
+- Precache only versioned public application assets, icons, and the public
+  dashboard shell; never cache authenticated HTML, API or Supabase responses,
   signed URLs, or mutation responses in CacheStorage.
-- Store employee work packs, outbox metadata, and pending photo blobs in
-  versioned, membership-scoped IndexedDB stores.
-- Purge local operational data on logout or membership change and after online
-  confirmation that the employee is inactive.
+- Store normalised role-scoped entities, sync metadata, operation receipts,
+  conflicts, ID mappings, cached media, and pending blobs in a versioned,
+  membership-scoped IndexedDB database.
+- Automatically prepare every role after sign-in and purge operational data on
+  logout, membership/organisation change, or online confirmation that access is
+  inactive.
 - Use automatic foreground synchronisation as the reliable baseline, with
   manual recovery reserved for actionable failures or conflicts. Treat browser
   Background Sync as a future progressive enhancement.
 - Serve production and staging over HTTPS.
 - Configure global and `/sw.js` security headers through `next.config.ts`.
 - Treat install guidance as progressive enhancement; the web application remains fully usable without PWA support.
-- Keep offline owner/admin/roster mutations and background-only
-  synchronisation outside V1. Web-push subscriptions are an opt-in V1
-  capability for affected job assignees, rostered employees, and eligible job
-  reviewers.
+- Keep background-only synchronisation outside V1. Web-push subscriptions are
+  an opt-in connection-dependent capability for affected job assignees,
+  rostered employees, and eligible job reviewers.
 
 ### 8.5 Environment configuration
 
@@ -1247,10 +1286,11 @@ Use Vitest and React Testing Library for:
 - Root Proxy cookie propagation, redirect, public-route, and matcher behaviour.
 - PWA standalone-mode detection and installation-guidance visibility.
 - Service-worker registration feature detection and failure handling.
-- IndexedDB schema migration, work-pack expiry, outbox dependency ordering, and
+- IndexedDB schema migration, seven-day access expiry, normalised entity
+  persistence, outbox dependency ordering, local-ID rewriting, and
   membership-scoped purge behaviour.
-- Offline operation states, storage-quota handling, and typed conflict
-  presentation.
+- Offline operation states, optimistic reducers, storage-priority/quota
+  handling, sync-status presentation, and typed conflict recovery.
 
 ### 11.2 Database tests
 
@@ -1264,9 +1304,13 @@ Use Supabase local development and database tests for:
 - Schedule occurrence uniqueness.
 - Job transition constraints where implemented in SQL.
 - Private avatar and evidence storage policies.
-- Job version increments and transactional operation receipts.
-- Idempotent replay, concurrent-version conflicts, deactivation, reassignment,
-  archive, and cross-organisation rejection.
+- Entity version increments, transactional operation receipts, sync revisions,
+  and hard-deletion tombstones.
+- Role-scoped bootstrap/change feeds and idempotent replay across job, roster,
+  people, template, schedule, and profile mutations.
+- Dependency ordering, local-ID mapping, concurrent-version conflicts,
+  deactivation, role changes, reassignment, archive, locks, and
+  cross-organisation rejection.
 
 ### 11.3 End-to-end tests
 
@@ -1283,17 +1327,22 @@ Use the installed `@playwright/test` package and the project `playwright-best-pr
 9. Owner archives the job.
 10. Owner creates, moves, resizes, copies, and deletes roster shifts.
 11. A template schedule produces exactly one job per occurrence.
-12. Employee loads a work pack online, goes offline, reloads, starts work, adds
-    a note and photo, and queues submission with visible pending state.
-13. Connectivity returns and queued operations synchronise exactly once in
-    dependency order before submission reaches review.
-14. Reassignment, archive, deactivation, and version-conflict scenarios retain
-    unsynchronised work as Needs attention without forcing a mutation.
-15. Manifest, icons, generic offline shell, and service worker are available
-    with the required metadata and response headers.
-16. The application remains usable when service workers or persistent browser
-    storage are unavailable.
-17. Signed-out dashboard requests redirect to login, signed-in login/root
+12. Each role completes automatic preparation, goes offline before visiting
+    other pages, then navigates, reloads, and deep-links through every permitted
+    dashboard route.
+13. Each role performs representative job, roster, people, template, schedule,
+    profile, and photo mutations offline with visible optimistic/pending state.
+14. Connectivity returns and queued operations synchronise exactly once in
+    dependency order, including locally created dependent records.
+15. Concurrent edits, reassignment, archive, locks, deactivation, role changes,
+    and version conflicts retain recoverable local work as Needs attention.
+16. Seven-day expiry, cold-device preparation, storage pressure, offline logout,
+    schema/service-worker upgrade, and revoked-access purge behave safely.
+17. Manifest, icons, dashboard shell, and service worker are available with the
+    required metadata and response headers.
+18. The application remains usable online when service workers or persistent
+    browser storage are unavailable.
+19. Signed-out dashboard requests redirect to login, signed-in login/root
     requests redirect to the dashboard, and public Auth/PWA resources remain
     reachable.
 
@@ -1348,7 +1397,7 @@ the application is not yet approved for production.
 | S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                   |
 | S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed      |
 | S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed |
-| S12  | Integration and production hardening   | `in_progress` | working tree | Automated implementation gate passed; manual staging/real-device review and release decision remain  |
+| S12  | Integration and production hardening   | `in_progress` | working tree | Offline-v2 targeted database/unit/desktop/mobile Chromium checks pass; native Safari/Android staging acceptance remains |
 
 ### Step 1: Platform foundation — complete
 
@@ -1442,6 +1491,12 @@ Checkpoint evidence (2026-07-29):
 ### Step 12: Integration and production hardening — in progress
 
 - Resolve all deferred cross-step TODOs.
+- Replace the assigned-worker-only offline work pack with the approved
+  all-role, automatically prepared offline-first dashboard, generalised
+  operation outbox, conflict centre, and seven-day role-scoped access lease.
+- Add role-scoped bootstrap/incremental sync, organisation revisions and
+  deletion tombstones, generalised receipts, entity versioning, and typed
+  replay for every current operational domain.
 - Add profile-managed opt-in web push for job assignment/reassignment, roster
   assignment/change, and job submission, approval, and reopen review events.
   Exclude the actor, persist subscriptions and delivery attempts, and keep push
@@ -1525,6 +1580,61 @@ Automated implementation evidence (2026-07-29):
   reconnect. Playwright does not cover this WebKit service-worker acceptance
   boundary, so real Safari over trusted HTTPS remains a required manual staging
   check.
+- Hosted-backend preparation (2026-07-29): linked the `Management` Supabase
+  project, applied the nine release migrations without a remote reset, and
+  verified matching migration history, RLS on every public table, both private
+  Storage buckets, the job-schedule Cron, and the active JWT-protected
+  `dispatch-web-push` Edge Function. Loaded the deterministic test seed once for
+  remote PWA/offline review and verified four Auth users, two organisations,
+  five memberships and profiles, one roster shift, four jobs, four job updates,
+  and successful hosted password authentication for the seeded owner and
+  employee. Full application staging and manual review remain pending.
+- Product contract expansion (2026-07-29): real-device testing demonstrated
+  that the deliberately narrow assigned-work fallback made navigation and
+  unprepared pages unusable after connection loss. S12 now owns the complete
+  offline-first redesign in PWA-04–PWA-06. The prior S11 implementation remains
+  a backward-compatible base until the v2 shell, repository, sync RPCs, and
+  all-role acceptance suites replace it.
+- Offline-v2 implementation checkpoint (2026-07-29): added automatic
+  role-scoped bootstrap and general sync routes, a membership-scoped versioned
+  IndexedDB repository, seven-day lease, durable outbox/blob/media/conflict
+  stores, organisation change feed/tombstones, general receipts, entity
+  versions, and local-ID mappings. The worker now caches only the public
+  versioned dashboard shell and immutable assets, returns that shell for failed
+  `/dashboard/**` navigations, and excludes authenticated HTML, API responses,
+  and Supabase responses from CacheStorage.
+- Replaced the employee consent/work-pack interface with background preparation
+  after sign-in for every role. Removed the reachable and source-level
+  `Enable offline work` flow, retired its query provider and assigned-work
+  component, and made `Offline ready` contingent on structured data, promised
+  media, the v7 shell cache, and current service-worker control.
+- Converted current job, roster, people, template/schedule, and profile
+  mutations to typed optimistic operations, including durable photos and
+  avatars. Offline action handlers no longer request server-component
+  refreshes; sidebar, filters, dialogs, close actions, and detail transitions
+  use client history, and rapid consecutive work composes against the latest
+  local snapshot.
+- Added visible connectivity, pending, sync, storage, lease, and conflict
+  states; the conflict popover preserves and displays local and server
+  versions. Automatic sync runs after sign-in, reconnect, foreground return,
+  and Realtime invalidation. Offline logout purges organisational data while
+  retaining only a non-sensitive deferred sign-out marker.
+- Folded the offline-first synchronization schema, receipt claims, delete-scope
+  correction, and manager participant access into the release migration
+  `20260729074337_offline_push_realtime_hardening.sql`; reset and seeded both
+  local and linked environments from the canonical migration history.
+  All 11 pgTAP files / 330 assertions and all 40 unit files / 180 assertions
+  pass, as do ESLint and TypeScript.
+- Targeted isolated production-runtime verification passes five desktop
+  Chromium and five mobile-Chromium offline-v2 journeys. Coverage includes
+  automatic bootstrap for owner/manager/employee, unseen permitted
+  client-history routes, cold-device messaging, and employee
+  start/note/photo/submit with reconnect and four exactly-once general
+  receipts. Browser-engine offline emulation cannot certify a terminated PWA
+  launch or native WebKit navigation fallback; installed iOS and Android
+  staging reload/deep-link, upgrade, lease, revocation, storage-pressure, and
+  conflict-resolution acceptance remain required. The release stays
+  **NO-GO** and TODO-015 remains in progress.
 
 ## 13. Prototype and production readiness
 
@@ -1539,8 +1649,9 @@ must not be silently reduced to obtain approval.
 - [x] Critical owner, manager, and employee Playwright journeys pass.
 - [x] Owner pages work at desktop width.
 - [x] Employee dashboard, jobs, notes, and photo upload work at a mobile viewport.
-- [ ] Employee offline start, notes, photos, queued submission, foreground sync, and
-      Needs attention recovery work at a mobile viewport.
+- [ ] Owner, manager, and employee can navigate every permitted prepared route,
+      continue representative work, foreground-sync exactly once, and recover
+      Needs attention conflicts at desktop and mobile viewports.
 - [x] RLS tests demonstrate role and organisation isolation.
 - [x] No real email is sent by automated tests.
 - [ ] The deployed application passes manifest, icon, service-worker, and installability checks.
@@ -1557,13 +1668,13 @@ shared or production database.
 | Working tree        | `git status --short` and `git diff --check`                                            | No unintended changes or whitespace errors                                 | [x] 2026-07-29 local             |
 | Dependencies        | Lockfile install in CI                                                                 | Reproducible install with no unexplained lockfile drift                    | [x] frozen install               |
 | Static quality      | `pnpm lint` and `pnpm typecheck`                                                       | Both exit successfully                                                     | [x] pass                         |
-| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [x] 174 pass                     |
-| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [x] 316 pass                     |
+| Unit/components     | `pnpm test:unit`                                                                       | All tests pass with no unexpected skips                                    | [x] 180 pass                     |
+| Database            | `pnpm test:db`                                                                         | All pgTAP tests pass against the release schema                            | [x] 330 pass                     |
 | Schema lint         | `pnpm exec supabase db lint --local --schema public --level warning --fail-on warning` | No warnings or errors                                                      | [x] no errors                    |
 | Generated types     | `pnpm db:types`, followed by diff review                                               | Generated types match the committed release schema                         | [x] regenerated                  |
 | Production build    | `pnpm build`                                                                           | Clean Next.js production build                                             | [x] pass                         |
 | Critical journeys   | `pnpm test:e2e`                                                                        | Desktop and mobile projects pass; only documented intentional skips remain | [x] 84 pass, 4 intentional skips |
-| Offline/idempotency | S11 database and Playwright suites                                                     | Replay is exactly once; conflicts retain recoverable local work            | [x] pass                         |
+| Offline/idempotency | S12 offline-v2 database and Playwright suites                                         | Every role navigates and replays exactly once; conflicts retain local work | [ ] 10 targeted checks pass; native reload/deep-link/conflict staging acceptance pending |
 | Security            | Role, RLS, storage, cross-organisation, self-review, and owner-invariant suites        | All boundaries reject unauthorised access                                  | [x] pass                         |
 | Release artifact    | Deployment build provenance                                                            | Artifact maps to the reviewed commit and migration set                     | [ ]                              |
 
@@ -1652,8 +1763,9 @@ screenshot, trace, monitoring event, or runbook link.
 - [ ] Error monitoring and server-side mutation logging are configured.
 - [ ] Schedule processing has failure visibility and a safe retry path.
 - [ ] HTTPS, PWA security headers, service-worker update behaviour, and installability are verified in staging.
-- [ ] Offline work-pack expiry, logout purge, storage-pressure handling, and
-      exactly-once replay are verified in staging on supported mobile browsers.
+- [ ] Seven-day offline lease, all-role route restoration, logout purge,
+      storage-pressure handling, and exactly-once replay are verified in
+      staging on supported mobile browsers.
 - [ ] A staging smoke test passes before deployment.
 
 ## 14. Deferred integration TODO ledger
@@ -1670,7 +1782,8 @@ resolution changes product behaviour, update this document first.
 | TODO-008 | S04/S07         | S12    | Consolidate repeated mutation, date, dialog, and upload patterns where reuse is justified         | `complete` |
 | TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `complete` |
 | TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete` |
-| TODO-014 | S03/S05/S10     | S11    | Add the approved IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete` |
+| TODO-014 | S03/S05/S10     | S11    | Add the original IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete` |
+| TODO-015 | S11/real-device | S12    | Replace narrow assigned-work fallback with complete all-role offline-first dashboard and sync     | `in_progress` |
 
 Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
 TODO-012, and TODO-013.
@@ -1695,8 +1808,6 @@ The following are explicitly outside V1:
 - Payroll and timesheets.
 - Clock-in and clock-out.
 - Leave requests and availability management.
-- Offline roster/calendar, owner, review, administration, template, and
-  schedule support.
 - Background-only synchronisation.
 - Job email notifications beyond submission-to-review, and all roster email
   notifications.

@@ -7,6 +7,7 @@ import {
   deleteInvitedEmployeeAction,
   employeeAccessAction,
 } from "@/app/dashboard/employees/actions"
+import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ export function EmployeeAccessActions({
   onDeleted?: () => void
   status: "invited" | "active" | "inactive"
 }) {
+  const offline = useOfflineV2Actions()
   const [currentStatus, setCurrentStatus] = useState(status)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -41,11 +43,41 @@ export function EmployeeAccessActions({
     startTransition(async () => {
       const formData = new FormData()
       formData.set("active", String(active))
-      const result = await employeeAccessAction(
-        membershipId,
-        INITIAL_ACTION_STATE,
-        formData
-      )
+      const queued = await offline.queue({
+        entityId: membershipId,
+        entityType: "membership",
+        kind: "membership.access",
+        payload: { active },
+        optimistic: (snapshot) => ({
+          ...snapshot,
+          people: snapshot.people
+            ? {
+                ...snapshot.people,
+                employees: snapshot.people.employees.map((employee) =>
+                  employee.membershipId === membershipId
+                    ? {
+                        ...employee,
+                        status: active ? "active" : "inactive",
+                      }
+                    : employee
+                ),
+              }
+            : null,
+        }),
+      })
+      const result = queued
+        ? {
+            membershipStatus: active
+              ? ("active" as const)
+              : ("inactive" as const),
+            message: "Access change saved on this device.",
+            ok: true,
+          }
+        : await employeeAccessAction(
+            membershipId,
+            INITIAL_ACTION_STATE,
+            formData
+          )
       if (result.membershipStatus) {
         setCurrentStatus(result.membershipStatus)
       }
@@ -62,15 +94,58 @@ export function EmployeeAccessActions({
     startTransition(async () => {
       let result
       if (destructiveAction === "delete") {
-        result = await deleteInvitedEmployeeAction(membershipId)
+        const queued = await offline.queue({
+          entityId: membershipId,
+          entityType: "membership",
+          kind: "membership.delete_invited",
+          optimistic: (snapshot) => ({
+            ...snapshot,
+            people: snapshot.people
+              ? {
+                  ...snapshot.people,
+                  employees: snapshot.people.employees.filter(
+                    (employee) => employee.membershipId !== membershipId
+                  ),
+                }
+              : null,
+          }),
+        })
+        result = queued
+          ? { message: "Deletion saved on this device.", ok: true }
+          : await deleteInvitedEmployeeAction(membershipId)
       } else {
         const formData = new FormData()
         formData.set("active", "false")
-        result = await employeeAccessAction(
-          membershipId,
-          INITIAL_ACTION_STATE,
-          formData
-        )
+        const queued = await offline.queue({
+          entityId: membershipId,
+          entityType: "membership",
+          kind: "membership.access",
+          payload: { active: false },
+          optimistic: (snapshot) => ({
+            ...snapshot,
+            people: snapshot.people
+              ? {
+                  ...snapshot.people,
+                  employees: snapshot.people.employees.map((employee) =>
+                    employee.membershipId === membershipId
+                      ? { ...employee, status: "inactive" }
+                      : employee
+                  ),
+                }
+              : null,
+          }),
+        })
+        result = queued
+          ? {
+              membershipStatus: "inactive" as const,
+              message: "Access change saved on this device.",
+              ok: true,
+            }
+          : await employeeAccessAction(
+              membershipId,
+              INITIAL_ACTION_STATE,
+              formData
+            )
       }
 
       if (result.ok) {

@@ -21,6 +21,7 @@ export type Database = {
           organisation_id: number
           phone: string
           updated_at: string
+          version: number
         }
         Insert: {
           avatar_path?: string | null
@@ -33,6 +34,7 @@ export type Database = {
           organisation_id: number
           phone?: string
           updated_at?: string
+          version?: number
         }
         Update: {
           avatar_path?: string | null
@@ -45,6 +47,7 @@ export type Database = {
           organisation_id?: number
           phone?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -282,6 +285,7 @@ export type Database = {
           schedule_id: number
           status: Database["public"]["Enums"]["job_schedule_occurrence_status"]
           updated_at: string
+          version: number
         }
         Insert: {
           attempt_count?: number
@@ -297,6 +301,7 @@ export type Database = {
           schedule_id: number
           status?: Database["public"]["Enums"]["job_schedule_occurrence_status"]
           updated_at?: string
+          version?: number
         }
         Update: {
           attempt_count?: number
@@ -312,6 +317,7 @@ export type Database = {
           schedule_id?: number
           status?: Database["public"]["Enums"]["job_schedule_occurrence_status"]
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -354,6 +360,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at: string
+          version: number
           weekdays: number[]
         }
         Insert: {
@@ -372,6 +379,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at?: string
+          version?: number
           weekdays?: number[]
         }
         Update: {
@@ -390,6 +398,7 @@ export type Database = {
           template_id?: number
           timezone?: string
           updated_at?: string
+          version?: number
           weekdays?: number[]
         }
         Relationships: [
@@ -438,6 +447,7 @@ export type Database = {
           requires_completion_note: boolean
           title: string
           updated_at: string
+          version: number
         }
         Insert: {
           assignee_membership_id?: number | null
@@ -453,6 +463,7 @@ export type Database = {
           requires_completion_note?: boolean
           title: string
           updated_at?: string
+          version?: number
         }
         Update: {
           assignee_membership_id?: number | null
@@ -468,6 +479,7 @@ export type Database = {
           requires_completion_note?: boolean
           title?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -770,6 +782,7 @@ export type Database = {
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
           user_id: string | null
+          version: number
         }
         Insert: {
           activated_at?: string | null
@@ -785,6 +798,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
           user_id?: string | null
+          version?: number
         }
         Update: {
           activated_at?: string | null
@@ -800,6 +814,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
           user_id?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -811,6 +826,98 @@ export type Database = {
           },
         ]
       }
+      offline_operation_receipts: {
+        Row: {
+          client_operation_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: number
+          membership_id: number
+          operation_type: string
+          organisation_id: number
+          result: Json
+        }
+        Insert: {
+          client_operation_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: never
+          membership_id: number
+          operation_type: string
+          organisation_id: number
+          result: Json
+        }
+        Update: {
+          client_operation_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: never
+          membership_id?: number
+          operation_type?: string
+          organisation_id?: number
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_operation_receipts_membership_organisation_fkey"
+            columns: ["membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
+      organisation_sync_changes: {
+        Row: {
+          changed_at: string
+          entity_id: number
+          entity_type: string
+          operation: string
+          operations_only: boolean
+          organisation_id: number
+          revision: number
+          scope_membership_id: number | null
+        }
+        Insert: {
+          changed_at?: string
+          entity_id: number
+          entity_type: string
+          operation: string
+          operations_only?: boolean
+          organisation_id: number
+          revision?: never
+          scope_membership_id?: number | null
+        }
+        Update: {
+          changed_at?: string
+          entity_id?: number
+          entity_type?: string
+          operation?: string
+          operations_only?: boolean
+          organisation_id?: number
+          revision?: never
+          scope_membership_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organisation_sync_changes_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organisation_sync_changes_scope_organisation_fkey"
+            columns: ["scope_membership_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
       organisations: {
         Row: {
           created_at: string
@@ -818,6 +925,7 @@ export type Database = {
           name: string
           timezone: string
           updated_at: string
+          version: number
         }
         Insert: {
           created_at?: string
@@ -825,6 +933,7 @@ export type Database = {
           name: string
           timezone?: string
           updated_at?: string
+          version?: number
         }
         Update: {
           created_at?: string
@@ -832,6 +941,7 @@ export type Database = {
           name?: string
           timezone?: string
           updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -997,6 +1107,7 @@ export type Database = {
           organisation_id: number
           starts_at: string
           updated_at: string
+          version: number
         }
         Insert: {
           archived_at?: string | null
@@ -1011,6 +1122,7 @@ export type Database = {
           organisation_id: number
           starts_at: string
           updated_at?: string
+          version?: number
         }
         Update: {
           archived_at?: string | null
@@ -1025,6 +1137,7 @@ export type Database = {
           organisation_id?: number
           starts_at?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -1239,6 +1352,7 @@ export type Database = {
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
           user_id: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1246,6 +1360,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_offline_operation: {
+        Args: {
+          p_client_operation_id: string
+          p_entity_id: string
+          p_entity_type: string
+          p_operation_type: string
+        }
+        Returns: {
+          claimed: boolean
+          result: Json
+        }[]
+      }
+      complete_offline_operation: {
+        Args: { p_client_operation_id: string; p_result: Json }
+        Returns: Json
       }
       create_employee: {
         Args: {
@@ -1344,6 +1474,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at: string
+          version: number
           weekdays: number[]
         }
         SetofOptions: {
@@ -1377,6 +1508,7 @@ export type Database = {
           requires_completion_note: boolean
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1406,6 +1538,7 @@ export type Database = {
           organisation_id: number
           starts_at: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1455,6 +1588,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at: string
+          version: number
           weekdays: number[]
         }
         SetofOptions: {
@@ -1491,6 +1625,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_offline_sync_changes: {
+        Args: { p_after_revision: number }
+        Returns: {
+          changed_at: string
+          entity_id: number
+          entity_type: string
+          operation: string
+          revision: number
+        }[]
+      }
+      get_offline_sync_revision: { Args: never; Returns: number }
       link_invited_membership: { Args: never; Returns: number }
       list_job_participant_identities: {
         Args: { p_job_id: number }
@@ -1657,6 +1802,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at: string
+          version: number
           weekdays: number[]
         }
         SetofOptions: {
@@ -1682,6 +1828,7 @@ export type Database = {
           requires_completion_note: boolean
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1706,6 +1853,7 @@ export type Database = {
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
           user_id: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -1847,6 +1995,7 @@ export type Database = {
           template_id: number
           timezone: string
           updated_at: string
+          version: number
           weekdays: number[]
         }
         SetofOptions: {
@@ -1881,6 +2030,7 @@ export type Database = {
           requires_completion_note: boolean
           title: string
           updated_at: string
+          version: number
         }
         SetofOptions: {
           from: "*"

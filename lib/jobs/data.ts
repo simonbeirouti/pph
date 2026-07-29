@@ -20,26 +20,11 @@ import type {
   OwnerJobAggregates,
 } from "@/lib/jobs/types"
 import { sortJobsByUrgency } from "@/lib/jobs/board"
-import type { OfflineJob, OfflineWorkPack } from "@/lib/offline/types"
 
 type JobRow = Tables<"jobs">
-type OfflineUpdateRow = {
-  author_membership_id: number | null
-  body: string | null
-  created_at: string
-  id: number
-  job_id: number
-  type: "assignment_change" | "comment" | "note" | "status_change" | "system"
-}
-type OfflineAssetRow = {
-  id: number
-  job_id: number
-  mime_type: string
-  size_bytes: number
-}
 
 const JOB_FIELDS =
-  "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, updated_at"
+  "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, updated_at, version"
 
 export function toJobCard(row: JobRow): JobCard {
   return {
@@ -55,6 +40,7 @@ export function toJobCard(row: JobRow): JobCard {
     status: row.status,
     title: row.title,
     updatedAt: row.updated_at,
+    version: row.version,
   }
 }
 
@@ -120,112 +106,6 @@ export const getEmployeeAssignedJobs = cache(async (): Promise<JobCard[]> => {
   return sortJobsByUrgency((data ?? []).map((row) => toJobCard(row as JobRow)))
 })
 
-export const getAssignedWorkerOfflineWorkPack = cache(
-  async (): Promise<OfflineWorkPack> => {
-    const worker = await requireAssignedWorker()
-    const supabase = await createClient()
-    const { data: jobs, error: jobsError } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("organisation_id", worker.organisationId)
-      .eq("assignee_membership_id", worker.membershipId)
-      .in("status", ["assigned", "in_progress", "in_review"])
-      .order("updated_at", { ascending: false })
-
-    if (jobsError) throw new Error("Unable to load offline assigned work")
-
-    const jobIds = (jobs ?? []).map((job) => job.id)
-    const [updatesResult, assetsResult] = jobIds.length
-      ? await Promise.all([
-          supabase
-            .from("job_updates")
-            .select(
-              "id, job_id, author_membership_id, body, type, metadata, created_at"
-            )
-            .in("job_id", jobIds)
-            .order("created_at", { ascending: true }),
-          supabase
-            .from("job_assets")
-            .select("id, job_id, mime_type, size_bytes")
-            .in("job_id", jobIds)
-            .is("archived_at", null)
-            .order("created_at", { ascending: true }),
-        ])
-      : [
-          { data: [], error: null },
-          { data: [], error: null },
-        ]
-
-    if (updatesResult.error || assetsResult.error) {
-      throw new Error("Unable to load offline work history")
-    }
-
-    const updatesByJob = new Map<number, OfflineUpdateRow[]>()
-    for (const update of (updatesResult.data ?? []) as OfflineUpdateRow[]) {
-      const current = updatesByJob.get(update.job_id) ?? []
-      current.push(update)
-      updatesByJob.set(update.job_id, current)
-    }
-    const assetsByJob = new Map<number, OfflineAssetRow[]>()
-    for (const asset of (assetsResult.data ?? []) as OfflineAssetRow[]) {
-      const current = assetsByJob.get(asset.job_id) ?? []
-      current.push(asset)
-      assetsByJob.set(asset.job_id, current)
-    }
-
-    const offlineJobs = (jobs ?? []).map((job): OfflineJob => {
-      const versionedJob = job as typeof job & { version: number }
-      const updates = updatesByJob.get(job.id) ?? []
-      return {
-        description: job.description,
-        dueAt: job.due_at,
-        evidence: (assetsByJob.get(job.id) ?? []).map((asset) => ({
-          acknowledged: true,
-          id: asset.id,
-          mimeType: asset.mime_type,
-          sizeBytes: asset.size_bytes,
-        })),
-        id: job.id,
-        location: job.location,
-        minimumCompletionPhotos: job.minimum_completion_photos,
-        noteCount: updates.filter((update) => update.type === "note").length,
-        priority: job.priority,
-        requiresCompletionNote: job.requires_completion_note,
-        scheduledAt: job.scheduled_at,
-        startedAt: job.started_at,
-        status: job.status,
-        submittedAt: job.submitted_at,
-        timeline: updates
-          .filter((update) =>
-            ["note", "status_change", "system"].includes(update.type)
-          )
-          .map((update) => ({
-            authorMembershipId: update.author_membership_id,
-            body: update.body,
-            createdAt: update.created_at,
-            id: update.id,
-            pending: false,
-            type: update.type as "note" | "status_change" | "system",
-          })),
-        title: job.title,
-        version: versionedJob.version,
-      }
-    })
-
-    return {
-      identity: {
-        membershipId: worker.membershipId,
-        organisationId: worker.organisationId,
-        role: worker.role as "employee" | "manager",
-      },
-      jobs: offlineJobs,
-      refreshedAt: new Date().toISOString(),
-      schemaVersion: 1,
-      timezone: worker.timezone,
-    }
-  }
-)
-
 export const getJobDetail = cache(
   async (jobId: number): Promise<JobDetail | null> => {
     const membership = await requireActiveMembership()
@@ -253,7 +133,7 @@ export const getJobDetail = cache(
           .eq("job_id", jobId)
           .order("created_at", { ascending: true }),
         supabase.rpc("list_job_participant_identities", { p_job_id: jobId }),
-        membership.role === "owner" || membership.role === "manager"
+        membership.role === "owner"
           ? supabase
               .from("job_notification_deliveries")
               .select("*")
