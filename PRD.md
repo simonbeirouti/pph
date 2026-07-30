@@ -1822,6 +1822,11 @@ Automated implementation evidence (2026-07-29):
   Local Supabase Auth uses `http://localhost:4000`; the hosted project uses
   `https://pph-sage.vercel.app`, with each origin's exact `/auth/confirm`
   callback in the redirect allow-list.
+- Local-first employee access correction (2026-07-30): restored the existing
+  create-and-invite dialog to the hydrated local-repository employee directory
+  used during normal online operation. Owners retain role selection and managers
+  retain employee-only creation; queued creation continues to use the existing
+  durable membership operation.
 
 ## 13. Prototype and production readiness
 

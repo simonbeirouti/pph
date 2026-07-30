@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState, type FormEvent } from "react"
 
+import { EmployeeCreateDialog } from "@/components/employee-create-dialog"
 import { EmployeeDirectoryTable } from "@/components/employee-directory-table"
 import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
 import { JobWorkspace } from "@/components/job-workspace"
@@ -354,11 +355,16 @@ function OfflineEmployeesPage({
   )
   return (
     <div className="grid gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Employees</h1>
-        <p className="text-muted-foreground">
-          Manage profiles, invitations, and application access.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-semibold">Employees</h1>
+          <p className="text-muted-foreground">
+            Manage profiles, invitations, and application access.
+          </p>
+        </div>
+        <EmployeeCreateDialog
+          canChooseRole={snapshot.membership.role === "owner"}
+        />
       </div>
       <EmployeeDirectoryTable
         actorRole={snapshot.membership.role}
