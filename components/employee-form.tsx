@@ -187,11 +187,6 @@ function EmployeeProfileFieldControls({
             required={!editing}
             value={values.email}
           />
-          {editing ? (
-            <FieldDescription>
-              Email is the account’s sign-in identity and cannot be edited.
-            </FieldDescription>
-          ) : null}
           <FieldErrors errors={state.errors?.email} />
         </Field>
       ) : null}
@@ -253,11 +248,6 @@ function EmployeeProfileFieldControls({
               required={!editing}
               value={values.email}
             />
-            {editing ? (
-              <FieldDescription>
-                Email is the account’s sign-in identity and cannot be edited.
-              </FieldDescription>
-            ) : null}
             <FieldErrors errors={state.errors?.email} />
           </Field>
         ) : null}
@@ -330,25 +320,35 @@ export function EmployeeForm({
   canChooseRole = false,
   createLayout = false,
   employee,
+  externalDirty = false,
+  formId,
   fullWidthSubmit = false,
+  includeAvatar = true,
   includeJobTitle = true,
   returnHref = "/dashboard/employees",
   returnLabel = "Back to employees",
   onSuccess,
+  showExternalAvatarErrors = false,
   showDestinationLink = true,
   showReturn = true,
+  showSubmitWhenDirty = false,
 }: {
   action: EmployeeFormAction
   canChooseRole?: boolean
   createLayout?: boolean
   employee?: EmployeeSummary
+  externalDirty?: boolean
+  formId?: string
   fullWidthSubmit?: boolean
+  includeAvatar?: boolean
   includeJobTitle?: boolean
   onSuccess?: (state: ActionState) => void
   returnHref?: string
   returnLabel?: string
+  showExternalAvatarErrors?: boolean
   showDestinationLink?: boolean
   showReturn?: boolean
+  showSubmitWhenDirty?: boolean
 }) {
   const [state, formAction, pending] = useActionState(
     action,
@@ -356,6 +356,7 @@ export function EmployeeForm({
   )
   const handledSuccess = useRef<string | null>(null)
   const editing = Boolean(employee)
+  const [fieldsDirty, setFieldsDirty] = useState(false)
   const [role, setRole] = useState<"employee" | "manager" | "owner">(
     (state.values?.role as "employee" | "manager" | "owner" | undefined) ??
       "employee"
@@ -364,12 +365,26 @@ export function EmployeeForm({
   useEffect(() => {
     if (state.ok && state.message && handledSuccess.current !== state.message) {
       handledSuccess.current = state.message
+      setFieldsDirty(false)
       onSuccess?.(state)
     }
   }, [onSuccess, state])
 
   return (
-    <form action={formAction}>
+    <form
+      action={formAction}
+      id={formId}
+      onChange={(event) => {
+        if (!employee) return
+        const data = new FormData(event.currentTarget)
+        setFieldsDirty(
+          String(data.get("firstName") ?? "") !== employee.firstName ||
+            String(data.get("lastName") ?? "") !== employee.lastName ||
+            String(data.get("phone") ?? "") !== employee.phone ||
+            String(data.get("jobTitle") ?? "") !== employee.jobTitle
+        )
+      }}
+    >
       <FieldGroup>
         {state.message ? (
           <Alert variant={state.ok ? "default" : "destructive"}>
@@ -392,9 +407,13 @@ export function EmployeeForm({
             <AlertDescription>{warning}</AlertDescription>
           </Alert>
         ))}
+        {showExternalAvatarErrors ? (
+          <FieldErrors errors={state.errors?.avatar} />
+        ) : null}
         <EmployeeProfileFields
           createLayout={createLayout}
           employee={employee}
+          includeAvatar={includeAvatar}
           includeJobTitle={includeJobTitle}
           state={state}
         />
@@ -438,34 +457,36 @@ export function EmployeeForm({
             </FieldDescription>
           </Field>
         ) : null}
-        <div
-          className={
-            fullWidthSubmit ? "grid w-full" : "flex flex-wrap gap-3"
-          }
-        >
-          <Button
-            className={fullWidthSubmit ? "w-full" : undefined}
-            disabled={pending}
-            type="submit"
+        {!showSubmitWhenDirty || fieldsDirty || externalDirty ? (
+          <div
+            className={
+              fullWidthSubmit ? "grid w-full" : "flex flex-wrap gap-3"
+            }
           >
-            {pending
-              ? editing
-                ? "Saving…"
-                : "Creating…"
-              : editing
-                ? "Save profile"
-                : "Create and invite"}
-          </Button>
-          {showReturn ? (
             <Button
-              nativeButton={false}
-              variant="outline"
-              render={<Link href={returnHref} prefetch={false} />}
+              className={fullWidthSubmit ? "w-full" : undefined}
+              disabled={pending}
+              type="submit"
             >
-              {returnLabel}
+              {pending
+                ? editing
+                  ? "Saving…"
+                  : "Creating…"
+                : editing
+                  ? "Save profile"
+                  : "Create and invite"}
             </Button>
-          ) : null}
-        </div>
+            {showReturn ? (
+              <Button
+                nativeButton={false}
+                variant="outline"
+                render={<Link href={returnHref} prefetch={false} />}
+              >
+                {returnLabel}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </FieldGroup>
     </form>
   )

@@ -1,4 +1,4 @@
-const SHELL_CACHE = "pph-dashboard-shell-v7"
+const SHELL_CACHE = "pph-dashboard-shell-v8"
 const DASHBOARD_SHELL_URL = "/offline"
 const PUBLIC_ASSETS = [
   DASHBOARD_SHELL_URL,

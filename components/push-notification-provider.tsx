@@ -93,6 +93,10 @@ export function PushNotificationProvider({
     let active = true
 
     const checkOnLaunch = async () => {
+      if (!navigator.onLine) {
+        if (active) setState("unsubscribed")
+        return
+      }
       if (!pushIsSupported(publicKey)) {
         if (active) setState("unsupported")
         return
@@ -145,6 +149,9 @@ export function PushNotificationProvider({
     setBusy(true)
     setErrorMessage("")
     try {
+      if (!navigator.onLine) {
+        throw new Error("Reconnect to change push notification settings.")
+      }
       const permission = await Notification.requestPermission()
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "unsubscribed")
@@ -169,6 +176,9 @@ export function PushNotificationProvider({
     setBusy(true)
     setErrorMessage("")
     try {
+      if (!navigator.onLine) {
+        throw new Error("Reconnect to change push notification settings.")
+      }
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
       if (subscription) {

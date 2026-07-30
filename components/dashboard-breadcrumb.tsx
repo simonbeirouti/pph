@@ -4,6 +4,7 @@ import { Fragment } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,7 +55,12 @@ function getBreadcrumbEntries(pathname: string): BreadcrumbEntry[] {
 }
 
 export function DashboardBreadcrumb() {
-  const pathname = usePathname()
+  const nextPathname = usePathname()
+  const offline = useOptionalOfflineV2()
+  const pathname =
+    offline?.viewSource === "cache"
+      ? new URL(offline.currentPath, "https://offline.invalid").pathname
+      : nextPathname
   const entries = getBreadcrumbEntries(pathname)
 
   return (

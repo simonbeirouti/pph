@@ -71,7 +71,7 @@ test("owner bootstraps once, then navigates across the dashboard offline", async
   ).toHaveAttribute("data-offline-provider", "changes_pending")
 })
 
-test("a warm owner navigates from the local repository without an RSC refetch", async ({
+test("a warm online owner keeps App Router navigation and server screens", async ({
   ownerPage,
 }) => {
   await prepare(ownerPage)
@@ -93,10 +93,15 @@ test("a warm owner navigates from the local repository without an RSC refetch", 
   ).toHaveCount(0)
   await clickDashboardNavigation(ownerPage, "Employees")
   await expect(ownerPage).toHaveURL(/\/dashboard\/employees$/)
-  expect(dashboardRscRequests).toEqual([])
+  await expect
+    .poll(() => dashboardRscRequests.length, { timeout: 10_000 })
+    .toBeGreaterThan(0)
+  await expect(
+    ownerPage.locator("[data-offline-provider]").first()
+  ).toHaveAttribute("data-view-source", "server")
 })
 
-test("an online owner mutation uses the durable outbox exactly once", async ({
+test("an online owner mutation uses the server action and leaves the outbox empty", async ({
   ownerPage,
 }) => {
   const admin = createClient(
@@ -104,8 +109,8 @@ test("an online owner mutation uses the durable outbox exactly once", async ({
     process.env.SUPABASE_SECRET_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const title = `Local-first online ${Date.now()}`
-  let clientOperationId: string | null = null
+  const title = `Server-first online ${Date.now()}`
+  let offlineJobCreateRequests = 0
   ownerPage.on("request", (request) => {
     if (
       request.url().endsWith("/api/offline/sync") &&
@@ -117,7 +122,7 @@ test("an online owner mutation uses the durable outbox exactly once", async ({
       const create = body.operations?.find(
         (operation) => operation.kind === "job.create"
       )
-      if (create) clientOperationId = create.clientOperationId
+      if (create) offlineJobCreateRequests += 1
     }
   })
 
@@ -126,47 +131,30 @@ test("an online owner mutation uses the durable outbox exactly once", async ({
     await clickDashboardNavigation(ownerPage, "Jobs")
     await ownerPage.getByRole("button", { name: "Create job" }).click()
     await ownerPage.getByLabel("Title").fill(title)
-    const syncResponse = ownerPage.waitForResponse(
-      (response) =>
-        response.url().endsWith("/api/offline/sync") &&
-        response.request().postData()?.includes('"job.create"') === true
-    )
     await ownerPage
       .getByRole("button", { name: "Create job", exact: true })
       .last()
       .click()
-    const syncPayload = (await (await syncResponse).json()) as {
-      fullSnapshot?: unknown
-      patch?: unknown
-    }
-    expect(syncPayload.patch).toBeDefined()
-    expect(syncPayload.fullSnapshot).toBeUndefined()
     await expect(ownerPage.getByText(title, { exact: true })).toBeVisible()
     await expect
       .poll(() => offlineOutboxCount(ownerPage), { timeout: 30_000 })
       .toBe(0)
-    expect(clientOperationId).not.toBeNull()
     await expect
       .poll(async () => {
         const { count } = await admin
-          .from("offline_operation_receipts")
+          .from("jobs")
           .select("*", { count: "exact", head: true })
-          .eq("client_operation_id", clientOperationId!)
+          .eq("title", title)
         return count
       })
       .toBe(1)
+    expect(offlineJobCreateRequests).toBe(0)
   } finally {
-    if (clientOperationId) {
-      await admin
-        .from("offline_operation_receipts")
-        .delete()
-        .eq("client_operation_id", clientOperationId)
-    }
     await admin.from("jobs").delete().eq("title", title)
   }
 })
 
-test("cold preparation keeps SSR content visible but disables edits", async ({
+test("cache bootstrap does not replace or reset the online profile form", async ({
   ownerPage,
 }) => {
   let releaseBootstrap!: () => void
@@ -178,15 +166,29 @@ test("cold preparation keeps SSR content visible but disables edits", async ({
     await route.continue()
   })
 
-  await ownerPage.goto("/dashboard/jobs")
-  const createJob = ownerPage.getByRole("button", { name: "Create job" })
-  await expect(createJob).toBeVisible()
-  await expect(createJob).toBeDisabled()
+  await ownerPage.goto("/dashboard/profile")
+  const phone = ownerPage.getByLabel("Phone")
+  await expect(phone).toBeEnabled()
+  const originalBounds = await phone.boundingBox()
+  expect(originalBounds).not.toBeNull()
+  await phone.fill("+61 400 123 987")
   releaseBootstrap()
   await expect(
     ownerPage.locator("[data-repository-state]").first()
   ).toHaveAttribute("data-repository-state", "ready", { timeout: 30_000 })
-  await expect(createJob).toBeEnabled()
+  await expect(
+    ownerPage.locator("[data-offline-provider]").first()
+  ).toHaveAttribute("data-view-source", "server")
+  await expect(phone).toHaveValue("+61 400 123 987")
+  await expect(
+    ownerPage.getByText("Profile information", { exact: true })
+  ).toHaveCount(1)
+  const hydratedBounds = await phone.boundingBox()
+  expect(hydratedBounds).not.toBeNull()
+  expect(Math.round(hydratedBounds!.width)).toBe(
+    Math.round(originalBounds!.width)
+  )
+  expect(Math.round(hydratedBounds!.x)).toBe(Math.round(originalBounds!.x))
 })
 
 test("manager receives both operations routes and personal assigned work offline", async ({

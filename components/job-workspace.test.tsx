@@ -134,9 +134,9 @@ describe("JobWorkspace", () => {
       "schedule-due",
       "requirements",
     ]) {
-      expect(
-        dialog.querySelector(`[data-job-form-row="${row}"]`)
-      ).toHaveClass("grid-cols-2")
+      expect(dialog.querySelector(`[data-job-form-row="${row}"]`)).toHaveClass(
+        "grid-cols-2"
+      )
     }
 
     await user.clear(within(dialog).getByLabelText("Title"))
@@ -174,9 +174,7 @@ describe("JobWorkspace", () => {
     expect(
       container.ownerDocument.querySelector('[data-slot="drawer-content"]')
     ).toHaveClass("min-h-0", "overflow-y-auto")
-    expect(
-      screen.getByRole("dialog", { name: "Create job" })
-    ).toBeVisible()
+    expect(screen.getByRole("dialog", { name: "Create job" })).toBeVisible()
     expect(
       within(screen.getByRole("dialog", { name: "Create job" }))
         .getByRole("checkbox", { name: "Require note" })
@@ -238,6 +236,7 @@ describe("JobWorkspace", () => {
           },
           {
             ...job,
+            archivedAt: "2026-07-27T04:30:00.000Z",
             id: 1403,
             status: "archived",
             title: "Archived checklist",
@@ -296,6 +295,57 @@ describe("JobWorkspace", () => {
     expect(
       screen.getByRole("region", { name: "Archived jobs" })
     ).toHaveTextContent("Archived checklist")
+    expect(
+      screen.getByRole("region", { name: "Archived jobs" })
+    ).toHaveTextContent("Completed by")
+    expect(
+      screen.getByRole("region", { name: "Archived jobs" })
+    ).toHaveTextContent("27 Jul, 2:30 pm")
+    expect(container.querySelector("[data-archive-grid]")).toHaveClass(
+      "md:grid-cols-2",
+      "xl:grid-cols-3"
+    )
+    expect(
+      within(
+        screen.getByRole("region", { name: "Archived jobs" })
+      ).queryByLabelText("Drag Archived checklist")
+    ).not.toBeInTheDocument()
+  })
+
+  it("paginates archived jobs in pages of 15", async () => {
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        archivePagination={{
+          page: 1,
+          pageSize: 15,
+          total: 31,
+          totalPages: 3,
+        }}
+        employees={employees}
+        initialJobs={[
+          {
+            ...job,
+            archivedAt: "2026-07-27T04:30:00.000Z",
+            id: 1403,
+            status: "archived",
+            title: "Archived checklist",
+          },
+        ]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("tab", { name: "Archived" }))
+
+    expect(
+      screen.getByRole("navigation", { name: "Archived jobs pagination" })
+    ).toHaveTextContent("Showing 1–15 of 31")
+    expect(screen.getByText("Page 1 of 3")).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Next archived jobs page" })
+    ).toHaveAttribute("href", "/dashboard/jobs?view=archived&page=2")
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled()
   })
 
   it("filters the board by urgency and employee", async () => {

@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 
-import type { MembershipContext } from "@/lib/auth/membership"
+import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
 import { NavUser } from "@/components/nav-user"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
@@ -27,6 +27,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { OfflineMembership } from "@/lib/offline-v2/types"
 
 export function AppSidebar({
   avatarUrl,
@@ -34,9 +35,14 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   avatarUrl: string | null
-  membership: MembershipContext
+  membership: OfflineMembership
 }) {
-  const pathname = usePathname()
+  const nextPathname = usePathname()
+  const offline = useOptionalOfflineV2()
+  const pathname =
+    offline?.viewSource === "cache"
+      ? new URL(offline.currentPath, "https://offline.invalid").pathname
+      : nextPathname
   const { isMobile, setOpenMobile } = useSidebar()
   const closeMobileSidebar = () => {
     if (isMobile) setOpenMobile(false)

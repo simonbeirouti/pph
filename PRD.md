@@ -1777,6 +1777,15 @@ Automated implementation evidence (2026-07-29):
   file ESLint passes. No database, permission, environment-variable,
   public-route, or reference-file change was required; S12 remains
   `in_progress`.
+- UI refinement checkpoint — self-profile (2026-07-30): made the header avatar
+  the profile-photo picker, removed the separate replacement field, redundant
+  dashboard return action, and sign-in identity explanation, and now reveals
+  Save profile only after a field or photo changes. The existing online server
+  action and unreachable/offline queued profile mutation remain authoritative
+  for their respective connectivity states; push-notification settings remain
+  independent. Changed-file ESLint, TypeScript, and four focused self-profile
+  Playwright checks pass across desktop Chromium and Mobile Chrome; S12 remains
+  `in_progress`.
 - The jobs, employees, and roster UI checkpoints used the Vercel React/Next.js
   and Playwright project skills. They required no database, permission,
   environment-variable, public-route, or reference-file changes. S12 remains
@@ -1792,31 +1801,46 @@ Automated implementation evidence (2026-07-29):
   unrelated generated invite callback (`/auth/confirm/error?reason=invalid`);
   that pre-existing integration gate remains deferred and does not change this
   UI checkpoint's result.
-- Local-first v2 repository checkpoint (2026-07-30): a valid hydrated
-  IndexedDB snapshot is now the normal mounted dashboard read source online and
-  offline, after the authenticated SSR cold-start handoff. Repository readiness,
-  connectivity, and sync state are independent; warm dashboard links use local
-  history with Next route prefetch disabled, Realtime invalidations request an
-  incremental repository sync instead of `router.refresh()`, and background
-  revalidation leaves rendered content in place.
-- Online and offline edits now share the durable outbox path. Queueing writes the
-  operation, optional blob, and optimistic snapshot atomically; sync applies
-  acknowledgements, conflicts, canonical ID mappings, domain patches, revision
-  metadata, and remaining optimistic state in one IndexedDB transaction.
-  Incremental sync pages the role-scoped revision feed in bounded 5,000-row
-  batches, rebuilds affected projections, and falls back to a complete bootstrap
-  for schema/revision gaps, identity or role changes, unsupported tables, or an
-  excessive backlog.
-- Verification passed changed-file ESLint, TypeScript, 7 focused Vitest files /
-  62 tests, the production build, the focused offline-v2 database file / 14
-  assertions, 14 all-role local-first Playwright journeys across desktop
-  Chromium and Mobile Chrome, and the 2 desktop/mobile assigned-work reconnect
-  regressions. No migration, RLS, environment-variable, public-route, or
-  private-media CacheStorage contract changed. The legacy work-pack migration
-  remains intentionally available, and TanStack Query is not part of the active
-  repository path. Used the Supabase, Supabase Postgres, Vercel React/Next.js,
-  and Playwright project skills. S12 and TODO-015 remain `in_progress` for the
-  existing native iOS/Android staging gates, so the release remains **NO-GO**.
+- Unified dashboard/offline correction (2026-07-30): this checkpoint explicitly
+  replaces the preceding “IndexedDB is the normal mounted dashboard read
+  source” and “online edits use the durable outbox” contracts. The authenticated
+  App Router route, server-fetched view-model, normal Next navigation, server
+  action, validation response, and `router.refresh()` are authoritative while
+  the origin is reachable. A successful online mutation does not create an
+  outbox operation or receipt. IndexedDB is a background role-scoped snapshot
+  cache and an offline/unreachable mutation outbox only.
+- Dashboard home, jobs and job detail, roster, employees and employee detail,
+  templates/schedules, and self-profile now render shared production screen
+  components from either server or cached view-models. The authenticated layout
+  and the prepared `/offline` document share one dashboard chrome, including
+  sidebar, responsive header, breadcrumb, install guidance, profile navigation,
+  notification settings, logout, dialogs, drawers, filters, permissions,
+  validation, and empty states. `/dashboard/employees/new` is retained only as
+  a compatibility redirect to the employee directory's shared create dialog.
+  Cache bootstrap no longer replaces or unmounts an online screen.
+- The client state now separates `viewSource`, `networkReachability`,
+  `canQueueOfflineMutation`, and `navigationMode`. Dashboard links use browser
+  history only in cached mode. Pending operations and conflicts keep the shared
+  cached screen mounted through reconnect until replay acknowledgement;
+  successful replay applies canonical mappings and patches before refreshing the
+  App Router. A confirmed same-origin failure retries as `unreachable`, while an
+  online server-action failure is never automatically duplicated into the
+  outbox. Development service-worker cleanup and registration now share one
+  policy, and the consolidated public shell cache is version 8; private data,
+  media, and mutations remain in IndexedDB.
+- Verification passed changed-file ESLint, TypeScript, 6 focused Vitest files /
+  27 tests, the production build, and all 14 affected offline-dashboard
+  Playwright checks across desktop Chromium and Mobile Chrome. The online App
+  Router navigation, server-action/outbox-empty, and delayed-bootstrap
+  form-preservation regressions each passed five consecutive runs on both
+  projects (30/30 repeat checks). The cold-device shell-registration regression
+  also passes on both projects. One broader unit run produced 224 passing tests
+  and one transient status-select interaction failure; its isolated 5-test file
+  passed immediately on rerun. No migration, RLS, environment-variable, public
+  route, or private-media CacheStorage contract changed. Used the Supabase,
+  Vercel React/Next.js, and Playwright project skills. S12 and TODO-015 remain
+  `in_progress` for the existing native iOS/Android staging gates, so the release
+  remains **NO-GO**.
 - Production diagnostics cleanup (2026-07-30): removed the development-only
   dashboard payload logger so role, job, roster, and timezone summaries are no
   longer emitted to the server console. Changed-file ESLint, TypeScript, and a
@@ -1853,6 +1877,19 @@ Automated implementation evidence (2026-07-29):
   used during normal online operation. Owners retain role selection and managers
   retain employee-only creation; queued creation continues to use the existing
   durable membership operation.
+- Archived-jobs refinement (2026-07-30): replaced the archived Kanban-style
+  column and its full-height wrapper with the same open responsive card grid
+  used by Templates. Each compact card identifies the completed job, assignee,
+  and archive time, and links to the preserved job detail. The server jobs page
+  now requests an exact archived count and only the selected 15-row range while
+  retaining the complete non-archived workflow; URL-backed Previous/Next
+  controls reject invalid or out-of-range archive pages. Changed-file ESLint,
+  TypeScript, all 9 focused job-workspace component tests, and
+  `git diff --check` pass. A read-only hosted Supabase query also verified the
+  exact-count, stable-order, inclusive `range(0, 14)` contract against the
+  configured production project (0 current archived rows). No migration, RLS,
+  permission, environment-variable, or public-route change was required; S12
+  remains `in_progress`.
 
 ## 13. Prototype and production readiness
 

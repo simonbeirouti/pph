@@ -9,6 +9,7 @@ import type {
   OfflineOperationKind,
   OfflineV2Snapshot,
 } from "@/lib/offline-v2/types"
+import { selectMutationTransport } from "@/lib/offline-v2/view-mode"
 
 export { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
 
@@ -24,6 +25,12 @@ type QueueInput = {
 
 export function useOfflineV2Actions() {
   const offline = useOptionalOfflineV2()
+  const viewSource = offline?.viewSource ?? "server"
+  const canQueueOfflineMutation = Boolean(offline?.canQueueOfflineMutation)
+  const mutationTransport = selectMutationTransport({
+    canQueueOfflineMutation,
+    viewSource,
+  })
 
   const queue = useCallback(
     async (input: QueueInput) => {
@@ -62,8 +69,12 @@ export function useOfflineV2Actions() {
 
   return {
     canMutate: Boolean(offline?.canMutate),
+    canQueueOfflineMutation,
     isOffline: offline ? !offline.isOnline : false,
     navigate: offline?.navigate,
+    navigationMode: offline?.navigationMode ?? "next",
+    networkReachability: offline?.networkReachability ?? "online",
+    mutationTransport,
     queue,
     repositoryState: offline?.repositoryState ?? "preparing",
     usesLocalRepository: Boolean(offline?.usesLocalRepository),

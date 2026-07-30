@@ -1,16 +1,14 @@
 import { notFound } from "next/navigation"
-import Link from "next/link"
 
-import { EmployeeJobsList } from "@/components/employee-jobs-list"
-import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
-import { JobWorkspace } from "@/components/job-workspace"
-import { Button } from "@/components/ui/button"
+import { JobsScreen } from "@/components/jobs-screen"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getEmployeeAssignedJobs,
   getJobDetail,
-  getOwnerJobBoardData,
+  getOwnerJobsPageData,
 } from "@/lib/jobs/data"
+
+const ARCHIVE_PAGE_SIZE = 15
 
 export default async function Page({
   searchParams,
@@ -18,6 +16,7 @@ export default async function Page({
   searchParams: Promise<{
     job?: string | string[]
     mode?: string | string[]
+    page?: string | string[]
     priority?: string | string[]
     status?: string | string[]
     view?: string | string[]
@@ -40,6 +39,17 @@ export default async function Page({
     params.view === "archived" || params.view === "workflow"
       ? params.view
       : "workflow"
+  const rawPage = params.page
+  const parsedArchivePage =
+    typeof rawPage === "string" && /^[1-9]\d*$/.test(rawPage)
+      ? Number(rawPage)
+      : null
+  const archivePage =
+    rawPage === undefined
+      ? 1
+      : parsedArchivePage !== null && Number.isSafeInteger(parsedArchivePage)
+        ? parsedArchivePage
+        : null
   const mode =
     membership.role === "manager" && params.mode === "my-work"
       ? "my-work"
@@ -52,7 +62,9 @@ export default async function Page({
       params.mode !== "my-work") ||
     (params.view !== undefined &&
       params.view !== "workflow" &&
-      params.view !== "archived")
+      params.view !== "archived") ||
+    !archivePage ||
+    (rawPage !== undefined && view !== "archived")
   ) {
     notFound()
   }
@@ -65,31 +77,27 @@ export default async function Page({
     if (selectedJobId && !detail) notFound()
 
     return (
-      <div className="grid gap-4">
-        {membership.role === "manager" ? (
-          <div className="flex gap-2">
-            <Button nativeButton={false} variant="outline" render={<Link href="/dashboard/jobs" />}>
-              Team workflow
-            </Button>
-            <Button nativeButton={false} render={<Link href="/dashboard/jobs?mode=my-work" />}>
-              My work
-            </Button>
-          </div>
-        ) : null}
-        <EmployeeJobsList jobs={jobs} timezone={membership.timezone} />
-        <EmployeeJobDetail
-          detail={detail}
-          timezone={membership.timezone}
-        />
-      </div>
+      <JobsScreen
+        detail={detail}
+        employees={[]}
+        filterActive={false}
+        jobs={jobs}
+        mode="my-work"
+        role={membership.role}
+        rosterShifts={[]}
+        templates={[]}
+        timezone={membership.timezone}
+        view="workflow"
+      />
     )
   }
 
   const [data, detail] = await Promise.all([
-    getOwnerJobBoardData(),
+    getOwnerJobsPageData(archivePage, ARCHIVE_PAGE_SIZE),
     selectedJobId ? getJobDetail(selectedJobId) : null,
   ])
   if (selectedJobId && !detail) notFound()
+  if (archivePage > data.archivePagination.totalPages) notFound()
   const filteredJobs = data.jobs.filter(
     (job) =>
       (!status ||
@@ -100,35 +108,18 @@ export default async function Page({
   )
 
   return (
-    <div className="flex h-[calc(100dvh-6rem)] min-h-0 w-full flex-col overflow-hidden md:h-[calc(100dvh-8rem)]">
-      {membership.role === "manager" ? (
-        <div className="mb-3 flex shrink-0 gap-2">
-          <Button nativeButton={false} render={<Link href="/dashboard/jobs" />}>
-            Team workflow
-          </Button>
-          <Button nativeButton={false} variant="outline" render={<Link href="/dashboard/jobs?mode=my-work" />}>
-            My work
-          </Button>
-        </div>
-      ) : null}
-      <JobWorkspace
-        employees={data.employees}
-        filterActive={Boolean(status || priority)}
-        initialJobs={filteredJobs}
-        initialView={view}
-        rosterShifts={data.rosterShifts}
-        templates={data.templates}
-        timezone={data.timezone}
-      />
-      <OwnerJobDetail
-        canReview={
-          membership.role === "owner" ||
-          detail?.requiredReviewerRole === "manager"
-        }
-        detail={detail}
-        employees={data.employees}
-        timezone={data.timezone}
-      />
-    </div>
+    <JobsScreen
+      archivePagination={data.archivePagination}
+      detail={detail}
+      employees={data.employees}
+      filterActive={Boolean(status || priority)}
+      jobs={filteredJobs}
+      mode={mode}
+      role={membership.role}
+      rosterShifts={data.rosterShifts}
+      templates={data.templates}
+      timezone={data.timezone}
+      view={view}
+    />
   )
 }

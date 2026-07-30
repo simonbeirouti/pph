@@ -239,6 +239,36 @@ test("employee opens their own editable profile from the sidebar", async ({
   await expect(employeePage.getByLabel("First name")).toHaveValue("Alex")
   await expect(
     employeePage.getByRole("button", { name: "Save profile" })
+  ).toHaveCount(0)
+  await expect(
+    employeePage.getByRole("button", { name: "Change profile photo" })
+  ).toBeVisible()
+  await expect(
+    employeePage.getByText(
+      "Email is the account’s sign-in identity and cannot be edited."
+    )
+  ).toHaveCount(0)
+  await expect(
+    employeePage.getByRole("link", { name: "Back to dashboard" })
+  ).toHaveCount(0)
+  const fileChooserPromise = employeePage.waitForEvent("filechooser")
+  await employeePage
+    .getByRole("button", { name: "Change profile photo" })
+    .click()
+  const fileChooser = await fileChooserPromise
+  await fileChooser.setFiles({
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64"
+    ),
+    mimeType: "image/png",
+    name: "profile.png",
+  })
+  await expect(
+    employeePage.getByRole("button", { name: "Save profile" })
+  ).toBeVisible()
+  await expect(
+    employeePage.getByRole("img", { name: "Alex Employee profile photo" })
   ).toBeVisible()
 })
 
@@ -246,6 +276,10 @@ test("owner can edit their own profile", async ({ ownerPage }) => {
   await ownerPage.goto("/dashboard/profile")
   await expect(ownerPage.getByLabel("First name")).toHaveValue("Olivia")
   await expect(ownerPage.getByLabel("Job title")).toHaveValue("Owner")
+  await expect(
+    ownerPage.getByRole("button", { name: "Save profile" })
+  ).toHaveCount(0)
+  await ownerPage.getByLabel("Job title").fill("Managing owner")
   await expect(
     ownerPage.getByRole("button", { name: "Save profile" })
   ).toBeVisible()

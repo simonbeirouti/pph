@@ -3,6 +3,7 @@
 import { BellIcon, BellOffIcon, LoaderCircleIcon } from "lucide-react"
 
 import { usePushNotifications } from "@/components/push-notification-provider"
+import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,8 +14,11 @@ import {
 } from "@/components/ui/card"
 
 export function PushNotificationSettings() {
+  const offline = useOptionalOfflineV2()
   const { busy, disable, enable, errorMessage, publicKey, state } =
     usePushNotifications()
+  const connected = offline?.networkReachability !== "offline" &&
+    offline?.networkReachability !== "unreachable"
 
   const descriptions = {
     checking: "Checking this browser…",
@@ -30,7 +34,11 @@ export function PushNotificationSettings() {
     <Card aria-label="Push notifications" role="region">
       <CardHeader>
         <CardTitle>Push notifications</CardTitle>
-        <CardDescription>{descriptions[state]}</CardDescription>
+        <CardDescription>
+          {connected
+            ? descriptions[state]
+            : "Reconnect to change push notification settings."}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {errorMessage ? (
@@ -40,7 +48,7 @@ export function PushNotificationSettings() {
         ) : null}
         {state === "subscribed" ? (
           <Button
-            disabled={busy}
+            disabled={busy || !connected}
             onClick={() => void disable()}
             variant="outline"
           >
@@ -55,6 +63,7 @@ export function PushNotificationSettings() {
           <Button
             disabled={
               busy ||
+              !connected ||
               state === "checking" ||
               state === "denied" ||
               state === "unsupported"

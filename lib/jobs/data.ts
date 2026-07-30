@@ -14,6 +14,7 @@ import { getActiveJobTemplates } from "@/lib/templates/data"
 import type {
   EmployeeJobSummary,
   JobBoardEmployee,
+  JobArchivePagination,
   JobCard,
   JobDetail,
   JobRosterShiftOption,
@@ -28,10 +29,11 @@ type EmployeeJobRow = JobRow & {
 }
 
 const JOB_FIELDS =
-  "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, updated_at, version"
+  "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, archived_at, updated_at, version"
 
 export function toJobCard(row: JobRow): JobCard {
   return {
+    archivedAt: row.archived_at,
     assigneeMembershipId: row.assignee_membership_id,
     description: row.description,
     dueAt: row.due_at,
@@ -102,6 +104,78 @@ export const getOwnerJobBoardData = cache(async () => {
     timezone: owner.timezone,
   }
 })
+
+export const getOwnerJobsPageData = cache(
+  async (archivePage: number, archivePageSize: number) => {
+    const owner = await requireOperations()
+    const supabase = await createClient()
+    const archiveFrom = (archivePage - 1) * archivePageSize
+    const archiveTo = archiveFrom + archivePageSize - 1
+    const [employees, workflowResult, archiveResult, shiftsResult, templates] =
+      await Promise.all([
+        listEmployees(),
+        supabase
+          .from("jobs")
+          .select(JOB_FIELDS)
+          .eq("organisation_id", owner.organisationId)
+          .neq("status", "archived")
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("jobs")
+          .select(JOB_FIELDS, { count: "exact" })
+          .eq("organisation_id", owner.organisationId)
+          .eq("status", "archived")
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(archiveFrom, archiveTo),
+        supabase
+          .from("roster_shifts")
+          .select("id, employee_membership_id, starts_at, ends_at")
+          .eq("organisation_id", owner.organisationId)
+          .is("archived_at", null)
+          .gt("ends_at", new Date().toISOString())
+          .order("starts_at", { ascending: true })
+          .limit(500),
+        getActiveJobTemplates(),
+      ])
+
+    if (workflowResult.error || archiveResult.error || shiftsResult.error) {
+      throw new Error("Unable to load jobs")
+    }
+
+    const archiveTotal = archiveResult.count ?? 0
+    const archivePagination: JobArchivePagination = {
+      page: archivePage,
+      pageSize: archivePageSize,
+      total: archiveTotal,
+      totalPages: Math.max(1, Math.ceil(archiveTotal / archivePageSize)),
+    }
+
+    return {
+      archivePagination,
+      employees: employees.map((employee): JobBoardEmployee => ({
+        active: employee.status === "active",
+        avatarUrl: employee.avatarUrl,
+        displayName: employee.displayName,
+        jobTitle: employee.jobTitle,
+        membershipId: employee.membershipId,
+      })),
+      jobs: [...(workflowResult.data ?? []), ...(archiveResult.data ?? [])].map(
+        (row) => toJobCard(row as JobRow)
+      ),
+      rosterShifts: (shiftsResult.data ?? []).map(
+        (shift): JobRosterShiftOption => ({
+          employeeMembershipId: shift.employee_membership_id,
+          endsAt: shift.ends_at,
+          id: shift.id,
+          startsAt: shift.starts_at,
+        })
+      ),
+      templates,
+      timezone: owner.timezone,
+    }
+  }
+)
 
 export const getEmployeeAssignedJobs = cache(async (): Promise<JobCard[]> => {
   const employee = await requireAssignedWorker()

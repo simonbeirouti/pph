@@ -7,6 +7,8 @@ import {
   ArchiveIcon,
   BriefcaseBusinessIcon,
   CameraIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleCheckBigIcon,
   ClockIcon,
   FileTextIcon,
@@ -28,6 +30,14 @@ import { JobCreateDialog, JobEditDialog } from "@/components/job-create-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -35,6 +45,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import {
   Select,
   SelectContent,
@@ -53,6 +70,7 @@ import {
 import type {
   JobBoardColumn,
   JobBoardEmployee,
+  JobArchivePagination,
   JobCard,
   JobPriority,
   JobRosterShiftOption,
@@ -100,6 +118,7 @@ function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
 }
 
 export function JobWorkspace({
+  archivePagination,
   employees,
   filterActive = false,
   initialJobs,
@@ -108,6 +127,7 @@ export function JobWorkspace({
   templates = [],
   timezone,
 }: {
+  archivePagination?: JobArchivePagination
   employees: readonly JobBoardEmployee[]
   filterActive?: boolean
   initialJobs: readonly JobCard[]
@@ -141,6 +161,10 @@ export function JobWorkspace({
   const canonicalBoard = useMemo(
     () => buildBoard(visibleJobs, view),
     [view, visibleJobs]
+  )
+  const archivedJobs = useMemo(
+    () => visibleJobs.filter((job) => job.status === "archived"),
+    [visibleJobs]
   )
   const [dragBoard, setDragBoard] = useState<BoardItems | null>(null)
   const dragBoardRef = useRef<BoardItems | null>(null)
@@ -307,7 +331,11 @@ export function JobWorkspace({
           {filterActive ? (
             <p className="mt-1 text-sm text-primary">
               Dashboard filter applied.{" "}
-              <Link className="underline" href="/dashboard/jobs" prefetch={false}>
+              <Link
+                className="underline"
+                href="/dashboard/jobs"
+                prefetch={false}
+              >
                 Clear filter
               </Link>
             </p>
@@ -411,74 +439,90 @@ export function JobWorkspace({
         </div>
       </div>
 
-      <DragDropProvider
-        onDragStart={() => {
-          dragBoardRef.current = canonicalBoard
-          setDragBoard(canonicalBoard)
-        }}
-        onDragOver={(event) => {
-          const { source } = event.operation
-          if (source?.type !== "job") return
-          const next = move(
-            dragBoardRef.current ?? canonicalBoard,
-            event
-          ) as BoardItems
-          dragBoardRef.current = next
-          setDragBoard(next)
-        }}
-        onDragEnd={(event) => {
-          const { source } = event.operation
-          if (event.canceled || source?.type !== "job") {
+      {view === "archived" ? (
+        <ArchivedJobsGrid
+          employeeById={employeeById}
+          jobs={archivedJobs}
+          pagination={
+            archivePagination ?? {
+              page: 1,
+              pageSize: 15,
+              total: archivedJobs.length,
+              totalPages: 1,
+            }
+          }
+          timezone={timezone}
+        />
+      ) : (
+        <DragDropProvider
+          onDragStart={() => {
+            dragBoardRef.current = canonicalBoard
+            setDragBoard(canonicalBoard)
+          }}
+          onDragOver={(event) => {
+            const { source } = event.operation
+            if (source?.type !== "job") return
+            const next = move(
+              dragBoardRef.current ?? canonicalBoard,
+              event
+            ) as BoardItems
+            dragBoardRef.current = next
+            setDragBoard(next)
+          }}
+          onDragEnd={(event) => {
+            const { source } = event.operation
+            if (event.canceled || source?.type !== "job") {
+              dragBoardRef.current = null
+              setDragBoard(null)
+              return
+            }
+
+            const jobId = Number(source.id)
+            const job = jobsRef.current.find((current) => current.id === jobId)
+            const finalBoard = dragBoardRef.current ?? canonicalBoard
+            const destination = columns.find((column) =>
+              finalBoard[column.key]?.some((item) => item.id === jobId)
+            )
+
             dragBoardRef.current = null
             setDragBoard(null)
-            return
-          }
+            if (!job || !destination?.dropTarget) return
 
-          const jobId = Number(source.id)
-          const job = jobsRef.current.find((current) => current.id === jobId)
-          const finalBoard = dragBoardRef.current ?? canonicalBoard
-          const destination = columns.find((column) =>
-            finalBoard[column.key]?.some((item) => item.id === jobId)
-          )
-
-          dragBoardRef.current = null
-          setDragBoard(null)
-          if (!job || !destination?.dropTarget) return
-
-          if (destination.key === "assigned" && !job.assigneeMembershipId) {
-            setAssignmentJob(job)
-            return
-          }
-          if (destination.key === "unassigned" && job.assigneeMembershipId) {
-            void persistAssignment(job.id, null)
-          }
-        }}
-      >
-        <div
-          className="h-full min-h-0 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-2 md:snap-none"
-          data-board-scroll
+            if (destination.key === "assigned" && !job.assigneeMembershipId) {
+              setAssignmentJob(job)
+              return
+            }
+            if (destination.key === "unassigned" && job.assigneeMembershipId) {
+              void persistAssignment(job.id, null)
+            }
+          }}
         >
           <div
-            aria-label={`${VIEW_LABELS[view]} jobs board`}
-            className="grid h-full min-h-0 w-full auto-cols-[100%] grid-flow-col gap-3 md:w-max md:auto-cols-[18rem] lg:w-full lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3"
+            className="h-full min-h-0 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-2 md:snap-none"
+            data-board-scroll
           >
-            {columns.map((column) => (
-              <JobColumn
-                assignmentTargets={assignmentTargets}
-                column={column}
-                employeeById={employeeById}
-                items={board[column.key]}
-                key={column.key}
-                onAssign={persistAssignment}
-                onUpdated={updateSavedJob}
-                pendingIds={pendingIds}
-                rosterShifts={rosterShifts}
-                timezone={timezone}
-              />
-            ))}
+            <div
+              aria-label="Workflow jobs board"
+              className="grid h-full min-h-0 w-full auto-cols-[100%] grid-flow-col gap-3 md:w-max md:auto-cols-[18rem] lg:w-full lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3"
+            >
+              {columns.map((column) => (
+                <JobColumn
+                  assignmentTargets={assignmentTargets}
+                  column={column}
+                  employeeById={employeeById}
+                  items={board[column.key]}
+                  key={column.key}
+                  onAssign={persistAssignment}
+                  onUpdated={updateSavedJob}
+                  pendingIds={pendingIds}
+                  rosterShifts={rosterShifts}
+                  timezone={timezone}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      </DragDropProvider>
+        </DragDropProvider>
+      )}
 
       <AssignmentDialog
         employees={assignmentTargets}
@@ -494,6 +538,165 @@ export function JobWorkspace({
         }}
       />
     </div>
+  )
+}
+
+function ArchivedJobsGrid({
+  employeeById,
+  jobs,
+  pagination,
+  timezone,
+}: {
+  employeeById: ReadonlyMap<number, JobBoardEmployee>
+  jobs: readonly JobCard[]
+  pagination: JobArchivePagination
+  timezone: string
+}) {
+  const firstItem =
+    pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1
+  const lastItem = Math.min(
+    pagination.page * pagination.pageSize,
+    pagination.total
+  )
+
+  return (
+    <section
+      aria-label="Archived jobs"
+      className="min-h-0 overflow-y-auto pb-1"
+    >
+      {jobs.length ? (
+        <div
+          className="grid content-start gap-4 md:grid-cols-2 xl:grid-cols-3"
+          data-archive-grid
+        >
+          {jobs.map((job) => {
+            const assignee = job.assigneeMembershipId
+              ? (employeeById.get(job.assigneeMembershipId) ?? null)
+              : null
+
+            return (
+              <Card aria-label={`Archived job ${job.title}`} key={job.id}>
+                <CardHeader>
+                  <CardTitle className="line-clamp-2">{job.title}</CardTitle>
+                  <CardAction>
+                    <Badge variant="secondary">Completed</Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardContent className="grid flex-1 gap-3">
+                  {job.description ? (
+                    <p className="line-clamp-2 text-sm text-muted-foreground">
+                      {job.description}
+                    </p>
+                  ) : null}
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      Completed by
+                    </p>
+                    <AssigneeIdentity
+                      assignee={assignee}
+                      assigned={Boolean(job.assigneeMembershipId)}
+                      inline
+                    />
+                  </div>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ClockIcon className="size-3.5 shrink-0" />
+                    {formatDateTime(job.archivedAt ?? job.updatedAt, timezone)}
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full"
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={`/dashboard/jobs?view=archived&page=${pagination.page}&job=${job.id}`}
+                        prefetch={false}
+                      />
+                    }
+                    size="sm"
+                    variant="outline"
+                  >
+                    View job
+                  </Button>
+                </CardFooter>
+              </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ArchiveIcon />
+            </EmptyMedia>
+            <EmptyTitle>No completed jobs yet</EmptyTitle>
+            <EmptyDescription>
+              Approved jobs will appear here as a searchable history.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+
+      {pagination.totalPages > 1 ? (
+        <nav
+          aria-label="Archived jobs pagination"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3"
+        >
+          <p className="text-xs text-muted-foreground tabular-nums">
+            Showing {firstItem}–{lastItem} of {pagination.total}
+          </p>
+          <div className="flex items-center gap-2">
+            {pagination.page > 1 ? (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    aria-label="Previous archived jobs page"
+                    href={`/dashboard/jobs?view=archived&page=${pagination.page - 1}`}
+                    prefetch={false}
+                  />
+                }
+                size="sm"
+                variant="outline"
+              >
+                <ChevronLeftIcon />
+                Previous
+              </Button>
+            ) : (
+              <Button disabled size="sm" variant="outline">
+                <ChevronLeftIcon />
+                Previous
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground tabular-nums">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            {pagination.page < pagination.totalPages ? (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    aria-label="Next archived jobs page"
+                    href={`/dashboard/jobs?view=archived&page=${pagination.page + 1}`}
+                    prefetch={false}
+                  />
+                }
+                size="sm"
+                variant="outline"
+              >
+                Next
+                <ChevronRightIcon />
+              </Button>
+            ) : (
+              <Button disabled size="sm" variant="outline">
+                Next
+                <ChevronRightIcon />
+              </Button>
+            )}
+          </div>
+        </nav>
+      ) : null}
+    </section>
   )
 }
 
@@ -780,7 +983,9 @@ function JobCardView({
       >
         <Button
           nativeButton={false}
-          render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
+          render={
+            <Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />
+          }
           size="sm"
           variant="outline"
         >

@@ -2,7 +2,14 @@
 
 import { useEffect } from "react"
 
-const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v7"
+const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v8"
+
+export function offlineShellIsEnabled() {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER === "1"
+  )
+}
 
 async function getControlledShellVersion(
   serviceWorker: ServiceWorkerContainer
@@ -42,6 +49,7 @@ export async function ensureOfflineShellReady(
   serviceWorker: ServiceWorkerContainer | undefined,
   cacheStorage: CacheStorage | undefined
 ): Promise<boolean> {
+  if (!offlineShellIsEnabled()) return true
   if (!serviceWorker || !cacheStorage) return false
 
   const registration = await registerServiceWorker(serviceWorker)
@@ -100,11 +108,7 @@ export async function resetDevelopmentServiceWorker(
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
-    const shouldRegister =
-      process.env.NODE_ENV === "production" ||
-      process.env.NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER === "1"
-
-    if (shouldRegister) {
+    if (offlineShellIsEnabled()) {
       void registerServiceWorker(navigator.serviceWorker)
     } else {
       void resetDevelopmentServiceWorker(navigator.serviceWorker, window.caches)

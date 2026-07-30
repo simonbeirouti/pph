@@ -19,7 +19,7 @@ describe("offline dashboard service worker", () => {
   })
 
   it("rotates the versioned dashboard shell cache", () => {
-    expect(source).toContain('const SHELL_CACHE = "pph-dashboard-shell-v7"')
+    expect(source).toContain('const SHELL_CACHE = "pph-dashboard-shell-v8"')
     expect(source).toContain('const DASHBOARD_SHELL_URL = "/offline"')
   })
 })

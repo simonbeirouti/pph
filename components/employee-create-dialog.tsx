@@ -25,10 +25,12 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 export function EmployeeCreateDialog({
   canChooseRole = false,
+  initialOpen = false,
 }: {
   canChooseRole?: boolean
+  initialOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(initialOpen)
   const mobile = useIsMobile()
   const offline = useOfflineV2Actions()
   const action = async (

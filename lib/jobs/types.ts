@@ -7,6 +7,7 @@ export type JobWorkflowColumnKey =
   "unassigned" | "assigned" | "review" | "archived"
 
 export type JobCard = {
+  archivedAt?: string | null
   assigneeMembershipId: number | null
   completionNoteCount?: number
   completionPhotoCount?: number
@@ -114,6 +115,13 @@ export type OwnerJobAggregates = {
   awaitingReview: number
   highUrgency: number
   outstanding: number
+}
+
+export type JobArchivePagination = {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
 }
 
 export const INITIAL_JOB_ACTION_STATE: JobActionState = { ok: false }

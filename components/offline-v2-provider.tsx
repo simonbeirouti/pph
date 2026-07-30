@@ -51,12 +51,16 @@ import type {
   OfflineSyncResult,
 } from "@/lib/offline-v2/types"
 import { isOfflineLeaseValid } from "@/lib/offline-v2/types"
+import { selectDashboardViewSource } from "@/lib/offline-v2/view-mode"
 
 type OfflineV2ContextValue = {
   canMutate: boolean
+  canQueueOfflineMutation: boolean
   conflicts: OfflineConflict[]
   currentPath: string
   isOnline: boolean
+  navigationMode: "history" | "next"
+  networkReachability: "offline" | "online" | "unreachable"
   navigate: (href: string, options?: { replace?: boolean }) => void
   operations: OfflineV2Operation[]
   queueOperation: (
@@ -72,6 +76,7 @@ type OfflineV2ContextValue = {
   status: OfflineSyncStatus
   syncState: OfflineRepositorySyncState
   usesLocalRepository: boolean
+  viewSource: "cache" | "server"
   updateSnapshot: (
     updater: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
   ) => Promise<void>
@@ -81,9 +86,11 @@ const OfflineV2Context = createContext<OfflineV2ContextValue | null>(null)
 const FOREGROUND_STALE_MS = 30_000
 
 export function OfflineV2Provider({
+  cachedShell = false,
   children,
   serverMembership,
 }: {
+  cachedShell?: boolean
   children: ReactNode
   serverMembership?: OfflineMembership
 }) {
@@ -91,6 +98,9 @@ export function OfflineV2Provider({
   const [operations, setOperations] = useState<OfflineV2Operation[]>([])
   const [conflicts, setConflicts] = useState<OfflineConflict[]>([])
   const [isOnline, setIsOnline] = useState(true)
+  const [networkReachability, setNetworkReachability] = useState<
+    "offline" | "online" | "unreachable"
+  >(cachedShell ? "offline" : "online")
   const [status, setStatus] = useState<OfflineSyncStatus>("preparing")
   const [repositoryState, setRepositoryState] =
     useState<OfflineRepositoryState>("preparing")
@@ -338,8 +348,12 @@ export function OfflineV2Provider({
               ? "changes_pending"
               : "offline_ready"
       )
+      setIsOnline(true)
+      setNetworkReachability("online")
     } catch (error) {
       console.warn("Offline synchronisation will retry.", error)
+      setIsOnline(false)
+      setNetworkReachability(navigator.onLine ? "unreachable" : "offline")
       await reloadLocalState()
     }
   }, [reloadLocalState])
@@ -359,6 +373,7 @@ export function OfflineV2Provider({
     let cancelled = false
     void (async () => {
       setIsOnline(navigator.onLine)
+      setNetworkReachability(navigator.onLine ? "online" : "offline")
       setCurrentPath(`${window.location.pathname}${window.location.search}`)
       const logoutPending = await Promise.race([
         isOfflineLogoutPending(),
@@ -392,11 +407,11 @@ export function OfflineV2Provider({
 
   useEffect(() => {
     const onOnline = () => {
-      setIsOnline(true)
       void refresh()
     }
     const onOffline = () => {
       setIsOnline(false)
+      setNetworkReachability("offline")
       void reloadLocalState()
     }
     const onVisibility = () => {
@@ -432,14 +447,20 @@ export function OfflineV2Provider({
 
   useEffect(() => {
     if (
-      !isOnline ||
+      networkReachability === "offline" ||
       !operations.some((operation) => operation.state !== "needs_attention")
     ) {
       return
     }
     const retry = window.setTimeout(() => void refresh(), 5_000)
     return () => window.clearTimeout(retry)
-  }, [isOnline, operations, refresh])
+  }, [networkReachability, operations, refresh])
+
+  useEffect(() => {
+    if (networkReachability !== "unreachable" || !navigator.onLine) return
+    const retry = window.setTimeout(() => void refresh(), 5_000)
+    return () => window.clearTimeout(retry)
+  }, [networkReachability, refresh])
 
   const navigate = useCallback(
     (href: string, options?: { replace?: boolean }) => {
@@ -457,6 +478,17 @@ export function OfflineV2Provider({
   )
 
   useEffect(() => {
+    const hasLocalWork =
+      operations.length > 0 ||
+      conflicts.length > 0 ||
+      syncState === "needs_attention"
+    if (
+      networkReachability === "online" &&
+      !cachedShell &&
+      !hasLocalWork
+    ) {
+      return
+    }
     if (repositoryState !== "ready" && repositoryState !== "locked") return
     const interceptDashboardLink = (event: MouseEvent) => {
       if (
@@ -486,7 +518,15 @@ export function OfflineV2Provider({
     document.addEventListener("click", interceptDashboardLink, true)
     return () =>
       document.removeEventListener("click", interceptDashboardLink, true)
-  }, [navigate, repositoryState])
+  }, [
+    cachedShell,
+    conflicts.length,
+    navigate,
+    networkReachability,
+    operations.length,
+    repositoryState,
+    syncState,
+  ])
 
   const queueOperation = useCallback(
     async (
@@ -542,14 +582,27 @@ export function OfflineV2Provider({
     []
   )
 
+  const viewSource = selectDashboardViewSource({
+    cachedShell,
+    conflictCount: conflicts.length,
+    networkReachability,
+    operationCount: operations.length,
+    syncState,
+  })
+  const canQueueOfflineMutation =
+    viewSource === "cache" &&
+    repositoryState === "ready" &&
+    Boolean(snapshot && isOfflineLeaseValid(snapshot.leaseExpiresAt))
+
   const value = useMemo<OfflineV2ContextValue>(
     () => ({
-      canMutate:
-        repositoryState === "ready" &&
-        Boolean(snapshot && isOfflineLeaseValid(snapshot.leaseExpiresAt)),
+      canMutate: canQueueOfflineMutation,
+      canQueueOfflineMutation,
       conflicts,
       currentPath,
       isOnline,
+      navigationMode: viewSource === "cache" ? "history" : "next",
+      networkReachability,
       navigate,
       operations,
       queueOperation,
@@ -558,16 +611,18 @@ export function OfflineV2Provider({
       snapshot,
       status,
       syncState,
-      usesLocalRepository:
-        repositoryState === "ready" || repositoryState === "locked",
+      usesLocalRepository: viewSource === "cache",
       updateSnapshot,
+      viewSource,
     }),
     [
+      canQueueOfflineMutation,
       conflicts,
       currentPath,
       isOnline,
       navigate,
       operations,
+      networkReachability,
       queueOperation,
       refresh,
       repositoryState,
@@ -575,6 +630,7 @@ export function OfflineV2Provider({
       status,
       syncState,
       updateSnapshot,
+      viewSource,
     ]
   )
 
@@ -584,12 +640,12 @@ export function OfflineV2Provider({
         className="contents"
         data-offline-provider={status}
         data-offline-repository={
-          repositoryState === "ready" || repositoryState === "locked"
-            ? "local"
-            : "server"
+          viewSource
         }
+        data-network-reachability={networkReachability}
         data-repository-state={repositoryState}
         data-sync-state={syncState}
+        data-view-source={viewSource}
       >
         {children}
       </div>
