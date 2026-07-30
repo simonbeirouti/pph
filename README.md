@@ -83,6 +83,8 @@ For a hosted Supabase project:
 
 1. Set the Auth site URL to the deployed application origin.
 2. Add `<application-origin>/auth/confirm` to the Auth redirect allow-list.
+   The hosted project uses `https://pph-sage.vercel.app/auth/confirm`; local
+   development uses `http://localhost:4000/auth/confirm`.
 3. Configure Resend SMTP in Supabase Auth using the project’s Resend SMTP
    credentials. Supabase Auth sends invitation and account emails; the
    application does not send those messages directly.

@@ -1804,6 +1804,24 @@ Automated implementation evidence (2026-07-29):
   longer emitted to the server console. Changed-file ESLint, TypeScript, and a
   repository search for the debug marker pass; no behaviour, schema, permission,
   environment-variable, or route contract changed.
+- Invitation email refinement (2026-07-30): restyled the Supabase invite
+  template with the product's yellow and neutral palette, the centred square bee
+  logo without an additional header background, borderless email-safe table
+  layout, centred copy, clear acceptance action, and unexpected-invitation
+  guidance. The existing token-hash invite route remains unchanged. Template
+  validation and `git diff --check` pass; no schema, permission,
+  environment-variable, public-route, or reference-file change was required.
+- Hosted seed maintenance (2026-07-30): added `hello@simonbeirouti.com` as the
+  sole seeded user and active owner of the Pure Peninsula Honey organisation.
+  Removed all deterministic example users, organisations, shifts, jobs, and job
+  updates from the seed. The repository `supa` wrapper reset the linked remote
+  database, replayed all migrations, and applied `supabase/seed.sql`; a linked
+  read-only query verified the owner and absence of example records.
+- Auth origin maintenance (2026-07-30): invitation callbacks remain derived
+  from the incoming request origin rather than a hard-coded deployment URL.
+  Local Supabase Auth uses `http://localhost:4000`; the hosted project uses
+  `https://pph-sage.vercel.app`, with each origin's exact `/auth/confirm`
+  callback in the redirect allow-list.
 
 ## 13. Prototype and production readiness
 
