@@ -14,6 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export function EmployeeCreateDialog({
   canChooseRole = false,
@@ -21,12 +29,13 @@ export function EmployeeCreateDialog({
   canChooseRole?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const mobile = useIsMobile()
   const offline = useOfflineV2Actions()
   const action = async (
     state: Parameters<typeof createEmployeeAction>[0],
     formData: FormData
   ) => {
-    if (!offline.isOffline) return createEmployeeAction(state, formData)
+    if (!offline.usesLocalRepository) return createEmployeeAction(state, formData)
     const localId = crypto.randomUUID()
     const temporaryId = -Date.now()
     const firstName = String(formData.get("firstName") ?? "")
@@ -94,32 +103,52 @@ export function EmployeeCreateDialog({
     }
   }
 
+  const form = (
+    <EmployeeForm
+      action={action}
+      canChooseRole={canChooseRole}
+      createLayout
+      fullWidthSubmit
+      onSuccess={(state) => {
+        setOpen(false)
+        toast.success(state.message)
+        state.warnings?.forEach((warning) => toast.warning(warning))
+      }}
+      showDestinationLink={false}
+      showReturn={false}
+    />
+  )
+
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)}>
         Add employee
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add employee</DialogTitle>
-            <DialogDescription>
-              Create the employee profile and send their secure invitation.
-            </DialogDescription>
-          </DialogHeader>
-          <EmployeeForm
-            action={action}
-            canChooseRole={canChooseRole}
-            onSuccess={(state) => {
-              setOpen(false)
-              toast.success(state.message)
-              state.warnings?.forEach((warning) => toast.warning(warning))
-            }}
-            showDestinationLink={false}
-            showReturn={false}
-          />
-        </DialogContent>
-      </Dialog>
+      {mobile ? (
+        <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
+          <DrawerContent className="[--drawer-content-max-height:calc(100dvh-1rem)]">
+            <DrawerHeader>
+              <DrawerTitle>Add employee</DrawerTitle>
+              <DrawerDescription>
+                Create the employee profile and send their secure invitation.
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pt-3">{form}</div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Add employee</DialogTitle>
+              <DialogDescription>
+                Create the employee profile and send their secure invitation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 overflow-y-auto pr-1">{form}</div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }

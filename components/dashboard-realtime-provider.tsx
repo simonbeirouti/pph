@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -11,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { useRouter } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/browser"
 import {
@@ -49,7 +47,6 @@ export function DashboardRealtimeProvider({
     role: "employee" | "manager" | "owner"
   }
 }) {
-  const router = useRouter()
   const { membershipId, organisationId, role } = membership
   const [supabase] = useState(createClient)
   const [browserOnline, setBrowserOnline] = useState(() =>
@@ -68,9 +65,9 @@ export function DashboardRealtimeProvider({
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null
-      startTransition(() => router.refresh())
+      window.dispatchEvent(new Event("pph:offline-invalidate"))
     }, REFRESH_DEBOUNCE_MS)
-  }, [router])
+  }, [])
 
   const markDisconnected = useCallback(() => {
     setStatus("connecting")
@@ -116,7 +113,6 @@ export function DashboardRealtimeProvider({
           for (const [listener, domains] of listenersRef.current) {
             if (domains.has(event.domain)) listener(event)
           }
-          window.dispatchEvent(new Event("pph:offline-invalidate"))
           scheduleRefresh()
         }
       )

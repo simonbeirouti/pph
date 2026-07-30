@@ -6,18 +6,16 @@ import {
   CheckIcon,
   FileTextIcon,
   LoaderCircleIcon,
-  MessageSquareIcon,
   PlusIcon,
   RotateCcwIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import {
-  addJobCommentAction,
   addJobNoteAction,
   archiveJobAction,
   finalizeJobEvidenceUploadAction,
@@ -100,11 +98,11 @@ export function EmployeeJobDetail({
 }) {
   const mobile = useIsMobile()
   const close = useCloseJob()
-  const [open, setOpen] = useState(true)
+  const selectedJobId = useSearchParams().get("job")
   if (!detail) return null
 
+  const open = selectedJobId === String(detail.id)
   const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen)
     if (!nextOpen) close()
   }
 
@@ -158,11 +156,11 @@ export function OwnerJobDetail({
   timezone: string
 }) {
   const close = useCloseJob()
-  const [open, setOpen] = useState(true)
+  const selectedJobId = useSearchParams().get("job")
   if (!detail) return null
 
+  const open = selectedJobId === String(detail.id)
   const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen)
     if (!nextOpen) close()
   }
 
@@ -236,7 +234,6 @@ function JobDetailBody({
   const router = useRouter()
   const offline = useOfflineV2Actions()
   const [pending, startTransition] = useTransition()
-  const [comment, setComment] = useState("")
   const canStart = role === "employee" && detail.status === "assigned"
   const canComplete = role === "employee" && detail.status === "in_progress"
   const showProgress = role === "owner" || detail.status !== "assigned"
@@ -250,7 +247,7 @@ function JobDetailBody({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        if (!offline.isOffline) router.refresh()
+        if (!offline.usesLocalRepository) router.refresh()
       } else {
         toast.error(result.message)
       }
@@ -258,7 +255,7 @@ function JobDetailBody({
   }
 
   async function queueJob(
-    kind: "job.start" | "job.note" | "job.comment",
+    kind: "job.start" | "job.note",
     payload: Record<string, unknown> = {}
   ) {
     const queued = await offline.queue({
@@ -292,7 +289,7 @@ function JobDetailBody({
   }
 
   return (
-    <div className="grid gap-6 p-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="grid gap-6 px-4 pt-2 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       {role === "employee" &&
       detail.status === "assigned" &&
       detail.latestReopenFeedback ? (
@@ -302,88 +299,21 @@ function JobDetailBody({
         </section>
       ) : null}
 
-      <Accordion
-        defaultValue={role === "owner" ? ["history", "comments"] : ["history"]}
-        key={`${detail.id}-${detail.status}-${role}`}
-        multiple
-      >
-        <AccordionItem value="history">
-          <AccordionTrigger
-            aria-label={`History, ${detail.timeline.length} ${
-              detail.timeline.length === 1 ? "update" : "updates"
-            }`}
-            className="hover:no-underline"
-          >
-            <span>
-              <span className="block font-medium">History</span>
-              <span className="block text-xs font-normal text-muted-foreground">
-                {detail.timeline.length}{" "}
-                {detail.timeline.length === 1 ? "update" : "updates"}
-              </span>
-            </span>
-          </AccordionTrigger>
-          <AccordionContent>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Notes, comments, evidence, assignments, and status changes.
-            </p>
-            <Timeline key={detail.id} detail={detail} timezone={timezone} />
-          </AccordionContent>
-        </AccordionItem>
-
-        {role === "owner" ? (
-          <AccordionItem value="comments">
-            <AccordionTrigger className="hover:no-underline">
-              Comments
-            </AccordionTrigger>
-            <AccordionContent className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="job-comment">
-                Add comment
-              </label>
-              <Textarea
-                id="job-comment"
-                onChange={(event) => setComment(event.target.value)}
-                placeholder="Write a comment…"
-                value={comment}
-              />
-              <Button
-                disabled={pending || !comment.trim()}
-                onClick={() =>
-                  run(
-                    async () =>
-                      (await queueJob("job.comment", { body: comment }))
-                        ? { message: "Comment saved.", ok: true }
-                        : addJobCommentAction(detail.id, comment),
-                    () => setComment("")
-                  )
-                }
-                type="button"
-                variant="outline"
-              >
-                <MessageSquareIcon />
-                Comment
-              </Button>
-            </AccordionContent>
-          </AccordionItem>
-        ) : null}
-      </Accordion>
-
-      <section className="grid gap-4">
+      <section aria-label="Job details" className="grid gap-4">
         <dl className="grid grid-cols-2 gap-2 text-sm">
-          {role === "owner" ? (
-            <DetailTerm
-              align="start"
-              className="col-span-2"
-              label="Assigned to"
-              value={assigneeName(detail)}
-            />
-          ) : null}
           <DetailTerm
-            align={role === "owner" ? "start" : "center"}
+            align="start"
+            className="col-span-2"
+            label="Assigned to"
+            value={assigneeName(detail)}
+          />
+          <DetailTerm
+            align="start"
             label="Location"
             value={detail.location || "Not set"}
           />
           <DetailTerm
-            align={role === "owner" ? "start" : "center"}
+            align="start"
             label="Due"
             value={
               detail.dueAt ? formatDateTime(detail.dueAt, timezone) : "Not set"
@@ -417,6 +347,31 @@ function JobDetailBody({
       {showProgress && !canComplete ? (
         <EvidenceGallery detail={detail} timezone={timezone} />
       ) : null}
+
+      <Accordion key={`${detail.id}-${detail.status}-${role}`} multiple>
+        <AccordionItem value="history">
+          <AccordionTrigger
+            aria-label={`History, ${detail.timeline.length} ${
+              detail.timeline.length === 1 ? "update" : "updates"
+            }`}
+            className="hover:no-underline"
+          >
+            <span>
+              <span className="block font-medium">History</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {detail.timeline.length}{" "}
+                {detail.timeline.length === 1 ? "update" : "updates"}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Notes, comments, evidence, assignments, and status changes.
+            </p>
+            <Timeline key={detail.id} detail={detail} timezone={timezone} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
@@ -450,7 +405,7 @@ function OwnerJobActions({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        if (!offline.isOffline) router.refresh()
+        if (!offline.usesLocalRepository) router.refresh()
       } else {
         toast.error(result.message)
       }
@@ -942,7 +897,7 @@ function JobChangesEditor({
       setUploadState(null)
       if (savedAnything) {
         toast.success("Changes saved.")
-        if (!offline.isOffline) router.refresh()
+        if (!offline.usesLocalRepository) router.refresh()
       }
     })
   }
@@ -954,7 +909,7 @@ function JobChangesEditor({
     <section className="grid gap-4" aria-label="Job changes">
       <div className="grid gap-2">
         <label className="text-sm font-medium" htmlFor="job-note">
-          Work note
+          Work note or comment
         </label>
         <Input
           id="job-note"
@@ -1343,7 +1298,7 @@ function useCloseJob() {
     params.delete("job")
     const query = params.toString()
     const href = `/dashboard/jobs${query ? `?${query}` : ""}`
-    if (offline.isOffline) offline.navigate?.(href, { replace: true })
+    if (offline.usesLocalRepository) offline.navigate?.(href, { replace: true })
     else router.replace(href, { scroll: false })
   }
 }

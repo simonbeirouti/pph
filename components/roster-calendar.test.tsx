@@ -118,9 +118,12 @@ describe("RosterCalendar", () => {
     )
 
     expect(screen.getByRole("heading", { name: "Roster" })).toBeVisible()
-    expect(
-      screen.getByRole("combobox", { name: "Filter employee" })
-    ).toHaveTextContent("All team")
+    const employeeFilter = screen.getByRole("combobox", {
+      name: "Filter employee",
+    })
+    expect(employeeFilter).toHaveTextContent("All team")
+    expect(employeeFilter).toHaveClass("w-full", "sm:w-56")
+    expect(employeeFilter).not.toHaveClass("max-w-56")
     expect(screen.queryByText("Employee week")).not.toBeInTheDocument()
     const primaryActions = document.querySelector(
       "[data-roster-primary-actions]"
@@ -253,6 +256,12 @@ describe("RosterCalendar", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Employee" })
     ).toHaveTextContent("Alex Employee")
+    expect(
+      dialog.querySelector('[data-roster-create-row="employee-date"]')
+    ).toHaveClass("grid-cols-2")
+    expect(
+      within(dialog).getByRole("button", { name: "Create shift" })
+    ).toHaveClass("w-full")
   })
 
   it("keeps an employee roster self-scoped and read-only with allocated jobs", async () => {

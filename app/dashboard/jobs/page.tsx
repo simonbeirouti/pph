@@ -77,7 +77,10 @@ export default async function Page({
           </div>
         ) : null}
         <EmployeeJobsList jobs={jobs} timezone={membership.timezone} />
-        <EmployeeJobDetail detail={detail} timezone={membership.timezone} />
+        <EmployeeJobDetail
+          detail={detail}
+          timezone={membership.timezone}
+        />
       </div>
     )
   }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
-import { CalendarIcon, PencilIcon } from "lucide-react"
+import { CalendarIcon, ChevronDownIcon, PencilIcon } from "lucide-react"
 
 import { createJobAction, updateJobAction } from "@/app/dashboard/jobs/actions"
 import {
@@ -21,8 +21,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
@@ -40,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type {
   JobActionState,
   JobBoardEmployee,
@@ -58,6 +73,13 @@ type JobFormAction = (
   formData: FormData
 ) => Promise<JobActionState>
 
+const PRIORITY_LABELS = {
+  high: "High",
+  low: "Low",
+  normal: "Normal",
+  urgent: "Urgent",
+} as const
+
 export function JobCreateDialog({
   employees,
   onCreated,
@@ -72,9 +94,14 @@ export function JobCreateDialog({
   timezone: string
 }) {
   const [open, setOpen] = useState(false)
+  const [formSession, setFormSession] = useState<{
+    key: number
+    template: JobTemplateOption | null
+  }>({ key: 0, template: null })
+  const mobile = useIsMobile()
   const offline = useOfflineV2Actions()
   const action: JobFormAction = async (_state, formData) => {
-    if (!offline.isOffline) return createJobAction(_state, formData)
+    if (!offline.usesLocalRepository) return createJobAction(_state, formData)
     const payload = formPayload(formData)
     const localId = crypto.randomUUID()
     const temporaryId = -Date.now()
@@ -110,34 +137,99 @@ export function JobCreateDialog({
     return { job, message: "Job saved on this device.", ok: true }
   }
 
+  const openForm = (template: JobTemplateOption | null) => {
+    setFormSession((current) => ({
+      key: current.key + 1,
+      template,
+    }))
+    setOpen(true)
+  }
+  const form = (
+    <JobForm
+      action={action}
+      employees={employees}
+      idPrefix="create-job-"
+      initialTemplate={formSession.template ?? undefined}
+      key={formSession.key}
+      onSaved={(job) => {
+        onCreated(job)
+        setOpen(false)
+      }}
+      rosterShifts={rosterShifts}
+      submitLabel="Create job"
+      timezone={timezone}
+    />
+  )
+
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        Create job
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create job</DialogTitle>
-            <DialogDescription>
-              Add work to the board. Times use {timezone}.
-            </DialogDescription>
-          </DialogHeader>
-          <JobForm
-            action={action}
-            employees={employees}
-            idPrefix="create-job-"
-            onSaved={(job) => {
-              onCreated(job)
-              setOpen(false)
-            }}
-            rosterShifts={rosterShifts}
-            submitLabel="Create job"
-            templates={templates}
-            timezone={timezone}
-          />
-        </DialogContent>
-      </Dialog>
+      <div className="flex w-full sm:w-auto">
+        <Button
+          className="flex-1 rounded-r-none sm:flex-none"
+          onClick={() => openForm(null)}
+          type="button"
+        >
+          Create job
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label="Start job from template"
+                className="rounded-l-none border-l border-l-primary-foreground/20"
+                disabled={!templates.length}
+                size="icon"
+                type="button"
+              />
+            }
+          >
+            <ChevronDownIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-56">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Start with template</DropdownMenuLabel>
+              {templates.map((template) => (
+                <DropdownMenuItem
+                  key={template.id}
+                  onClick={() => openForm(template)}
+                >
+                  {template.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {mobile ? (
+        <Drawer open={open} onOpenChange={setOpen} showSwipeHandle>
+          <DrawerContent className="[--drawer-content-max-height:calc(100dvh-1rem)]">
+            <DrawerHeader>
+              <DrawerTitle>Create job</DrawerTitle>
+              <DrawerDescription>
+                Add work to the board. Times use {timezone}.
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pt-3">{form}</div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Create job</DialogTitle>
+              <DialogDescription>
+                Add work to the board. Times use {timezone}.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              className="min-h-0 overflow-y-auto pr-1"
+              data-job-form-scroll
+            >
+              {form}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }
@@ -161,7 +253,7 @@ export function JobEditDialog({
   const offline = useOfflineV2Actions()
   const action = useMemo<JobFormAction>(
     () => async (state, formData) => {
-      if (!offline.isOffline) {
+      if (!offline.usesLocalRepository) {
         return updateJobAction(job.id, state, formData)
       }
       const payload = formPayload(formData)
@@ -210,27 +302,32 @@ export function JobEditDialog({
         <PencilIcon className="size-4" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Edit job</DialogTitle>
             <DialogDescription>
               Update job details and requirements. Times use {timezone}.
             </DialogDescription>
           </DialogHeader>
-          <JobForm
-            action={action}
-            currentAssigneeName={currentAssigneeName}
-            employees={employees}
-            idPrefix={`edit-job-${job.id}-`}
-            initialJob={job}
-            onSaved={(updatedJob) => {
-              onUpdated(updatedJob)
-              setOpen(false)
-            }}
-            rosterShifts={rosterShifts}
-            submitLabel="Save changes"
-            timezone={timezone}
-          />
+          <div
+            className="min-h-0 overflow-y-auto pr-1"
+            data-job-form-scroll
+          >
+            <JobForm
+              action={action}
+              currentAssigneeName={currentAssigneeName}
+              employees={employees}
+              idPrefix={`edit-job-${job.id}-`}
+              initialJob={job}
+              onSaved={(updatedJob) => {
+                onUpdated(updatedJob)
+                setOpen(false)
+              }}
+              rosterShifts={rosterShifts}
+              submitLabel="Save changes"
+              timezone={timezone}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -273,10 +370,10 @@ function JobForm({
   employees,
   idPrefix,
   initialJob,
+  initialTemplate,
   onSaved,
   rosterShifts,
   submitLabel,
-  templates = [],
   timezone,
 }: {
   action: JobFormAction
@@ -284,10 +381,10 @@ function JobForm({
   employees: readonly JobBoardEmployee[]
   idPrefix: string
   initialJob?: JobCard
+  initialTemplate?: JobTemplateOption
   onSaved: (job: JobCard) => void
   rosterShifts: readonly JobRosterShiftOption[]
   submitLabel: string
-  templates?: readonly JobTemplateOption[]
   timezone: string
 }) {
   const [state, formAction, pending] = useActionState(
@@ -301,11 +398,14 @@ function JobForm({
     isoToLocalDateTime(initialJob?.dueAt ?? null, timezone)
   )
   const [priority, setPriority] = useState<JobCard["priority"]>(
-    initialJob?.priority ?? "normal"
+    initialJob?.priority ?? initialTemplate?.priority ?? "normal"
   )
   const [assigneeMembershipId, setAssigneeMembershipId] = useState(
-    initialJob?.assigneeMembershipId
-      ? String(initialJob.assigneeMembershipId)
+    initialJob?.assigneeMembershipId ?? initialTemplate?.assigneeMembershipId
+      ? String(
+          initialJob?.assigneeMembershipId ??
+            initialTemplate?.assigneeMembershipId
+        )
       : "unassigned"
   )
   const [rosterShiftId, setRosterShiftId] = useState("none")
@@ -324,13 +424,18 @@ function JobForm({
         currentAssigneeName ??
         "Former employee")
   const [requiresCompletionNote, setRequiresCompletionNote] = useState(
-    initialJob?.requiresCompletionNote ?? false
+    initialJob?.requiresCompletionNote ??
+      initialTemplate?.requiresCompletionNote ??
+      false
   )
-  const [selectedTemplateId, setSelectedTemplateId] = useState("none")
-  const selectedTemplate = templates.find(
-    (template) => String(template.id) === selectedTemplateId
+  const [minimumCompletionPhotos, setMinimumCompletionPhotos] = useState(
+    String(
+      initialJob?.minimumCompletionPhotos ??
+        initialTemplate?.minimumCompletionPhotos ??
+        0
+    )
   )
-  const defaultsKey = selectedTemplateId
+  const defaultsKey = initialTemplate?.id ?? "none"
   const handledJobId = useRef<number | null>(null)
   const fieldId = (name: string) => `${idPrefix}${name}`
 
@@ -344,54 +449,15 @@ function JobForm({
   return (
     <form action={formAction}>
       <FieldGroup>
+        <input
+          name="templateId"
+          type="hidden"
+          value={initialTemplate?.id ?? ""}
+        />
         {state.message && !state.ok ? (
           <Alert variant="destructive">
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
-        ) : null}
-        {templates.length ? (
-          <Field>
-            <FieldLabel htmlFor={fieldId("template")}>Template</FieldLabel>
-            <Select
-              name="templateId"
-              onValueChange={(value) => {
-                const next = value ?? "none"
-                const template = templates.find(
-                  (candidate) => String(candidate.id) === next
-                )
-                setSelectedTemplateId(next)
-                if (template) {
-                  setPriority(template.priority)
-                  setAssigneeMembershipId(
-                    template.assigneeMembershipId
-                      ? String(template.assigneeMembershipId)
-                      : "unassigned"
-                  )
-                  setRequiresCompletionNote(template.requiresCompletionNote)
-                  setRosterShiftId("none")
-                }
-              }}
-              value={selectedTemplateId}
-            >
-              <SelectTrigger className="w-full" id={fieldId("template")}>
-                <SelectValue>
-                  {selectedTemplate?.title ?? "Start without a template"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Start without a template</SelectItem>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={String(template.id)}>
-                    {template.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              Choosing a template fills its defaults; every field remains
-              editable.
-            </FieldDescription>
-          </Field>
         ) : null}
         <Field>
           <FieldLabel htmlFor={fieldId("title")}>Title</FieldLabel>
@@ -399,7 +465,7 @@ function JobForm({
             aria-invalid={Boolean(state.errors?.title)}
             defaultValue={
               state.values?.title ??
-              selectedTemplate?.title ??
+              initialTemplate?.title ??
               initialJob?.title
             }
             id={fieldId("title")}
@@ -415,7 +481,7 @@ function JobForm({
             aria-invalid={Boolean(state.errors?.description)}
             defaultValue={
               state.values?.description ??
-              selectedTemplate?.description ??
+              initialTemplate?.description ??
               initialJob?.description
             }
             id={fieldId("description")}
@@ -425,14 +491,17 @@ function JobForm({
           />
           <FieldErrors errors={state.errors?.description} />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-job-form-row="location-priority"
+        >
           <Field>
             <FieldLabel htmlFor={fieldId("location")}>Location</FieldLabel>
             <Input
               aria-invalid={Boolean(state.errors?.location)}
               defaultValue={
                 state.values?.location ??
-                selectedTemplate?.location ??
+                initialTemplate?.location ??
                 initialJob?.location
               }
               id={fieldId("location")}
@@ -455,7 +524,7 @@ function JobForm({
                 className="w-full"
                 id={fieldId("priority")}
               >
-                <SelectValue />
+                <SelectValue>{PRIORITY_LABELS[priority]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Low</SelectItem>
@@ -467,98 +536,99 @@ function JobForm({
             <FieldErrors errors={state.errors?.priority} />
           </Field>
         </div>
-        <Field>
-          <FieldLabel htmlFor={fieldId("assignee")}>Assignee</FieldLabel>
-          <Select
-            name="assigneeMembershipId"
-            onValueChange={(value) => {
-              if (rosterShiftId !== "none") {
-                setDueAt("")
-                setScheduledAt("")
-              }
-              setRosterShiftId("none")
-              setAssigneeMembershipId(value ?? "unassigned")
-            }}
-            value={assigneeMembershipId}
-          >
-            <SelectTrigger
-              aria-invalid={Boolean(state.errors?.assigneeMembershipId)}
-              className="w-full"
-              id={fieldId("assignee")}
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-job-form-row="assignee-shift"
+        >
+          <Field>
+            <FieldLabel htmlFor={fieldId("assignee")}>Assignee</FieldLabel>
+            <Select
+              name="assigneeMembershipId"
+              onValueChange={(value) => {
+                if (rosterShiftId !== "none") {
+                  setDueAt("")
+                  setScheduledAt("")
+                }
+                setRosterShiftId("none")
+                setAssigneeMembershipId(value ?? "unassigned")
+              }}
+              value={assigneeMembershipId}
             >
-              <SelectValue>{selectedAssigneeName}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {employees.map((employee) => (
-                <SelectItem
-                  key={employee.membershipId}
-                  value={String(employee.membershipId)}
-                >
-                  {employee.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldErrors errors={state.errors?.assigneeMembershipId} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={fieldId("roster-shift")}>
-            Rostered shift
-          </FieldLabel>
-          <Select
-            disabled={assigneeMembershipId === "unassigned"}
-            name="rosterShiftId"
-            onValueChange={(value) => {
-              const nextValue = value ?? "none"
-              setRosterShiftId(nextValue)
-              const shift = rosterShifts.find(
-                (option) => String(option.id) === nextValue
-              )
-              if (shift) {
-                setScheduledAt(isoToLocalDateTime(shift.startsAt, timezone))
-                setDueAt(isoToLocalDateTime(shift.endsAt, timezone))
-              }
-            }}
-            value={rosterShiftId}
-          >
-            <SelectTrigger
-              aria-invalid={Boolean(state.errors?.rosterShiftId)}
-              className="w-full"
-              id={fieldId("roster-shift")}
+              <SelectTrigger
+                aria-invalid={Boolean(state.errors?.assigneeMembershipId)}
+                className="w-full"
+                id={fieldId("assignee")}
+              >
+                <SelectValue>{selectedAssigneeName}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem
+                    key={employee.membershipId}
+                    value={String(employee.membershipId)}
+                  >
+                    {employee.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldErrors errors={state.errors?.assigneeMembershipId} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={fieldId("roster-shift")}>
+              Rostered shift
+            </FieldLabel>
+            <Select
+              disabled={assigneeMembershipId === "unassigned"}
+              name="rosterShiftId"
+              onValueChange={(value) => {
+                const nextValue = value ?? "none"
+                setRosterShiftId(nextValue)
+                const shift = rosterShifts.find(
+                  (option) => String(option.id) === nextValue
+                )
+                if (shift) {
+                  setScheduledAt(isoToLocalDateTime(shift.startsAt, timezone))
+                  setDueAt(isoToLocalDateTime(shift.endsAt, timezone))
+                }
+              }}
+              value={rosterShiftId}
             >
-              <SelectValue>
-                {rosterShiftId === "none"
-                  ? assigneeMembershipId === "unassigned"
-                    ? "Choose an assignee first"
-                    : "No rostered shift"
-                  : formatRosterShift(
-                      availableRosterShifts.find(
-                        (shift) => String(shift.id) === rosterShiftId
-                      ),
-                      timezone
-                    )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No rostered shift</SelectItem>
-              {availableRosterShifts.map((shift) => (
-                <SelectItem key={shift.id} value={String(shift.id)}>
-                  {formatRosterShift(shift, timezone)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldDescription>
-            {assigneeMembershipId === "unassigned"
-              ? "Select an employee to see their roster."
-              : availableRosterShifts.length
-                ? "Choosing a shift sets the job start and due time from the shift."
-                : "This employee has no current or upcoming shifts."}
-          </FieldDescription>
-          <FieldErrors errors={state.errors?.rosterShiftId} />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+              <SelectTrigger
+                aria-invalid={Boolean(state.errors?.rosterShiftId)}
+                className="w-full"
+                id={fieldId("roster-shift")}
+              >
+                <SelectValue>
+                  {rosterShiftId === "none"
+                    ? assigneeMembershipId === "unassigned"
+                      ? "Choose assignee"
+                      : "No rostered shift"
+                    : formatRosterShift(
+                        availableRosterShifts.find(
+                          (shift) => String(shift.id) === rosterShiftId
+                        ),
+                        timezone
+                      )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No rostered shift</SelectItem>
+                {availableRosterShifts.map((shift) => (
+                  <SelectItem key={shift.id} value={String(shift.id)}>
+                    {formatRosterShift(shift, timezone)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldErrors errors={state.errors?.rosterShiftId} />
+          </Field>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-job-form-row="schedule-due"
+        >
           <DateTimePicker
             error={state.errors?.scheduledAt}
             id={fieldId("scheduled-at")}
@@ -582,44 +652,53 @@ function JobForm({
             value={dueAt}
           />
         </div>
-        <Field>
-          <FieldLabel htmlFor={fieldId("minimum-photos")}>
-            Minimum completion photos
-          </FieldLabel>
-          <Input
-            aria-invalid={Boolean(state.errors?.minimumCompletionPhotos)}
-            defaultValue={
-              state.values?.minimumCompletionPhotos ??
-              selectedTemplate?.minimumCompletionPhotos ??
-              initialJob?.minimumCompletionPhotos ??
-              "0"
-            }
-            id={fieldId("minimum-photos")}
-            key={`photos-${defaultsKey}-${state.values?.minimumCompletionPhotos ?? initialJob?.minimumCompletionPhotos ?? "0"}`}
-            max={10}
-            min={0}
-            name="minimumCompletionPhotos"
-            type="number"
-          />
-          <FieldErrors errors={state.errors?.minimumCompletionPhotos} />
-        </Field>
-        <Field orientation="horizontal">
-          <Checkbox
-            checked={requiresCompletionNote}
-            id={fieldId("requires-note")}
-            name="requiresCompletionNote"
-            onCheckedChange={setRequiresCompletionNote}
-            value="true"
-          />
-          <div>
-            <FieldLabel htmlFor={fieldId("requires-note")}>
-              Require a completion note
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-job-form-row="requirements"
+        >
+          <Field>
+            <FieldLabel htmlFor={fieldId("minimum-photos")}>
+              Minimum completion photos
             </FieldLabel>
-            <FieldDescription>
-              Employees must add a note before submitting in S05.
-            </FieldDescription>
-          </div>
-        </Field>
+            <Select
+              name="minimumCompletionPhotos"
+              onValueChange={(value) =>
+                setMinimumCompletionPhotos(value ?? "0")
+              }
+              value={minimumCompletionPhotos}
+            >
+              <SelectTrigger
+                aria-invalid={Boolean(
+                  state.errors?.minimumCompletionPhotos
+                )}
+                className="w-full"
+                id={fieldId("minimum-photos")}
+              >
+                <SelectValue>{minimumCompletionPhotos}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 11 }, (_, count) => (
+                  <SelectItem key={count} value={String(count)}>
+                    {count}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldErrors errors={state.errors?.minimumCompletionPhotos} />
+          </Field>
+          <Field className="self-center" orientation="horizontal">
+            <Checkbox
+              checked={requiresCompletionNote}
+              id={fieldId("requires-note")}
+              name="requiresCompletionNote"
+              onCheckedChange={setRequiresCompletionNote}
+              value="true"
+            />
+            <FieldLabel htmlFor={fieldId("requires-note")}>
+              Require note
+            </FieldLabel>
+          </Field>
+        </div>
         <Button disabled={pending} type="submit">
           {pending ? "Saving…" : submitLabel}
         </Button>

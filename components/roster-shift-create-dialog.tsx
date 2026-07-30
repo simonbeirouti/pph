@@ -117,7 +117,7 @@ function RosterShiftCreateForm({
   const router = useRouter()
   const offline = useOfflineV2Actions()
   const action = async (state: ActionState, formData: FormData) => {
-    if (!offline.isOffline) {
+    if (!offline.usesLocalRepository) {
       return createCalendarRosterShiftAction(state, formData)
     }
     const date = String(formData.get("date") ?? "")
@@ -203,9 +203,9 @@ function RosterShiftCreateForm({
   useEffect(() => {
     if (!state.ok) return
     toast.success(state.message)
-    if (!offline.isOffline) router.refresh()
+    if (!offline.usesLocalRepository) router.refresh()
     onSaved()
-  }, [offline.isOffline, onSaved, router, state.message, state.ok])
+  }, [offline.usesLocalRepository, onSaved, router, state.message, state.ok])
 
   const changeStartTime = (nextStart: string) => {
     const duration = clockTimeDurationMinutes(startTime, endTime)
@@ -245,58 +245,64 @@ function RosterShiftCreateForm({
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium" htmlFor="calendar-shift-date">
-            Date
-          </label>
-          <RosterDatePicker
-            aria-invalid={Boolean(state.errors?.date)}
-            id="calendar-shift-date"
-            name="date"
-            onChange={setDate}
-            value={date}
-          />
-          <FieldErrors errors={state.errors?.date} />
-        </div>
-        <div className="grid gap-1.5">
-          <label
-            className="text-sm font-medium"
-            htmlFor="calendar-shift-employee"
-          >
-            Employee
-          </label>
-          <input
-            name="employeeMembershipId"
-            type="hidden"
-            value={employeeMembershipId}
-          />
-          <Select
-            onValueChange={(value) =>
-              value && setEmployeeMembershipId(value)
-            }
-            value={employeeMembershipId || null}
-          >
-            <SelectTrigger
-              aria-invalid={Boolean(state.errors?.employeeMembershipId)}
-              id="calendar-shift-employee"
+        <div
+          className="grid grid-cols-2 gap-3"
+          data-roster-create-row="employee-date"
+        >
+          <div className="grid gap-1.5">
+            <label
+              className="text-sm font-medium"
+              htmlFor="calendar-shift-employee"
             >
-              <SelectValue>
-                {employeeNames.get(Number(employeeMembershipId)) ??
-                  "Choose employee"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {employees.map((employee) => (
-                <SelectItem
-                  key={employee.employeeMembershipId}
-                  value={String(employee.employeeMembershipId)}
-                >
-                  {employee.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldErrors errors={state.errors?.employeeMembershipId} />
+              Employee
+            </label>
+            <input
+              name="employeeMembershipId"
+              type="hidden"
+              value={employeeMembershipId}
+            />
+            <Select
+              onValueChange={(value) =>
+                value && setEmployeeMembershipId(value)
+              }
+              value={employeeMembershipId || null}
+            >
+              <SelectTrigger
+                aria-invalid={Boolean(state.errors?.employeeMembershipId)}
+                className="w-full"
+                id="calendar-shift-employee"
+              >
+                <SelectValue>
+                  {employeeNames.get(Number(employeeMembershipId)) ??
+                    "Choose employee"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((employee) => (
+                  <SelectItem
+                    key={employee.employeeMembershipId}
+                    value={String(employee.employeeMembershipId)}
+                  >
+                    {employee.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldErrors errors={state.errors?.employeeMembershipId} />
+          </div>
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium" htmlFor="calendar-shift-date">
+              Date
+            </label>
+            <RosterDatePicker
+              aria-invalid={Boolean(state.errors?.date)}
+              id="calendar-shift-date"
+              name="date"
+              onChange={setDate}
+              value={date}
+            />
+            <FieldErrors errors={state.errors?.date} />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
@@ -406,8 +412,8 @@ function RosterShiftCreateForm({
           )}
           <FieldErrors errors={state.errors?.jobIds} />
         </fieldset>
-        <div className="flex justify-end pt-1">
-          <Button disabled={pending} type="submit">
+        <div className="pt-1">
+          <Button className="w-full" disabled={pending} type="submit">
             {pending ? "Creating…" : "Create shift"}
           </Button>
         </div>

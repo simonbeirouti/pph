@@ -18,6 +18,20 @@ const loadingStates = [
 ] as const
 
 describe("dashboard loading states", () => {
+  it("matches the dashboard's flat section layout", () => {
+    const { container, unmount } = render(<DashboardLoading />)
+
+    expect(
+      container.querySelectorAll("[data-dashboard-loading-section]")
+    ).toHaveLength(3)
+    expect(
+      container.querySelectorAll(
+        "[data-dashboard-loading-section].rounded-xl"
+      )
+    ).toHaveLength(0)
+    unmount()
+  })
+
   it.each(loadingStates)(
     "provides an accessible %s route fallback",
     (route, LoadingState) => {

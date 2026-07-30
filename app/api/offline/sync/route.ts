@@ -41,8 +41,16 @@ import {
 } from "@/app/dashboard/templates/actions"
 import { INITIAL_TEMPLATE_ACTION_STATE } from "@/lib/templates/types"
 import { getMembershipContext } from "@/lib/auth/membership"
-import { buildOfflineV2Snapshot } from "@/lib/offline-v2/bootstrap"
-import type {
+import {
+  buildOfflineV2Domains,
+  buildOfflineV2Snapshot,
+  type OfflineV2DomainData,
+  type OfflineV2DomainName,
+} from "@/lib/offline-v2/bootstrap"
+import {
+  OFFLINE_V2_LEASE_MS,
+  OFFLINE_V2_SCHEMA_VERSION,
+  type OfflineV2Patch,
   OfflineConflict,
   OfflineSyncResult,
   OfflineV2Operation,
@@ -79,6 +87,7 @@ const operationSchema = z.object({
 const requestSchema = z.object({
   operations: z.array(operationSchema).max(500),
   revision: z.number().int().nonnegative(),
+  schemaVersion: z.number().int().positive(),
 })
 
 export async function POST(request: Request) {
@@ -285,13 +294,45 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: changes } = await supabase.rpc(
-      "get_offline_sync_changes",
-      { p_after_revision: parsed.data.revision }
+    const { changes, complete } = await readSyncChanges(
+      supabase,
+      parsed.data.revision
     )
-    const snapshot = await buildOfflineV2Snapshot()
+    const domains =
+      parsed.data.schemaVersion === OFFLINE_V2_SCHEMA_VERSION && complete
+        ? domainsForChanges(changes.map((change) => change.entity_type))
+        : null
+    const fullSnapshot =
+      domains === null ? await buildOfflineV2Snapshot() : null
+    const domainSnapshot =
+      !fullSnapshot && domains?.size
+        ? await buildOfflineV2Domains(domains)
+        : null
+    const { data: currentRevision, error: revisionError } = await supabase.rpc(
+      "get_offline_sync_revision"
+    )
+    if (revisionError) throw revisionError
+    const refreshedAt = new Date()
+    const leaseExpiresAt = new Date(
+      refreshedAt.getTime() + OFFLINE_V2_LEASE_MS
+    ).toISOString()
+    const revision =
+      fullSnapshot?.revision ??
+      currentRevision ??
+      parsed.data.revision
+    const patch =
+      fullSnapshot || !domains
+        ? undefined
+        : buildDomainPatch({
+            baseRevision: parsed.data.revision,
+            domains,
+            leaseExpiresAt,
+            refreshedAt: refreshedAt.toISOString(),
+            revision,
+            snapshot: domainSnapshot,
+          })
     const response: OfflineSyncResult = {
-      changes: (changes ?? []).map((change) => ({
+      changes: changes.map((change) => ({
         changedAt: change.changed_at,
         entityId: change.entity_id,
         entityType: change.entity_type,
@@ -300,11 +341,12 @@ export async function POST(request: Request) {
         revision: change.revision,
       })),
       conflicts,
+      ...(fullSnapshot ? { fullSnapshot } : {}),
       idMappings,
-      leaseExpiresAt: snapshot.leaseExpiresAt,
+      leaseExpiresAt: fullSnapshot?.leaseExpiresAt ?? leaseExpiresAt,
       operationResults,
-      revision: snapshot.revision,
-      snapshot,
+      ...(patch ? { patch } : {}),
+      revision,
     }
     return NextResponse.json(response, {
       headers: { "Cache-Control": "private, no-store" },
@@ -315,6 +357,142 @@ export async function POST(request: Request) {
       { message: "Offline synchronisation failed." },
       { status: 500 }
     )
+  }
+}
+
+type SyncClient = Awaited<ReturnType<typeof createClient>>
+type SyncChangeRow = {
+  changed_at: string
+  entity_id: number
+  entity_type: string
+  operation: string
+  revision: number
+}
+
+const MAX_CHANGE_PAGES = 3
+const CHANGE_PAGE_SIZE = 5_000
+
+async function readSyncChanges(client: SyncClient, afterRevision: number) {
+  const changes: SyncChangeRow[] = []
+  let cursor = afterRevision
+  for (let page = 0; page < MAX_CHANGE_PAGES; page += 1) {
+    const { data, error } = await client.rpc("get_offline_sync_changes", {
+      p_after_revision: cursor,
+    })
+    if (error) throw error
+    const rows = (data ?? []) as SyncChangeRow[]
+    changes.push(...rows)
+    if (rows.length < CHANGE_PAGE_SIZE) return { changes, complete: true }
+    cursor = rows.at(-1)?.revision ?? cursor
+  }
+  return { changes, complete: false }
+}
+
+type PatchDomain = OfflineV2DomainName
+
+function domainsForChanges(entityTypes: string[]) {
+  const domains = new Set<PatchDomain>()
+  for (const entityType of entityTypes) {
+    if (
+      entityType === "organisations" ||
+      entityType === "memberships" ||
+      entityType === "employee_profiles"
+    ) {
+      return new Set<PatchDomain>([
+        "dashboard",
+        "employeeJobs",
+        "jobDetails",
+        "jobs",
+        "membership",
+        "people",
+        "profile",
+        "roster",
+        "templates",
+      ])
+    }
+    if (entityType === "roster_shifts") {
+      addDomains(domains, ["dashboard", "jobs", "people", "roster"])
+      continue
+    }
+    if (
+      entityType === "jobs" ||
+      entityType === "job_updates" ||
+      entityType === "job_assets" ||
+      entityType === "job_notification_deliveries"
+    ) {
+      addDomains(domains, [
+        "dashboard",
+        "employeeJobs",
+        "jobDetails",
+        "jobs",
+        "people",
+        "roster",
+      ])
+      continue
+    }
+    if (
+      entityType === "job_templates" ||
+      entityType === "job_schedules" ||
+      entityType === "job_schedule_occurrences"
+    ) {
+      addDomains(domains, ["jobs", "templates"])
+      continue
+    }
+    if (entityType === "membership_role_audit") {
+      addDomains(domains, ["membership", "people"])
+      continue
+    }
+    return null
+  }
+  return domains
+}
+
+function addDomains(
+  target: Set<PatchDomain>,
+  domains: readonly PatchDomain[]
+) {
+  for (const domain of domains) target.add(domain)
+}
+
+function buildDomainPatch({
+  baseRevision,
+  domains,
+  leaseExpiresAt,
+  refreshedAt,
+  revision,
+  snapshot,
+}: {
+  baseRevision: number
+  domains: Set<PatchDomain>
+  leaseExpiresAt: string
+  refreshedAt: string
+  revision: number
+  snapshot: OfflineV2DomainData | null
+}): OfflineV2Patch {
+  return {
+    baseRevision,
+    leaseExpiresAt,
+    refreshedAt,
+    revision,
+    ...(snapshot && domains.has("dashboard")
+      ? { dashboard: snapshot.dashboard }
+      : {}),
+    ...(snapshot && domains.has("employeeJobs")
+      ? { employeeJobs: snapshot.employeeJobs }
+      : {}),
+    ...(snapshot && domains.has("jobDetails")
+      ? { jobDetails: snapshot.jobDetails }
+      : {}),
+    ...(snapshot && domains.has("jobs") ? { jobs: snapshot.jobs } : {}),
+    ...(snapshot && domains.has("membership")
+      ? { membership: snapshot.membership }
+      : {}),
+    ...(snapshot && domains.has("people") ? { people: snapshot.people } : {}),
+    ...(snapshot && domains.has("profile") ? { profile: snapshot.profile } : {}),
+    ...(snapshot && domains.has("roster") ? { roster: snapshot.roster } : {}),
+    ...(snapshot && domains.has("templates")
+      ? { templates: snapshot.templates }
+      : {}),
   }
 }
 

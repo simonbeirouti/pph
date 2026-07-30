@@ -172,6 +172,7 @@ export type OfflineSyncChange = {
 export type OfflineSyncResult = {
   changes: OfflineSyncChange[]
   conflicts: OfflineConflict[]
+  fullSnapshot?: OfflineV2Snapshot
   idMappings: Record<string, number>
   leaseExpiresAt: string
   operationResults: Array<{
@@ -180,8 +181,37 @@ export type OfflineSyncResult = {
     result?: Record<string, unknown>
     status: "acknowledged" | "conflict" | "needs_attention" | "failed"
   }>
+  patch?: OfflineV2Patch
   revision: number
-  snapshot: OfflineV2Snapshot
+}
+
+export type OfflineRepositoryState =
+  | "preparing"
+  | "ready"
+  | "locked"
+  | "unavailable"
+
+export type OfflineRepositorySyncState =
+  | "idle"
+  | "syncing"
+  | "pending"
+  | "needs_attention"
+  | "storage_warning"
+
+export type OfflineV2Patch = {
+  baseRevision: number
+  dashboard?: OfflineV2Snapshot["dashboard"]
+  employeeJobs?: OfflineV2Snapshot["employeeJobs"]
+  jobDetails?: OfflineV2Snapshot["jobDetails"]
+  jobs?: OfflineV2Snapshot["jobs"]
+  leaseExpiresAt: string
+  membership?: OfflineV2Snapshot["membership"]
+  people?: OfflineV2Snapshot["people"]
+  profile?: OfflineV2Snapshot["profile"]
+  refreshedAt: string
+  revision: number
+  roster?: OfflineV2Snapshot["roster"]
+  templates?: OfflineV2Snapshot["templates"]
 }
 
 export type OfflineSyncStatus =

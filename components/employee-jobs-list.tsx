@@ -149,7 +149,7 @@ function JobCardActions({ href, job }: { href: string; job: JobCard }) {
 
   return (
     <div className={cn("grid gap-2", canSubmit && "grid-cols-2")}>
-      <Button nativeButton={false} render={<Link href={href} />}>
+      <Button nativeButton={false} render={<Link href={href} prefetch={false} />}>
         Open job
       </Button>
       {canSubmit ? (

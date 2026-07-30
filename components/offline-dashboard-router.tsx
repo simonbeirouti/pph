@@ -29,7 +29,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { JobCard } from "@/lib/jobs/types"
 import { isOfflineLeaseValid } from "@/lib/offline-v2/types"
-import { putOfflineV2Blob } from "@/lib/offline-v2/storage"
 import {
   localDateForInstant,
   localDateRange,
@@ -42,6 +41,21 @@ export function OfflineDashboardBoundary({
   children: React.ReactNode
 }) {
   const offline = useOfflineV2()
+  if (offline.repositoryState === "preparing") {
+    return (
+      <fieldset
+        aria-busy="true"
+        aria-describedby="repository-preparing-description"
+        className="contents"
+        disabled
+      >
+        {children}
+        <span className="sr-only" id="repository-preparing-description">
+          Preparing workspace. Editing controls will be available shortly.
+        </span>
+      </fieldset>
+    )
+  }
   if (!offline.usesLocalRepository) return children
   return <OfflineDashboardRouter />
 }
@@ -122,12 +136,12 @@ function OfflineDashboardHome() {
             <div>
               <p className="font-medium">Your assigned work</p>
               <p className="text-sm text-muted-foreground">
-                Continue your personal queue while offline.
+                Your assigned work, ranked from highest to lowest urgency.
               </p>
             </div>
             <Button
               nativeButton={false}
-              render={<Link href="/dashboard/jobs?mode=my-work" />}
+              render={<Link href="/dashboard/jobs?mode=my-work" prefetch={false} />}
             >
               View my work
             </Button>
@@ -166,14 +180,14 @@ function OfflineJobsPage({
           <div className="flex gap-2">
             <Button
               nativeButton={false}
-              render={<Link href="/dashboard/jobs" />}
+              render={<Link href="/dashboard/jobs" prefetch={false} />}
               variant="outline"
             >
               Team workflow
             </Button>
             <Button
               nativeButton={false}
-              render={<Link href="/dashboard/jobs?mode=my-work" />}
+              render={<Link href="/dashboard/jobs?mode=my-work" prefetch={false} />}
             >
               My work
             </Button>
@@ -186,7 +200,6 @@ function OfflineJobsPage({
         {selectedDetail ? (
           <EmployeeJobDetail
             detail={selectedDetail}
-            key={selectedDetail.id}
             timezone={membership.timezone}
           />
         ) : null}
@@ -226,7 +239,6 @@ function OfflineJobsPage({
           }
           detail={selectedDetail}
           employees={snapshot.jobs.employees}
-          key={selectedDetail.id}
           timezone={snapshot.jobs.timezone}
         />
       ) : null}
@@ -345,7 +357,7 @@ function OfflineEmployeesPage({
       <div>
         <h1 className="text-2xl font-semibold">Employees</h1>
         <p className="text-muted-foreground">
-          Cached profiles, access, jobs, and roster summaries.
+          Manage profiles, invitations, and application access.
         </p>
       </div>
       <EmployeeDirectoryTable
@@ -411,6 +423,7 @@ function OfflineEmployeePage({ membershipId }: { membershipId: number }) {
                 className="rounded-md border p-3"
                 href={`/dashboard/jobs?job=${job.id}`}
                 key={job.id}
+                prefetch={false}
               >
                 <p className="font-medium">{job.title}</p>
                 <p className="text-sm capitalize text-muted-foreground">
@@ -438,7 +451,7 @@ function OfflineEmployeePage({ membershipId }: { membershipId: number }) {
 }
 
 function OfflineProfilePage() {
-  const { queueOperation, snapshot, updateSnapshot } = useOfflineV2()
+  const { isOnline, queueOperation, snapshot } = useOfflineV2()
   const profile = snapshot?.profile
   const [saved, setSaved] = useState(false)
   if (!snapshot || !profile) return null
@@ -454,32 +467,35 @@ function OfflineProfilePage() {
     }
     const clientOperationId = crypto.randomUUID()
     const avatar = form.get("avatar")
-    if (avatar instanceof File && avatar.size) {
-      await putOfflineV2Blob(clientOperationId, avatar)
-    }
-    await queueOperation({
-      clientOperationId,
-      createdAt: new Date().toISOString(),
-      dependsOn: [],
-      entity: { id: profile.membershipId, source: "server" },
-      entityType: "profile",
-      expectedVersion: profile.profileVersion ?? null,
-      kind: "profile.update",
-      payload: values,
-      state: "pending",
-    })
-    await updateSnapshot((current) => ({
-      ...current,
-      membership: {
-        ...current.membership,
-        displayName: `${values.firstName} ${values.lastName}`.trim(),
+    const queued = await queueOperation(
+      {
+        clientOperationId,
+        createdAt: new Date().toISOString(),
+        dependsOn: [],
+        entity: { id: profile.membershipId, source: "server" },
+        entityType: "profile",
+        expectedVersion: profile.profileVersion ?? null,
+        kind: "profile.update",
+        payload: values,
+        state: "pending",
       },
-      profile: {
-        ...current.profile,
-        ...values,
-        displayName: `${values.firstName} ${values.lastName}`.trim(),
-      },
-    }))
+      {
+        ...(avatar instanceof File && avatar.size ? { blob: avatar } : {}),
+        optimistic: (current) => ({
+          ...current,
+          membership: {
+            ...current.membership,
+            displayName: `${values.firstName} ${values.lastName}`.trim(),
+          },
+          profile: {
+            ...current.profile,
+            ...values,
+            displayName: `${values.firstName} ${values.lastName}`.trim(),
+          },
+        }),
+      }
+    )
+    if (!queued) return
     setSaved(true)
   }
 
@@ -497,9 +513,11 @@ function OfflineProfilePage() {
       </div>
       {saved ? (
         <Alert>
-          <AlertTitle>Saved on this device</AlertTitle>
+          <AlertTitle>Changes saved</AlertTitle>
           <AlertDescription>
-            Your profile update will synchronise when the connection returns.
+            {isOnline
+              ? "Your profile update is synchronising in the background."
+              : "Your profile update will synchronise when the connection returns."}
           </AlertDescription>
         </Alert>
       ) : null}

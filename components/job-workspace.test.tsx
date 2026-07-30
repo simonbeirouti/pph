@@ -13,10 +13,17 @@ import { reassignJobAction } from "@/app/dashboard/jobs/actions"
 import { AssignmentDialog, JobWorkspace } from "@/components/job-workspace"
 import type { JobBoardEmployee, JobCard } from "@/lib/jobs/types"
 
+const viewportMocks = vi.hoisted(() => ({
+  mobile: false,
+}))
+
 vi.mock("@/app/dashboard/jobs/actions", () => ({
   createJobAction: vi.fn(),
   reassignJobAction: vi.fn(),
   updateJobAction: vi.fn(),
+}))
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => viewportMocks.mobile,
 }))
 
 const employees: JobBoardEmployee[] = [
@@ -62,6 +69,7 @@ const rosterShifts = [
 
 afterEach(() => {
   cleanup()
+  viewportMocks.mobile = false
   vi.clearAllMocks()
 })
 
@@ -88,12 +96,13 @@ describe("JobWorkspace", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Create job" }))
-    const dialog = screen.getByRole("dialog", { name: "Create job" })
-    await user.click(within(dialog).getByRole("combobox", { name: "Template" }))
     await user.click(
-      await screen.findByRole("option", { name: "Template title" })
+      screen.getByRole("button", { name: "Start job from template" })
     )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Template title" })
+    )
+    const dialog = screen.getByRole("dialog", { name: "Create job" })
 
     expect(within(dialog).getByLabelText("Title")).toHaveValue("Template title")
     expect(within(dialog).getByLabelText("Description")).toHaveValue(
@@ -101,25 +110,78 @@ describe("JobWorkspace", () => {
     )
     expect(within(dialog).getByLabelText("Location")).toHaveValue("Front foyer")
     expect(
-      within(dialog).getByLabelText("Minimum completion photos")
-    ).toHaveValue(3)
+      within(dialog).getByRole("combobox", {
+        name: "Minimum completion photos",
+      })
+    ).toHaveTextContent("3")
     expect(
       within(dialog).getByRole("combobox", { name: "Priority" })
-    ).toHaveTextContent("high")
+    ).toHaveTextContent("High")
     expect(
       within(dialog).getByRole("combobox", { name: "Assignee" })
     ).toHaveTextContent("Alex Employee")
     expect(
       within(dialog).getByRole("checkbox", {
-        name: "Require a completion note",
+        name: "Require note",
       })
     ).toBeChecked()
+    expect(
+      within(dialog).queryByRole("combobox", { name: "Template" })
+    ).not.toBeInTheDocument()
+    for (const row of [
+      "location-priority",
+      "assignee-shift",
+      "schedule-due",
+      "requirements",
+    ]) {
+      expect(
+        dialog.querySelector(`[data-job-form-row="${row}"]`)
+      ).toHaveClass("grid-cols-2")
+    }
 
     await user.clear(within(dialog).getByLabelText("Title"))
     await user.type(within(dialog).getByLabelText("Title"), "Overridden title")
     expect(within(dialog).getByLabelText("Title")).toHaveValue(
       "Overridden title"
     )
+  })
+
+  it("uses a capped scrollable drawer for mobile job creation", async () => {
+    viewportMocks.mobile = true
+    const user = userEvent.setup()
+    const { container } = render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create job" }))
+
+    const drawer = container.ownerDocument.querySelector(
+      '[data-slot="drawer-popup"]'
+    )
+    expect(drawer).toHaveClass(
+      "[--drawer-content-max-height:calc(100dvh-1rem)]"
+    )
+    expect(drawer).not.toHaveStyle({
+      height: "calc(100dvh - 1rem)",
+    })
+    expect(drawer?.getAttribute("style")).not.toContain(
+      "--drawer-content-height"
+    )
+    expect(
+      container.ownerDocument.querySelector('[data-slot="drawer-content"]')
+    ).toHaveClass("min-h-0", "overflow-y-auto")
+    expect(
+      screen.getByRole("dialog", { name: "Create job" })
+    ).toBeVisible()
+    expect(
+      within(screen.getByRole("dialog", { name: "Create job" }))
+        .getByRole("checkbox", { name: "Require note" })
+        .closest('[data-slot="field"]')
+    ).toHaveClass("self-center")
   })
 
   it("schedules a job from the selected employee's rostered shift", async () => {

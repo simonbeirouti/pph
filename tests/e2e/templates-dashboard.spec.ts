@@ -16,7 +16,7 @@ test("owner manages a template and schedule", async ({
   const templateDialog = ownerPage.getByRole("dialog", {
     name: "New template",
   })
-  if (testInfo.project.name === "mobile-chrome") {
+  if (testInfo.project.name.includes("mobile")) {
     await expect(
       templateDialog.locator('[data-slot="drawer-content"]')
     ).toBeVisible()
@@ -24,13 +24,24 @@ test("owner manages a template and schedule", async ({
   await templateDialog.getByLabel("Title").fill(title)
   await templateDialog.getByLabel("Description").fill("Reusable E2E defaults")
   await templateDialog.getByLabel("Location").fill("Front foyer")
+  await expect(
+    templateDialog.locator(
+      '[data-template-form-row="location-priority"]'
+    )
+  ).toHaveClass(/grid-cols-2/)
+  await expect(
+    templateDialog.locator('[data-template-form-row="assignee-photos"]')
+  ).toHaveClass(/grid-cols-2/)
   await templateDialog.getByRole("combobox", { name: "Priority" }).click()
   await ownerPage.getByRole("option", { name: "High" }).click()
   await templateDialog
     .getByRole("combobox", { name: "Default assignee" })
     .click()
   await ownerPage.getByRole("option", { name: "Alex Employee" }).click()
-  await templateDialog.getByLabel("Minimum completion photos").fill("2")
+  await templateDialog
+    .getByRole("combobox", { name: "Minimum completion photos" })
+    .click()
+  await ownerPage.getByRole("option", { name: "2", exact: true }).click()
   await templateDialog
     .getByRole("checkbox", { name: "Require a completion note" })
     .click()
@@ -55,6 +66,11 @@ test("owner manages a template and schedule", async ({
   const scheduleDialog = ownerPage.getByRole("dialog", {
     name: "New schedule",
   })
+  for (const row of ["template-assignee", "repeat-time", "dates"]) {
+    await expect(
+      scheduleDialog.locator(`[data-schedule-form-row="${row}"]`)
+    ).toHaveClass(/grid-cols-2/)
+  }
   await scheduleDialog.getByRole("combobox", { name: "Template" }).click()
   await ownerPage.getByRole("option", { name: title }).click()
   await scheduleDialog.getByRole("combobox", { name: "Assignee" }).click()
@@ -163,6 +179,16 @@ test("production generator is idempotent and renders one generated job", async (
   await ownerPage.goto("/dashboard/jobs?priority=urgent")
   await expect(ownerPage.getByText("Dashboard filter applied.")).toBeVisible()
   await expect(ownerPage.getByText(title)).toHaveCount(1)
+  await ownerPage
+    .getByRole("button", { name: "Start job from template" })
+    .click()
+  await ownerPage.getByRole("menuitem", { name: title }).click()
+  const createJob = ownerPage.getByRole("dialog", { name: "Create job" })
+  await expect(createJob.getByLabel("Title")).toHaveValue(title)
+  await expect(
+    createJob.getByRole("combobox", { name: "Priority" })
+  ).toContainText("Urgent")
+  await createJob.getByRole("button", { name: "Close" }).click()
 })
 
 test("owner dashboard exposes operational links", async ({ ownerPage }) => {

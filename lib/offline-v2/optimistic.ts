@@ -1,4 +1,7 @@
-import type { OfflineV2Snapshot } from "@/lib/offline-v2/types"
+import type {
+  OfflineV2Operation,
+  OfflineV2Snapshot,
+} from "@/lib/offline-v2/types"
 import type { JobCard, JobDetail } from "@/lib/jobs/types"
 
 export type OfflineJobEntity = JobCard &
@@ -53,5 +56,52 @@ export function updateJobEverywhere(
           [jobId]: update(detail) as JobDetail,
         }
       : snapshot.jobDetails,
+  }
+}
+
+export function preservePendingOptimisticDomains(
+  incoming: OfflineV2Snapshot,
+  local: OfflineV2Snapshot,
+  operations: OfflineV2Operation[]
+) {
+  const entityTypes = new Set(
+    operations.map((operation) => operation.entityType)
+  )
+  const preserveJobs =
+    entityTypes.has("job") || entityTypes.has("notification")
+  const preservePeople =
+    preserveJobs ||
+    entityTypes.has("membership") ||
+    entityTypes.has("employee_profile")
+  const preserveRoster =
+    entityTypes.has("roster_shift") ||
+    entityTypes.has("membership") ||
+    entityTypes.has("employee_profile")
+  const preserveTemplates =
+    entityTypes.has("job_template") || entityTypes.has("job_schedule")
+  const preserveProfile = entityTypes.has("profile")
+
+  return {
+    ...incoming,
+    ...(preserveJobs
+      ? {
+          dashboard: local.dashboard,
+          employeeJobs: local.employeeJobs,
+          jobDetails: local.jobDetails,
+          jobs: local.jobs,
+        }
+      : {}),
+    ...(preservePeople ? { people: local.people } : {}),
+    ...(preserveRoster ? { roster: local.roster } : {}),
+    ...(preserveTemplates ? { templates: local.templates } : {}),
+    ...(preserveProfile
+      ? {
+          membership: {
+            ...incoming.membership,
+            displayName: local.membership.displayName,
+          },
+          profile: local.profile,
+        }
+      : {}),
   }
 }

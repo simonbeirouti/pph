@@ -37,7 +37,7 @@ function OfflineShellContent() {
     <div className="flex min-h-svh flex-col bg-background">
       <ServiceWorkerRegistration />
       <header className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur md:px-6">
-        <Link className="text-lg font-semibold" href="/dashboard">
+        <Link className="text-lg font-semibold" href="/dashboard" prefetch={false}>
           Employee Ops
         </Link>
       </header>
@@ -53,7 +53,7 @@ function OfflineShellContent() {
             <Button
               key={item.href}
               nativeButton={false}
-              render={<Link href={item.href} />}
+              render={<Link href={item.href} prefetch={false} />}
               size="sm"
               variant="ghost"
             >

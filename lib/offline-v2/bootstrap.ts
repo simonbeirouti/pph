@@ -36,6 +36,32 @@ import {
 
 type RosterShiftRow = Tables<"roster_shifts">
 
+export type OfflineV2DomainName =
+  | "dashboard"
+  | "employeeJobs"
+  | "jobDetails"
+  | "jobs"
+  | "membership"
+  | "people"
+  | "profile"
+  | "roster"
+  | "templates"
+
+export type OfflineV2DomainData = Partial<
+  Pick<
+    OfflineV2Snapshot,
+    | "dashboard"
+    | "employeeJobs"
+    | "jobDetails"
+    | "jobs"
+    | "membership"
+    | "people"
+    | "profile"
+    | "roster"
+    | "templates"
+  >
+>
+
 export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
   const membershipPromise = requireActiveMembership()
   const profilePromise = getCurrentProfile()
@@ -156,6 +182,114 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
   }
 }
 
+export async function buildOfflineV2Domains(
+  domains: ReadonlySet<OfflineV2DomainName>
+): Promise<OfflineV2DomainData> {
+  if (!domains.size) return {}
+  const membership = await requireActiveMembership()
+  const isOperations =
+    membership.role === "owner" || membership.role === "manager"
+  const isWorker =
+    membership.role === "employee" || membership.role === "manager"
+  const needsJobs =
+    domains.has("jobs") ||
+    domains.has("jobDetails") ||
+    domains.has("roster")
+  const profilePromise =
+    domains.has("profile") || domains.has("roster")
+      ? getCurrentProfile()
+      : Promise.resolve(null)
+  const jobBoardPromise =
+    needsJobs && isOperations ? getOwnerJobBoardData() : Promise.resolve(null)
+  const employeeJobsPromise =
+    (domains.has("employeeJobs") || needsJobs) && isWorker
+      ? getEmployeeAssignedJobs()
+      : Promise.resolve([])
+  const dashboardPromise = domains.has("dashboard")
+    ? Promise.all([
+        isOperations ? getOwnerDashboardData() : Promise.resolve(null),
+        isWorker ? getEmployeeDashboardData() : Promise.resolve(null),
+      ])
+    : Promise.resolve(null)
+  const peoplePromise =
+    domains.has("people") && isOperations
+      ? buildPeopleData()
+      : Promise.resolve(null)
+  const templatesPromise =
+    domains.has("templates") && isOperations
+      ? getTemplateScheduleData()
+      : Promise.resolve(null)
+  const [jobBoard, employeeJobs, dashboard, people, templates, profile] =
+    await Promise.all([
+      jobBoardPromise,
+      employeeJobsPromise,
+      dashboardPromise,
+      peoplePromise,
+      templatesPromise,
+      profilePromise,
+    ])
+  const allJobs = jobBoard?.jobs ?? employeeJobs
+  const result: OfflineV2DomainData = {}
+
+  if (domains.has("membership")) {
+    result.membership = offlineMembership(membership)
+  }
+  if (domains.has("profile")) {
+    result.profile = profile ?? (await getCurrentProfile())
+  }
+  if (domains.has("dashboard") && dashboard) {
+    result.dashboard = {
+      employee: dashboard[1],
+      operations: dashboard[0],
+    }
+  }
+  if (domains.has("employeeJobs")) result.employeeJobs = employeeJobs
+  if (domains.has("jobs")) {
+    result.jobs = jobBoard as OfflineJobBoardData | null
+  }
+  if (domains.has("jobDetails")) {
+    const details = await Promise.all(
+      allJobs.map((job) => getJobDetail(job.id))
+    )
+    result.jobDetails = Object.fromEntries(
+      details.flatMap((detail) => (detail ? [[detail.id, detail]] : []))
+    )
+  }
+  if (domains.has("people")) result.people = people
+  if (domains.has("templates")) {
+    result.templates = templates as OfflineTemplateData | null
+  }
+  if (domains.has("roster")) {
+    const supabase = await createClient()
+    const activeEmployees = isOperations
+      ? await listActiveEmployeeOptions()
+      : [toActiveEmployeeOption(profile ?? (await getCurrentProfile()))]
+    const { data: shifts, error } = await supabase
+      .from("roster_shifts")
+      .select("*")
+      .eq("organisation_id", membership.organisationId)
+      .order("starts_at", { ascending: true })
+    if (error) throw new Error("Unable to refresh the offline roster")
+    result.roster = {
+      employees: activeEmployees,
+      jobs: allJobs
+        .filter((job) => job.status === "assigned")
+        .map((job) => ({
+          assigneeMembershipId: job.assigneeMembershipId,
+          dueAt: job.dueAt,
+          id: job.id,
+          scheduledAt: job.scheduledAt,
+          title: job.title,
+        })),
+      shifts: (shifts ?? []).map((row) =>
+        toRosterShift(row as RosterShiftRow)
+      ),
+      timezone: membership.timezone,
+    }
+  }
+  return result
+}
+
 async function buildPeopleData(): Promise<OfflinePeopleData> {
   const [employees, jobSummaries, shiftSummaries] = await Promise.all([
     listEmployees(),
@@ -163,4 +297,20 @@ async function buildPeopleData(): Promise<OfflinePeopleData> {
     listEmployeeShiftSummaries(),
   ])
   return { employees, jobSummaries, shiftSummaries }
+}
+
+function offlineMembership(
+  membership: Awaited<ReturnType<typeof requireActiveMembership>>
+) {
+  return {
+    avatarPath: membership.avatarPath,
+    displayName: membership.displayName,
+    email: membership.email,
+    membershipId: membership.membershipId,
+    organisationId: membership.organisationId,
+    organisationName: membership.organisationName,
+    organisationTimezone: membership.organisationTimezone,
+    role: membership.role,
+    timezone: membership.timezone,
+  }
 }

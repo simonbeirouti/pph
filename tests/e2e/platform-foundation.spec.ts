@@ -95,7 +95,26 @@ test("mobile touch activates shared buttons, tabs, and selects", async ({
   await ownerPage.getByRole("button", { name: "Create job" }).tap()
   const dialog = ownerPage.getByRole("dialog", { name: "Create job" })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole("button", { name: "Close" }).tap()
+  const drawerPopup = ownerPage.locator('[data-slot="drawer-popup"]')
+  await expect(drawerPopup).toBeVisible()
+  await expect
+    .poll(async () => {
+      const box = await drawerPopup.boundingBox()
+      return box ? Math.ceil(box.y + box.height) : Number.POSITIVE_INFINITY
+    })
+    .toBeLessThanOrEqual(ownerPage.viewportSize()!.height)
+  const drawerBox = await drawerPopup.boundingBox()
+  expect(drawerBox).not.toBeNull()
+  expect(drawerBox!.y).toBeGreaterThanOrEqual(0)
+  const drawerContent = ownerPage.locator('[data-slot="drawer-content"]')
+  await expect(drawerContent).toHaveClass(/overflow-y-auto/)
+  await drawerContent.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(
+    dialog.getByRole("button", { name: "Create job" })
+  ).toBeVisible()
+  await ownerPage.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
 
   const archived = ownerPage.getByRole("tab", { name: "Archived" })
@@ -108,7 +127,103 @@ test("mobile touch activates shared buttons, tabs, and selects", async ({
   await urgency.tap()
   await ownerPage.getByRole("option", { name: "Urgent", exact: true }).tap()
   await expect(urgency).toContainText("Urgent")
+
+  await ownerPage.goto("/dashboard/employees")
+  const employeeStatus = ownerPage.getByRole("combobox", {
+    name: "Filter by status",
+  })
+  await expect(employeeStatus).toContainText("All statuses")
+  await employeeStatus.tap()
+  await ownerPage
+    .getByRole("option", { name: "Active", exact: true })
+    .tap()
+  await expect(employeeStatus).toContainText("Active")
+  await ownerPage.getByRole("button", { name: "Add employee" }).tap()
+  const employeeDialog = ownerPage.getByRole("dialog", {
+    name: "Add employee",
+  })
+  await expect(employeeDialog).toBeVisible()
+  const employeeDrawer = ownerPage.locator(
+    '[data-slot="drawer-popup"]:visible'
+  )
+  await expect
+    .poll(async () => {
+      const box = await employeeDrawer.boundingBox()
+      return box ? Math.ceil(box.y + box.height) : Number.POSITIVE_INFINITY
+    })
+    .toBeLessThanOrEqual(ownerPage.viewportSize()!.height)
+  const employeeDrawerBox = await employeeDrawer.boundingBox()
+  expect(employeeDrawerBox).not.toBeNull()
+  expect(employeeDrawerBox!.y).toBeGreaterThanOrEqual(0)
+  const avatarButton = employeeDialog.getByRole("button", {
+    name: "Upload profile photo",
+  })
+  await expect(avatarButton).toBeVisible()
+  const avatarButtonBox = await avatarButton.boundingBox()
+  expect(avatarButtonBox).not.toBeNull()
+  expect(avatarButtonBox!.width).toBe(avatarButtonBox!.height)
+  expect(avatarButtonBox!.width).toBeLessThanOrEqual(96)
+  await employeeDialog
+    .getByLabel("Profile photo", { exact: true })
+    .setInputFiles({
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64"
+      ),
+      mimeType: "image/png",
+      name: "avatar.png",
+    })
+  await expect(
+    employeeDialog.getByRole("img", { name: "Selected profile preview" })
+  ).toBeVisible()
+  await expect(
+    employeeDialog.getByRole("button", { name: "Create and invite" })
+  ).toHaveClass(/w-full/)
+  await ownerPage.keyboard.press("Escape")
+  await expect(employeeDialog).toBeHidden()
   expect(runtimeErrors).toEqual([])
+})
+
+test("employee job drawer follows client-side query navigation", async ({
+  employeePage,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.includes("mobile"))
+  await employeePage.goto("/dashboard/jobs")
+
+  const jobs = employeePage.getByRole("article")
+  await expect(jobs.first()).toBeVisible()
+  await expect(jobs.nth(1)).toBeVisible()
+
+  const firstTitle = (await jobs.first().getAttribute("aria-label"))?.replace(
+    /^Job /,
+    ""
+  )
+  const secondTitle = (await jobs.nth(1).getAttribute("aria-label"))?.replace(
+    /^Job /,
+    ""
+  )
+  expect(firstTitle).toBeTruthy()
+  expect(secondTitle).toBeTruthy()
+
+  await jobs.first().getByRole("button", { name: "Open job" }).tap()
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs\?job=\d+$/)
+  await expect(
+    employeePage.getByRole("dialog", { name: firstTitle! })
+  ).toBeVisible()
+
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  await jobs.nth(1).getByRole("button", { name: "Open job" }).tap()
+  await expect(
+    employeePage.getByRole("dialog", { name: secondTitle! })
+  ).toBeVisible()
+
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  await jobs.first().getByRole("button", { name: "Open job" }).tap()
+  await expect(
+    employeePage.getByRole("dialog", { name: firstTitle! })
+  ).toBeVisible()
 })
 
 test("sidebar and breadcrumb reflect the current page", async ({

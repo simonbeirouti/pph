@@ -32,9 +32,12 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
     .fill("Complete and photograph this test job.")
   await createDialog.getByLabel("Assignee").click()
   await ownerPage.getByRole("option", { name: "Alex Employee" }).click()
-  await createDialog.getByLabel("Minimum completion photos").fill("1")
   await createDialog
-    .getByRole("checkbox", { name: "Require a completion note" })
+    .getByRole("combobox", { name: "Minimum completion photos" })
+    .click()
+  await ownerPage.getByRole("option", { name: "1", exact: true }).click()
+  await createDialog
+    .getByRole("checkbox", { name: "Require note" })
     .check()
   await createDialog.getByRole("button", { name: "Create job" }).click()
   await expect(createDialog).not.toBeVisible()
@@ -51,13 +54,40 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   })
   await authenticate(employeeContext, "employee@example.test")
   const employeePage = await employeeContext.newPage()
-  await employeePage.goto(jobUrl!)
+  await employeePage.goto("/dashboard/jobs")
+  const employeeJob = employeePage
+    .getByRole("article")
+    .filter({ hasText: title })
+  await employeeJob.getByRole("button", { name: "Open job" }).click()
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs\?job=\d+$/)
   await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeVisible()
   await expect(employeePage.getByText("Owner feedback")).toHaveCount(0)
 
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  await expect(
+    employeePage.locator('[data-slot="drawer-popup"]')
+  ).toBeHidden()
+
+  const anotherJob = employeePage
+    .getByRole("article")
+    .filter({ hasNotText: title })
+    .first()
+  await expect(anotherJob).toBeVisible()
+  await anotherJob.getByRole("button", { name: "Open job" }).click()
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs\?job=\d+$/)
+  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeVisible()
+  await employeePage.keyboard.press("Escape")
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+
+  await employeeJob.getByRole("button", { name: "Open job" }).click()
+  await expect(employeePage).toHaveURL(jobUrl!)
+  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeVisible()
+
   await employeePage.getByRole("button", { name: "Start job" }).click()
-  await employeePage.getByLabel("Work note").fill("Completed safely.")
+  await employeePage
+    .getByLabel("Work note or comment")
+    .fill("Completed safely.")
   const largeJpegDataUrl = await employeePage.evaluate(() => {
     const canvas = document.createElement("canvas")
     canvas.width = 2400
@@ -204,8 +234,6 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   await expect(ownerSheet).toContainText("owner@example.test")
   await expect(ownerSheet).toContainText("Submission email: sent")
 
-  await ownerSheet.getByLabel("Add comment").fill("Reviewing now.")
-  await ownerSheet.getByRole("button", { exact: true, name: "Comment" }).click()
   await ownerSheet.getByRole("button", { name: "Reopen job" }).click()
   const reopenDialog = ownerPage.getByRole("dialog", { name: "Reopen job" })
   await expect(

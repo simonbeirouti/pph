@@ -226,12 +226,18 @@ test("employee form preserves values after server validation", async ({
 }) => {
   await ownerPage.goto("/dashboard/employees")
   await ownerPage.getByRole("button", { name: "Add employee" }).click()
-  await ownerPage.getByLabel("First name").fill("Preserved")
-  await ownerPage.getByLabel("Last name").fill("Values")
-  await ownerPage.getByLabel("Email").fill("preserved@example.test")
-  await ownerPage.getByLabel("Phone").fill(" ")
-  await ownerPage.getByLabel("Job title").fill("Operator")
-  await ownerPage.getByRole("button", { name: "Create and invite" }).click()
+  const dialog = ownerPage.getByRole("dialog", { name: "Add employee" })
+  await expect(dialog).toHaveAttribute("data-slot", "dialog-content")
+  await expect(ownerPage.locator('[data-slot="drawer-popup"]')).toHaveCount(0)
+  await expect(dialog.locator(".overflow-y-auto")).toHaveCount(1)
+  await dialog.getByLabel("First name").fill("Preserved")
+  await dialog.getByLabel("Last name").fill("Values")
+  await dialog.getByLabel("Email").fill("preserved@example.test")
+  await dialog.getByLabel("Phone").fill(" ")
+  await dialog.getByLabel("Job title").fill("Operator")
+  const submit = dialog.getByRole("button", { name: "Create and invite" })
+  await expect(submit).toHaveClass(/w-full/)
+  await submit.click()
 
   await expect(ownerPage.getByText("Enter a phone number.")).toBeVisible()
   await expect(ownerPage.getByLabel("First name")).toHaveValue("Preserved")
@@ -261,14 +267,16 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     await ownerPage.getByLabel("Email").fill(email)
     await ownerPage.getByLabel("Phone").fill("0400 555 010")
     await ownerPage.getByLabel("Job title").fill("Operations Assistant")
-    await ownerPage.getByLabel("Profile photo").setInputFiles({
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64"
-      ),
-      mimeType: "image/png",
-      name: "avatar.png",
-    })
+    await ownerPage
+      .getByLabel("Profile photo", { exact: true })
+      .setInputFiles({
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "base64"
+        ),
+        mimeType: "image/png",
+        name: "avatar.png",
+      })
     await ownerPage.getByRole("button", { name: "Create and invite" }).click()
     await expect(ownerPage.getByRole("dialog")).not.toBeVisible()
     await expect(

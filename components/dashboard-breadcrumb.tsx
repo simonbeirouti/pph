@@ -65,7 +65,7 @@ export function DashboardBreadcrumb() {
             {index > 0 ? <BreadcrumbSeparator /> : null}
             <BreadcrumbItem>
               {entry.href ? (
-                <BreadcrumbLink render={<Link href={entry.href} />}>
+                <BreadcrumbLink render={<Link href={entry.href} prefetch={false} />}>
                   {entry.label}
                 </BreadcrumbLink>
               ) : (

@@ -113,7 +113,7 @@ function RosterShiftEditForm({
 }) {
   const offline = useOfflineV2Actions()
   const action = async (state: ActionState, formData: FormData) => {
-    if (!offline.isOffline) {
+    if (!offline.usesLocalRepository) {
       return editCalendarRosterShiftAction(
         shift.id,
         shift.employeeMembershipId,

@@ -102,6 +102,20 @@ describe("TemplateScheduleWorkspace", () => {
     expect(assignee).toHaveTextContent("Alex Employee")
     expect(priority).toHaveAttribute("data-slot", "select-trigger")
     expect(priority).toHaveClass("w-full")
+    expect(
+      dialog.querySelector(
+        '[data-template-form-row="location-priority"]'
+      )
+    ).toHaveClass("grid-cols-2")
+    expect(
+      dialog.querySelector('[data-template-form-row="assignee-photos"]')
+    ).toHaveClass("grid-cols-2")
+    const minimumPhotos = within(dialog).getByRole("combobox", {
+      name: "Minimum completion photos",
+    })
+    expect(minimumPhotos).toHaveTextContent("2")
+    await user.click(minimumPhotos)
+    expect(await screen.findAllByRole("option")).toHaveLength(11)
   })
 
   it("uses shadcn selects in schedule forms and corners schedule actions", async () => {
@@ -156,6 +170,11 @@ describe("TemplateScheduleWorkspace", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Repeats" })
     ).toHaveTextContent("Daily")
+    for (const row of ["template-assignee", "repeat-time", "dates"]) {
+      expect(
+        dialog.querySelector(`[data-schedule-form-row="${row}"]`)
+      ).toHaveClass("grid-cols-2")
+    }
   })
 
   it("opens template forms in a bottom drawer on mobile", async () => {

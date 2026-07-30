@@ -8,13 +8,6 @@ import {
 import { createClient } from "@/lib/supabase/browser"
 import type { RealtimeInvalidation } from "@/lib/realtime/events"
 
-const refresh = vi.fn()
-const router = { refresh }
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => router,
-}))
-
 vi.mock("@/lib/supabase/browser", () => ({
   createClient: vi.fn(),
 }))
@@ -99,6 +92,8 @@ afterEach(() => {
 
 describe("DashboardRealtimeProvider", () => {
   it("subscribes privately, validates events, and coalesces refreshes", async () => {
+    const invalidate = vi.fn()
+    window.addEventListener("pph:offline-invalidate", invalidate)
     const listener = renderProvider()
     await act(async () => {})
 
@@ -116,12 +111,15 @@ describe("DashboardRealtimeProvider", () => {
     })
 
     expect(listener).toHaveBeenCalledTimes(2)
-    expect(refresh).not.toHaveBeenCalled()
+    expect(invalidate).not.toHaveBeenCalled()
     act(() => vi.advanceTimersByTime(150))
-    expect(refresh).toHaveBeenCalledOnce()
+    expect(invalidate).toHaveBeenCalledOnce()
+    window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
   it("keeps degraded connectivity unobtrusive and refreshes on recovery", async () => {
+    const invalidate = vi.fn()
+    window.addEventListener("pph:offline-invalidate", invalidate)
     renderProvider()
     await act(async () => {})
     expect(subscribe).toHaveBeenCalledOnce()
@@ -146,7 +144,8 @@ describe("DashboardRealtimeProvider", () => {
 
     act(() => updateStatus?.("SUBSCRIBED"))
     act(() => vi.advanceTimersByTime(150))
-    expect(refresh).toHaveBeenCalledOnce()
+    expect(invalidate).toHaveBeenCalledOnce()
+    window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
   it("removes its channel during cleanup", async () => {

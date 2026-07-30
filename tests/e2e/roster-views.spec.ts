@@ -120,6 +120,8 @@ test("owner roster defaults to a layered Team week", async ({
       name: "Filter employee",
     })
     await expect(employeeFilter).toContainText("All team")
+    await expect(employeeFilter).toHaveClass(/w-full/)
+    await expect(employeeFilter).toHaveClass(/sm:w-56/)
     await expect(
       ownerPage.getByText("Employee week", { exact: true })
     ).toHaveCount(0)
@@ -279,6 +281,9 @@ test("owner creates and exactly edits shifts from the employee sheet", async ({
     await sheet.getByRole("button", { name: "Add shift" }).click()
 
     const createDialog = ownerPage.getByRole("dialog", { name: "Add shift" })
+    await expect(
+      createDialog.locator('[data-roster-create-row="employee-date"]')
+    ).toHaveClass(/grid-cols-2/)
     await createDialog.getByLabel("Date").fill(targetDate)
     await createDialog.getByLabel("Start").fill("09:07")
     await createDialog.getByLabel("End").fill("10:13")
@@ -289,6 +294,7 @@ test("owner creates and exactly edits shifts from the employee sheet", async ({
     const createButton = createDialog.getByRole("button", {
       name: "Create shift",
     })
+    await expect(createButton).toHaveClass(/w-full/)
     await createButton.click()
 
     const createdShift = await expect
@@ -375,7 +381,7 @@ test("owner creates a shift with a scheduled job from the roster calendar", asyn
       .map((part) => [part.type, part.value])
   )
   const targetDate = `${parts.year}-${parts.month}-${parts.day}`
-  const mobile = testInfo.project.name === "mobile-chrome"
+  const mobile = testInfo.project.name.includes("mobile")
   const expectedStart = mobile ? "14:07" : "08:00"
   const expectedEnd = mobile ? "15:13" : "10:00"
 
@@ -453,6 +459,12 @@ test("owner creates a shift with a scheduled job from the roster calendar", asyn
     await expect(
       dialog.getByRole("combobox", { name: "Employee" })
     ).toContainText("Alex Employee")
+    await expect(
+      dialog.locator('[data-roster-create-row="employee-date"]')
+    ).toHaveClass(/grid-cols-2/)
+    await expect(
+      dialog.getByRole("button", { name: "Create shift" })
+    ).toHaveClass(/w-full/)
     if (mobile) {
       await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
         "14:00"

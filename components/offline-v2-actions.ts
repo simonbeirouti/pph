@@ -3,10 +3,7 @@
 import { useCallback } from "react"
 
 import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
-import {
-  getOfflineV2Operations,
-  putOfflineV2Blob,
-} from "@/lib/offline-v2/storage"
+import { getOfflineV2Operations } from "@/lib/offline-v2/storage"
 import type {
   OfflineEntityType,
   OfflineOperationKind,
@@ -30,11 +27,8 @@ export function useOfflineV2Actions() {
 
   const queue = useCallback(
     async (input: QueueInput) => {
-      if (!offline?.usesLocalRepository) return false
+      if (!offline?.canMutate) return false
       const clientOperationId = crypto.randomUUID()
-      if (input.blob) {
-        await putOfflineV2Blob(clientOperationId, input.blob)
-      }
       const dependency = (await getOfflineV2Operations())
         .filter(
           (operation) =>
@@ -42,31 +36,36 @@ export function useOfflineV2Actions() {
             operation.entity.id === input.entityId
         )
         .at(-1)
-      await offline.queueOperation({
-        clientOperationId,
-        createdAt: new Date().toISOString(),
-        dependsOn: dependency ? [dependency.clientOperationId] : [],
-        entity:
-          typeof input.entityId === "number"
-            ? { id: input.entityId, source: "server" }
-            : { id: input.entityId, source: "local" },
-        entityType: input.entityType,
-        expectedVersion: input.expectedVersion ?? null,
-        kind: input.kind,
-        payload: input.payload ?? {},
-        state: "pending",
-      })
-      if (input.optimistic) {
-        await offline.updateSnapshot(input.optimistic)
-      }
-      return true
+      return offline.queueOperation(
+        {
+          clientOperationId,
+          createdAt: new Date().toISOString(),
+          dependsOn: dependency ? [dependency.clientOperationId] : [],
+          entity:
+            typeof input.entityId === "number"
+              ? { id: input.entityId, source: "server" }
+              : { id: input.entityId, source: "local" },
+          entityType: input.entityType,
+          expectedVersion: input.expectedVersion ?? null,
+          kind: input.kind,
+          payload: input.payload ?? {},
+          state: "pending",
+        },
+        {
+          ...(input.blob ? { blob: input.blob } : {}),
+          ...(input.optimistic ? { optimistic: input.optimistic } : {}),
+        }
+      )
     },
     [offline]
   )
 
   return {
-    isOffline: Boolean(offline?.usesLocalRepository),
+    canMutate: Boolean(offline?.canMutate),
+    isOffline: offline ? !offline.isOnline : false,
     navigate: offline?.navigate,
     queue,
+    repositoryState: offline?.repositoryState ?? "preparing",
+    usesLocalRepository: Boolean(offline?.usesLocalRepository),
   }
 }

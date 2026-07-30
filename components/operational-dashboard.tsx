@@ -77,7 +77,7 @@ export function OwnerOperationalDashboard({
       </div>
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <Link href={stat.href} key={stat.label}>
+          <Link href={stat.href} key={stat.label} prefetch={false}>
             <Card className="h-full transition-colors hover:border-primary/50">
               <CardContent className="flex items-center justify-between">
                 <div>
@@ -116,7 +116,7 @@ export function OwnerOperationalDashboard({
             </div>
             <Button
               nativeButton={false}
-              render={<Link href="/dashboard/roster" />}
+              render={<Link href="/dashboard/roster" prefetch={false} />}
               size="sm"
               variant="outline"
             >
@@ -130,6 +130,7 @@ export function OwnerOperationalDashboard({
                   className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                   href={`/dashboard/employees/${shift.employeeMembershipId}`}
                   key={shift.id}
+                  prefetch={false}
                 >
                   <div>
                     <p className="font-medium">{shift.employeeName}</p>
@@ -148,7 +149,7 @@ export function OwnerOperationalDashboard({
           ) : (
             <p className="text-sm text-muted-foreground">
               No one is rostered today.{" "}
-              <Link className="underline" href="/dashboard/roster">
+              <Link className="underline" href="/dashboard/roster" prefetch={false}>
                 Add a shift
               </Link>
               .
@@ -295,14 +296,14 @@ function EmployeeQueueRow({
         ) : job.status === "in_progress" ? (
           <Button
             nativeButton={false}
-            render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
+            render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
           >
             <ArrowRightIcon /> Resume
           </Button>
         ) : (
           <Button
             nativeButton={false}
-            render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
+            render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
             variant="outline"
           >
             <Clock3Icon /> View submission
@@ -342,6 +343,7 @@ function DashboardJobs({
                 className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/50"
                 href={`/dashboard/jobs?job=${job.id}`}
                 key={job.id}
+                prefetch={false}
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{job.title}</p>

@@ -12,8 +12,9 @@ import {
 } from "react"
 
 import {
+  commitOfflineV2Operation,
+  commitOfflineV2Sync,
   getOfflineV2Blob,
-  applyOfflineIdMappings,
   cacheOfflineSnapshotMedia,
   estimateOfflineCapacity,
   getOfflineConflicts,
@@ -23,10 +24,8 @@ import {
   isOfflineLogoutPending,
   migrateLegacyOfflineData,
   persistOfflineV2Snapshot,
-  putOfflineConflict,
   putOfflineV2Operation,
   purgeOfflineV2Data,
-  removeOfflineV2Operation,
 } from "@/lib/offline-v2/storage"
 import { logoutAction } from "@/app/dashboard/actions"
 import {
@@ -35,11 +34,17 @@ import {
 } from "@/app/dashboard/jobs/offline-actions"
 import { ensureOfflineShellReady } from "@/components/service-worker-registration"
 import { restoreOfflineEvidenceFile } from "@/lib/offline-v2/evidence-upload"
-import { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
+import {
+  preservePendingOptimisticDomains,
+  updateJobEverywhere,
+} from "@/lib/offline-v2/optimistic"
+import { applyOfflineV2Patch } from "@/lib/offline-v2/patch"
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import type {
   OfflineConflict,
   OfflineMembership,
+  OfflineRepositoryState,
+  OfflineRepositorySyncState,
   OfflineSyncStatus,
   OfflineV2Operation,
   OfflineV2Snapshot,
@@ -48,15 +53,24 @@ import type {
 import { isOfflineLeaseValid } from "@/lib/offline-v2/types"
 
 type OfflineV2ContextValue = {
+  canMutate: boolean
   conflicts: OfflineConflict[]
   currentPath: string
   isOnline: boolean
   navigate: (href: string, options?: { replace?: boolean }) => void
   operations: OfflineV2Operation[]
-  queueOperation: (operation: OfflineV2Operation) => Promise<void>
+  queueOperation: (
+    operation: OfflineV2Operation,
+    options?: {
+      blob?: Blob
+      optimistic?: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
+    }
+  ) => Promise<boolean>
   refresh: () => Promise<void>
+  repositoryState: OfflineRepositoryState
   snapshot: OfflineV2Snapshot | null
   status: OfflineSyncStatus
+  syncState: OfflineRepositorySyncState
   usesLocalRepository: boolean
   updateSnapshot: (
     updater: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
@@ -64,6 +78,7 @@ type OfflineV2ContextValue = {
 }
 
 const OfflineV2Context = createContext<OfflineV2ContextValue | null>(null)
+const FOREGROUND_STALE_MS = 30_000
 
 export function OfflineV2Provider({
   children,
@@ -77,11 +92,15 @@ export function OfflineV2Provider({
   const [conflicts, setConflicts] = useState<OfflineConflict[]>([])
   const [isOnline, setIsOnline] = useState(true)
   const [status, setStatus] = useState<OfflineSyncStatus>("preparing")
-  const [usesLocalRepository, setUsesLocalRepository] = useState(false)
+  const [repositoryState, setRepositoryState] =
+    useState<OfflineRepositoryState>("preparing")
+  const [syncState, setSyncState] =
+    useState<OfflineRepositorySyncState>("idle")
   const [currentPath, setCurrentPath] = useState("/dashboard")
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
   const refreshInFlightRef = useRef<Promise<void> | null>(null)
+  const lastRefreshAtRef = useRef(0)
 
   const reloadLocalState = useCallback(async () => {
     const [storedSnapshot, storedOperations, storedConflicts] =
@@ -110,21 +129,18 @@ export function OfflineV2Provider({
         )
       : null
     snapshotRevisionRef.current = usableSnapshot?.revision ?? 0
+    lastRefreshAtRef.current = usableSnapshot
+      ? Date.parse(usableSnapshot.refreshedAt)
+      : 0
     snapshotStateRef.current = usableSnapshot
     setSnapshot(usableSnapshot)
     setOperations(storedOperationsForIdentity)
     setConflicts(identityMatches ? storedConflicts : [])
-    if (
-      usableSnapshot &&
-      (!navigator.onLine ||
-        storedOperationsForIdentity.length > 0 ||
-        storedConflicts.length > 0)
-    ) {
-      setUsesLocalRepository(true)
-    }
     if (!usableSnapshot) {
+      setRepositoryState("unavailable")
       setStatus("cold")
     } else if (!isOfflineLeaseValid(usableSnapshot.leaseExpiresAt)) {
+      setRepositoryState("locked")
       setStatus("lease_expired")
     } else if (
       storedConflicts.length ||
@@ -132,10 +148,16 @@ export function OfflineV2Provider({
         (operation) => operation.state === "needs_attention"
       )
     ) {
+      setRepositoryState("ready")
+      setSyncState("needs_attention")
       setStatus("needs_attention")
     } else if (storedOperationsForIdentity.length) {
+      setRepositoryState("ready")
+      setSyncState("pending")
       setStatus("changes_pending")
     } else {
+      setRepositoryState("ready")
+      setSyncState("idle")
       setStatus(navigator.onLine ? "offline_ready" : "offline")
     }
   }, [serverMembership])
@@ -145,7 +167,11 @@ export function OfflineV2Provider({
       await reloadLocalState()
       return
     }
-    setStatus("preparing")
+    setSyncState("syncing")
+    if (!snapshotStateRef.current) {
+      setRepositoryState("preparing")
+      setStatus("preparing")
+    }
     try {
       const queuedOperations = await getOfflineV2Operations()
       const { readyOperations } = await preparePendingUploads(queuedOperations)
@@ -156,8 +182,9 @@ export function OfflineV2Provider({
             ? "changes_pending"
             : "preparing"
       )
+      const hasSnapshot = Boolean(snapshotStateRef.current)
       const response = await fetch(
-        readyOperations.length ? "/api/offline/sync" : "/api/offline/bootstrap",
+        hasSnapshot ? "/api/offline/sync" : "/api/offline/bootstrap",
         {
           cache: "no-store",
           credentials: "same-origin",
@@ -165,12 +192,13 @@ export function OfflineV2Provider({
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-          method: readyOperations.length ? "POST" : "GET",
-          ...(readyOperations.length
+          method: hasSnapshot ? "POST" : "GET",
+          ...(hasSnapshot
             ? {
                 body: JSON.stringify({
                   operations: readyOperations,
                   revision: snapshotRevisionRef.current,
+                  schemaVersion: snapshotStateRef.current?.schemaVersion,
                 }),
               }
             : {}),
@@ -182,7 +210,8 @@ export function OfflineV2Provider({
         setSnapshot(null)
         setOperations([])
         setConflicts([])
-        setUsesLocalRepository(false)
+        setRepositoryState("unavailable")
+        setSyncState("idle")
         setStatus("cold")
         return
       }
@@ -190,65 +219,113 @@ export function OfflineV2Provider({
       const payload = (await response.json()) as
         OfflineV2Snapshot | OfflineSyncResult
       const syncResult = "operationResults" in payload ? payload : null
-      if (syncResult) {
-        const replayedById = new Map(
-          readyOperations.map((operation) => [
-            operation.clientOperationId,
-            operation,
-          ])
-        )
-        for (const result of syncResult.operationResults) {
-          if (result.status === "acknowledged") {
-            await removeOfflineV2Operation(result.clientOperationId)
-            continue
-          }
-          const replayed = replayedById.get(result.clientOperationId)
-          if (replayed) {
-            await putOfflineV2Operation({
-              ...replayed,
-              lastError:
-                result.error ?? "The queued change could not be applied.",
-              state:
-                result.status === "conflict" ||
-                result.status === "needs_attention"
-                  ? "needs_attention"
-                  : "pending",
-            })
-          }
-        }
-        for (const conflict of syncResult.conflicts) {
-          await putOfflineConflict(conflict)
-        }
-        await applyOfflineIdMappings(syncResult.idMappings)
+      const currentSnapshot = snapshotStateRef.current
+      const nextSnapshot = syncResult
+        ? syncResult.fullSnapshot ??
+          (syncResult.patch && currentSnapshot
+            ? applyOfflineV2Patch(currentSnapshot, syncResult.patch)
+            : currentSnapshot)
+        : (payload as OfflineV2Snapshot)
+      if (!nextSnapshot) {
+        throw new Error("Synchronisation did not return repository data")
       }
-      const nextSnapshot =
-        syncResult?.snapshot ?? (payload as OfflineV2Snapshot)
       snapshotRevisionRef.current = nextSnapshot.revision
+      lastRefreshAtRef.current = Date.now()
       const structuredBytes = new Blob([JSON.stringify(nextSnapshot)]).size
       const capacity = await estimateOfflineCapacity(structuredBytes)
       if (!capacity.sufficient) {
+        setSyncState("storage_warning")
         setStatus("storage_warning")
         return
       }
-      await persistOfflineV2Snapshot(nextSnapshot)
-      const mediaComplete = await cacheOfflineSnapshotMedia(nextSnapshot)
+      const storedOperations = await getOfflineV2Operations()
+      const replayedById = new Map(
+        readyOperations.map((operation) => [
+          operation.clientOperationId,
+          operation,
+        ])
+      )
+      const resultById = new Map(
+        syncResult?.operationResults.map((result) => [
+          result.clientOperationId,
+          result,
+        ]) ?? []
+      )
+      const nextOperations = storedOperations.flatMap((operation) => {
+        const result = resultById.get(operation.clientOperationId)
+        if (!result) return [operation]
+        if (result.status === "acknowledged") return []
+        const replayed = replayedById.get(operation.clientOperationId) ?? operation
+        return [
+          {
+            ...replayed,
+            lastError:
+              result.error ?? "The queued change could not be applied.",
+            state:
+              result.status === "conflict" ||
+              result.status === "needs_attention"
+                ? ("needs_attention" as const)
+                : ("pending" as const),
+          },
+        ]
+      })
+      const existingConflicts = await getOfflineConflicts()
+      const nextConflicts = Array.from(
+        new Map(
+          [...existingConflicts, ...(syncResult?.conflicts ?? [])].map(
+            (conflict) => [conflict.clientOperationId, conflict]
+          )
+        ).values()
+      )
+      const reconciledSnapshot = currentSnapshot
+        ? preservePendingOptimisticDomains(
+            nextSnapshot,
+            currentSnapshot,
+            nextOperations
+          )
+        : nextSnapshot
+      const optimisticSnapshot = await applyPendingOptimisticState(
+        reconciledSnapshot,
+        nextOperations
+      )
+      const committedSnapshot = syncResult
+        ? await commitOfflineV2Sync({
+            conflicts: nextConflicts,
+            idMappings: syncResult.idMappings,
+            operations: nextOperations,
+            snapshot: optimisticSnapshot,
+          })
+        : optimisticSnapshot
+      if (!syncResult) await persistOfflineV2Snapshot(committedSnapshot)
+      const mediaComplete = await cacheOfflineSnapshotMedia(committedSnapshot)
       const shellReady = await ensureOfflineShellReady(
         navigator.serviceWorker,
         window.caches
       )
-      const [nextOperations, nextConflicts] = await Promise.all([
-        getOfflineV2Operations(),
-        getOfflineConflicts(),
-      ])
-      const hydratedSnapshot = await hydrateOfflineSnapshotMedia(nextSnapshot)
-      const optimisticSnapshot = await applyPendingOptimisticState(
-        hydratedSnapshot,
-        nextOperations
+      const hydratedSnapshot = await hydrateOfflineSnapshotMedia(
+        committedSnapshot
       )
-      snapshotStateRef.current = optimisticSnapshot
-      setSnapshot(optimisticSnapshot)
+      snapshotStateRef.current = hydratedSnapshot
+      setSnapshot(hydratedSnapshot)
       setOperations(nextOperations)
       setConflicts(nextConflicts)
+      setRepositoryState(
+        isOfflineLeaseValid(hydratedSnapshot.leaseExpiresAt)
+          ? "ready"
+          : "locked"
+      )
+      setSyncState(
+        !mediaComplete || !shellReady
+          ? "storage_warning"
+          : nextConflicts.length ||
+              nextOperations.some(
+                (operation) => operation.state === "needs_attention"
+              )
+            ? "needs_attention"
+            : nextOperations.length
+              ? "pending"
+              : "idle"
+      )
       setStatus(
         !mediaComplete || !shellReady
           ? "storage_warning"
@@ -296,7 +373,7 @@ export function OfflineV2Provider({
         }
         setSnapshot(null)
         snapshotStateRef.current = null
-        setUsesLocalRepository(false)
+        setRepositoryState("unavailable")
         setStatus("cold")
         return
       }
@@ -320,11 +397,14 @@ export function OfflineV2Provider({
     }
     const onOffline = () => {
       setIsOnline(false)
-      setUsesLocalRepository(true)
       void reloadLocalState()
     }
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
+      if (
+        document.visibilityState === "visible" &&
+        navigator.onLine &&
+        Date.now() - lastRefreshAtRef.current >= FOREGROUND_STALE_MS
+      ) {
         void refresh()
       }
     }
@@ -377,7 +457,7 @@ export function OfflineV2Provider({
   )
 
   useEffect(() => {
-    if (!usesLocalRepository) return
+    if (repositoryState !== "ready" && repositoryState !== "locked") return
     const interceptDashboardLink = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -401,27 +481,54 @@ export function OfflineV2Provider({
         return
       }
       event.preventDefault()
-      event.stopPropagation()
       navigate(`${url.pathname}${url.search}`)
     }
     document.addEventListener("click", interceptDashboardLink, true)
     return () =>
       document.removeEventListener("click", interceptDashboardLink, true)
-  }, [navigate, usesLocalRepository])
+  }, [navigate, repositoryState])
 
-  const queueOperation = useCallback(async (operation: OfflineV2Operation) => {
-    await putOfflineV2Operation(operation)
-    setUsesLocalRepository(true)
-    setOperations((current) =>
-      [
-        ...current.filter(
-          (item) => item.clientOperationId !== operation.clientOperationId
-        ),
+  const queueOperation = useCallback(
+    async (
+      operation: OfflineV2Operation,
+      options?: {
+        blob?: Blob
+        optimistic?: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
+      }
+    ) => {
+      const current = snapshotStateRef.current
+      if (
+        repositoryState !== "ready" ||
+        !current ||
+        !isOfflineLeaseValid(current.leaseExpiresAt)
+      ) {
+        return false
+      }
+      const next = options?.optimistic ? options.optimistic(current) : current
+      await commitOfflineV2Operation({
+        ...(options?.blob ? { blob: options.blob } : {}),
         operation,
-      ].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt))
-    )
-    setStatus("changes_pending")
-  }, [])
+        snapshot: next,
+      })
+      snapshotStateRef.current = next
+      setSnapshot(next)
+      setOperations((existing) =>
+        [
+          ...existing.filter(
+            (item) => item.clientOperationId !== operation.clientOperationId
+          ),
+          operation,
+        ].toSorted((left, right) =>
+          left.createdAt.localeCompare(right.createdAt)
+        )
+      )
+      setSyncState("pending")
+      setStatus("changes_pending")
+      if (navigator.onLine) window.setTimeout(() => void refresh(), 0)
+      return true
+    },
+    [refresh, repositoryState]
+  )
 
   const updateSnapshot = useCallback(
     async (updater: (current: OfflineV2Snapshot) => OfflineV2Snapshot) => {
@@ -437,6 +544,9 @@ export function OfflineV2Provider({
 
   const value = useMemo<OfflineV2ContextValue>(
     () => ({
+      canMutate:
+        repositoryState === "ready" &&
+        Boolean(snapshot && isOfflineLeaseValid(snapshot.leaseExpiresAt)),
       conflicts,
       currentPath,
       isOnline,
@@ -444,9 +554,12 @@ export function OfflineV2Provider({
       operations,
       queueOperation,
       refresh,
+      repositoryState,
       snapshot,
       status,
-      usesLocalRepository,
+      syncState,
+      usesLocalRepository:
+        repositoryState === "ready" || repositoryState === "locked",
       updateSnapshot,
     }),
     [
@@ -457,9 +570,10 @@ export function OfflineV2Provider({
       operations,
       queueOperation,
       refresh,
+      repositoryState,
       snapshot,
       status,
-      usesLocalRepository,
+      syncState,
       updateSnapshot,
     ]
   )
@@ -469,7 +583,13 @@ export function OfflineV2Provider({
       <div
         className="contents"
         data-offline-provider={status}
-        data-offline-repository={usesLocalRepository ? "local" : "server"}
+        data-offline-repository={
+          repositoryState === "ready" || repositoryState === "locked"
+            ? "local"
+            : "server"
+        }
+        data-repository-state={repositoryState}
+        data-sync-state={syncState}
       >
         {children}
       </div>

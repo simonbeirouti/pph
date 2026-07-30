@@ -307,7 +307,7 @@ export function JobWorkspace({
           {filterActive ? (
             <p className="mt-1 text-sm text-primary">
               Dashboard filter applied.{" "}
-              <Link className="underline" href="/dashboard/jobs">
+              <Link className="underline" href="/dashboard/jobs" prefetch={false}>
                 Clear filter
               </Link>
             </p>
@@ -780,7 +780,7 @@ function JobCardView({
       >
         <Button
           nativeButton={false}
-          render={<Link href={`/dashboard/jobs?job=${job.id}`} />}
+          render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
           size="sm"
           variant="outline"
         >

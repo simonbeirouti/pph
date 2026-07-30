@@ -168,7 +168,7 @@ export function TemplateScheduleWorkspace({
               const href = `/dashboard/templates?view=${
                 value === "schedules" ? "schedules" : "templates"
               }`
-              if (offline.isOffline) offline.navigate?.(href)
+              if (offline.usesLocalRepository) offline.navigate?.(href)
               else router.push(href)
             }}
             value={initialView}
@@ -512,7 +512,7 @@ function ScheduleCard({
     try {
       await action()
       toast.success(success)
-      if (!offline.isOffline) router.refresh()
+      if (!offline.usesLocalRepository) router.refresh()
     } catch {
       toast.error("The schedule could not be updated")
     }
@@ -727,7 +727,7 @@ function TemplateForm({
       state: typeof INITIAL_TEMPLATE_ACTION_STATE,
       formData: FormData
     ) => {
-      if (!offline.isOffline) {
+      if (!offline.usesLocalRepository) {
         return saveTemplateAction(template?.id ?? null, state, formData)
       }
       const payload = templateFormPayload(formData)
@@ -806,15 +806,18 @@ function TemplateForm({
             rows={4}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor="template-location">Location</FieldLabel>
-          <Input
-            id="template-location"
-            defaultValue={template?.location}
-            name="location"
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-template-form-row="location-priority"
+        >
+          <Field>
+            <FieldLabel htmlFor="template-location">Location</FieldLabel>
+            <Input
+              id="template-location"
+              defaultValue={template?.location}
+              name="location"
+            />
+          </Field>
           <Field>
             <FieldLabel htmlFor="template-priority">Priority</FieldLabel>
             <FormSelect
@@ -824,6 +827,11 @@ function TemplateForm({
               options={PRIORITY_OPTIONS}
             />
           </Field>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-template-form-row="assignee-photos"
+        >
           <Field>
             <FieldLabel htmlFor="template-assignee">
               Default assignee
@@ -841,20 +849,21 @@ function TemplateForm({
               ]}
             />
           </Field>
+          <Field>
+            <FieldLabel htmlFor="template-minimum-photos">
+              Minimum completion photos
+            </FieldLabel>
+            <FormSelect
+              id="template-minimum-photos"
+              initialValue={String(template?.minimumCompletionPhotos ?? 0)}
+              name="minimumCompletionPhotos"
+              options={Array.from({ length: 11 }, (_, count) => ({
+                label: String(count),
+                value: String(count),
+              }))}
+            />
+          </Field>
         </div>
-        <Field>
-          <FieldLabel htmlFor="template-minimum-photos">
-            Minimum completion photos
-          </FieldLabel>
-          <Input
-            defaultValue={template?.minimumCompletionPhotos ?? 0}
-            id="template-minimum-photos"
-            max={10}
-            min={0}
-            name="minimumCompletionPhotos"
-            type="number"
-          />
-        </Field>
         <Field orientation="horizontal">
           <Checkbox
             defaultChecked={template?.requiresCompletionNote}
@@ -893,7 +902,7 @@ function ScheduleForm({
       state: typeof INITIAL_TEMPLATE_ACTION_STATE,
       formData: FormData
     ) => {
-      if (!offline.isOffline) {
+      if (!offline.usesLocalRepository) {
         return saveScheduleAction(schedule?.id ?? null, state, formData)
       }
       const payload = scheduleFormPayload(formData)
@@ -959,35 +968,43 @@ function ScheduleForm({
             {state.message}
           </p>
         ) : null}
-        <Field>
-          <FieldLabel htmlFor="schedule-template">Template</FieldLabel>
-          <FormSelect
-            id="schedule-template"
-            initialValue={String(schedule?.templateId ?? templates[0]?.id)}
-            name="templateId"
-            options={templates.map((template) => ({
-              label: `${template.title}${template.isActive ? "" : " (Inactive)"}`,
-              value: String(template.id),
-            }))}
-            required
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="schedule-assignee">Assignee</FieldLabel>
-          <FormSelect
-            id="schedule-assignee"
-            initialValue={String(
-              schedule?.assigneeMembershipId ?? employees[0]?.membershipId
-            )}
-            name="assigneeMembershipId"
-            options={employees.map((employee) => ({
-              label: employee.displayName,
-              value: String(employee.membershipId),
-            }))}
-            required
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-schedule-form-row="template-assignee"
+        >
+          <Field>
+            <FieldLabel htmlFor="schedule-template">Template</FieldLabel>
+            <FormSelect
+              id="schedule-template"
+              initialValue={String(schedule?.templateId ?? templates[0]?.id)}
+              name="templateId"
+              options={templates.map((template) => ({
+                label: `${template.title}${template.isActive ? "" : " (Inactive)"}`,
+                value: String(template.id),
+              }))}
+              required
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="schedule-assignee">Assignee</FieldLabel>
+            <FormSelect
+              id="schedule-assignee"
+              initialValue={String(
+                schedule?.assigneeMembershipId ?? employees[0]?.membershipId
+              )}
+              name="assigneeMembershipId"
+              options={employees.map((employee) => ({
+                label: employee.displayName,
+                value: String(employee.membershipId),
+              }))}
+              required
+            />
+          </Field>
+        </div>
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-schedule-form-row="repeat-time"
+        >
           <Field>
             <FieldLabel htmlFor="schedule-recurrence">Repeats</FieldLabel>
             <FormSelect
@@ -1028,7 +1045,10 @@ function ScheduleForm({
             </div>
           </Field>
         ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div
+          className="grid grid-cols-2 gap-4"
+          data-schedule-form-row="dates"
+        >
           <Field>
             <FieldLabel htmlFor="schedule-starts-on">Starts on</FieldLabel>
             <Input

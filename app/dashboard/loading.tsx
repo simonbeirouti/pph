@@ -5,7 +5,7 @@ export default function DashboardLoading() {
     <div
       aria-busy="true"
       aria-label="Loading dashboard"
-      className="grid gap-6"
+      className="grid gap-8"
       role="status"
     >
       <div className="grid gap-2">
@@ -28,22 +28,35 @@ export default function DashboardLoading() {
       </div>
       <div className="grid gap-6 xl:grid-cols-2">
         {Array.from({ length: 2 }, (_, panelIndex) => (
-          <div
-            className="grid h-[28rem] content-start gap-6 rounded-xl border p-4"
+          <section
+            className="flex h-[28rem] min-h-0 flex-col"
+            data-dashboard-loading-section
             key={panelIndex}
           >
             <div className="grid gap-2">
               <Skeleton className="h-5 w-36" />
               <Skeleton className="h-4 w-64 max-w-full" />
             </div>
-            <div className="grid gap-2">
+            <div className="mt-6 grid gap-2">
               {Array.from({ length: 4 }, (_, rowIndex) => (
-                <Skeleton className="h-16" key={rowIndex} />
+                <div
+                  className="flex h-16 items-center justify-between gap-3 rounded-lg border p-3"
+                  key={rowIndex}
+                >
+                  <div className="grid flex-1 gap-2">
+                    <Skeleton className="h-4 w-2/3 max-w-48" />
+                    <Skeleton className="h-3 w-1/2 max-w-32" />
+                  </div>
+                  <Skeleton className="h-5 w-16" />
+                </div>
               ))}
             </div>
-          </div>
+          </section>
         ))}
-        <div className="grid gap-6 rounded-xl border p-4 xl:col-span-2">
+        <section
+          className="xl:col-span-2"
+          data-dashboard-loading-section
+        >
           <div className="flex items-center justify-between gap-4">
             <div className="grid flex-1 gap-2">
               <Skeleton className="h-5 w-32" />
@@ -51,12 +64,21 @@ export default function DashboardLoading() {
             </div>
             <Skeleton className="h-8 w-24" />
           </div>
-          <div className="grid gap-2">
+          <div className="mt-6 grid gap-2">
             {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton className="h-16" key={index} />
+              <div
+                className="flex h-16 items-center justify-between gap-3 rounded-lg border p-3"
+                key={index}
+              >
+                <div className="grid flex-1 gap-2">
+                  <Skeleton className="h-4 w-40 max-w-2/3" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   )

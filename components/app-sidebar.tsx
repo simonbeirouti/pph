@@ -56,7 +56,7 @@ export function AppSidebar({
             <SidebarMenuButton
               size="lg"
               render={
-                <Link href="/dashboard" onNavigate={closeMobileSidebar} />
+                <Link href="/dashboard" onClick={closeMobileSidebar} prefetch={false} />
               }
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
@@ -84,7 +84,7 @@ export function AppSidebar({
                 isActive={pathname === "/dashboard"}
                 tooltip="Dashboard"
                 render={
-                  <Link href="/dashboard" onNavigate={closeMobileSidebar} />
+                  <Link href="/dashboard" onClick={closeMobileSidebar} prefetch={false} />
                 }
               >
                 <LayoutDashboardIcon />
@@ -101,7 +101,8 @@ export function AppSidebar({
                 render={
                   <Link
                     href="/dashboard/jobs"
-                    onNavigate={closeMobileSidebar}
+                    onClick={closeMobileSidebar}
+                    prefetch={false}
                   />
                 }
               >
@@ -120,7 +121,8 @@ export function AppSidebar({
                   render={
                     <Link
                       href="/dashboard/templates"
-                      onNavigate={closeMobileSidebar}
+                      onClick={closeMobileSidebar}
+                      prefetch={false}
                     />
                   }
                 >
@@ -140,7 +142,8 @@ export function AppSidebar({
                   render={
                     <Link
                       href="/dashboard/employees"
-                      onNavigate={closeMobileSidebar}
+                      onClick={closeMobileSidebar}
+                      prefetch={false}
                     />
                   }
                 >
@@ -159,7 +162,8 @@ export function AppSidebar({
                 render={
                   <Link
                     href="/dashboard/roster"
-                    onNavigate={closeMobileSidebar}
+                    onClick={closeMobileSidebar}
+                    prefetch={false}
                   />
                 }
               >

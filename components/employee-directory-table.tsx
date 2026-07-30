@@ -58,7 +58,7 @@ export function EmployeeDirectoryTable({
     state: Parameters<typeof updateEmployeeAction>[1],
     formData: FormData
   ) => {
-    if (!selectedEmployee || !offline.isOffline) {
+    if (!selectedEmployee || !offline.usesLocalRepository) {
       return selectedEmployee
         ? updateEmployeeAction(selectedEmployee.membershipId, state, formData)
         : { message: "Employee not found.", ok: false }

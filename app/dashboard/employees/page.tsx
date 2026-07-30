@@ -1,15 +1,12 @@
 import { EmployeeCreateDialog } from "@/components/employee-create-dialog"
 import { EmployeeDirectoryTable } from "@/components/employee-directory-table"
+import {
+  EmployeeStatusFilter,
+  type EmployeeStatusFilterValue,
+} from "@/components/employee-status-filter"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { listEmployees } from "@/lib/employees/data"
 import { requirePeopleManager } from "@/lib/auth/membership"
 import { listEmployeeJobSummaries } from "@/lib/jobs/data"
@@ -28,7 +25,7 @@ export default async function Page({
   const params = await searchParams
   const actor = await requirePeopleManager()
   const status = STATUSES.has(params.status ?? "")
-    ? (params.status as "all" | "invited" | "active" | "inactive")
+    ? (params.status as EmployeeStatusFilterValue)
     : "all"
   const [employees, jobSummaries, shiftSummaries, rosterContext] =
     await Promise.all([
@@ -58,20 +55,7 @@ export default async function Page({
               name="q"
               placeholder="Search name or email"
             />
-            <Select defaultValue={status} name="status">
-              <SelectTrigger
-                aria-label="Filter by status"
-                className="h-8 w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="invited">Invited</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            <EmployeeStatusFilter status={status} />
             <Button type="submit" variant="outline">
               Apply
             </Button>

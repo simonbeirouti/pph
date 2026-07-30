@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useActionState, useEffect, useRef, useState } from "react"
+import { CameraIcon } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -40,12 +41,14 @@ export function FieldErrors({ errors }: { errors: string[] | undefined }) {
 
 export function EmployeeProfileFields({
   employee,
+  createLayout = false,
   idPrefix = "",
   includeAvatar = true,
   includeEmail = true,
   state,
 }: {
   employee?: EmployeeSummary
+  createLayout?: boolean
   idPrefix?: string
   includeAvatar?: boolean
   includeEmail?: boolean
@@ -60,6 +63,7 @@ export function EmployeeProfileFields({
   return (
     <EmployeeProfileFieldControls
       employee={employee}
+      createLayout={createLayout}
       idPrefix={idPrefix}
       includeAvatar={includeAvatar}
       includeEmail={includeEmail}
@@ -78,6 +82,7 @@ export function EmployeeProfileFields({
 
 function EmployeeProfileFieldControls({
   employee,
+  createLayout,
   idPrefix,
   includeAvatar,
   includeEmail,
@@ -85,6 +90,7 @@ function EmployeeProfileFieldControls({
   state,
 }: {
   employee?: EmployeeSummary
+  createLayout: boolean
   idPrefix: string
   includeAvatar: boolean
   includeEmail: boolean
@@ -100,6 +106,15 @@ function EmployeeProfileFieldControls({
   const editing = Boolean(employee)
   const fieldId = (name: string) => `${idPrefix}${name}`
   const [values, setValues] = useState(initialValues)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  useEffect(
+    () => () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    },
+    [avatarPreview]
+  )
 
   const updateValue =
     (field: keyof typeof values) =>
@@ -112,7 +127,77 @@ function EmployeeProfileFieldControls({
 
   return (
     <>
-      <div className="grid gap-4 pt-2 sm:grid-cols-2">
+      {includeAvatar && createLayout ? (
+        <Field className="items-center [&>button]:w-24 [&>button]:max-w-24">
+          <Input
+            accept="image/jpeg,image/png,image/webp"
+            aria-invalid={Boolean(state.errors?.avatar)}
+            aria-label="Profile photo"
+            className="sr-only"
+            id={fieldId("avatar")}
+            name="avatar"
+            onChange={(event) => {
+              if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+              const file = event.target.files?.[0]
+              setAvatarPreview(file ? URL.createObjectURL(file) : null)
+            }}
+            ref={avatarInputRef}
+            type="file"
+          />
+          <button
+            aria-label="Upload profile photo"
+            className="relative grid aspect-square size-24 shrink-0 place-items-center overflow-hidden rounded-full border bg-muted text-xl font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={() => avatarInputRef.current?.click()}
+            type="button"
+          >
+            {avatarPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
+              <img
+                alt="Selected profile preview"
+                className="size-full object-cover"
+                src={avatarPreview}
+              />
+            ) : values.firstName || values.lastName ? (
+              `${values.firstName.charAt(0)}${values.lastName.charAt(0)}`.toUpperCase()
+            ) : (
+              <CameraIcon className="size-7" />
+            )}
+          </button>
+          <FieldDescription className="text-center">
+            JPEG, PNG, or WebP; maximum 5 MB.
+          </FieldDescription>
+          <FieldErrors errors={state.errors?.avatar} />
+        </Field>
+      ) : null}
+      {includeEmail && !createLayout ? (
+        <Field>
+          <FieldLabel htmlFor={fieldId("email")}>Email</FieldLabel>
+          <Input
+            aria-invalid={Boolean(state.errors?.email)}
+            disabled={editing}
+            id={fieldId("email")}
+            name="email"
+            onChange={updateValue("email")}
+            type="email"
+            required={!editing}
+            value={values.email}
+          />
+          {editing ? (
+            <FieldDescription>
+              Email is the account’s sign-in identity and cannot be edited.
+            </FieldDescription>
+          ) : null}
+          <FieldErrors errors={state.errors?.email} />
+        </Field>
+      ) : null}
+      <div
+        className={
+          createLayout
+            ? "grid grid-cols-2 gap-4 pt-2"
+            : "grid gap-4 pt-2 sm:grid-cols-2"
+        }
+        data-employee-form-row={createLayout ? "name" : undefined}
+      >
         <Field>
           <FieldLabel htmlFor={fieldId("firstName")}>First name</FieldLabel>
           <Input
@@ -138,28 +223,35 @@ function EmployeeProfileFieldControls({
           <FieldErrors errors={state.errors?.lastName} />
         </Field>
       </div>
-      {includeEmail ? (
-        <Field>
-          <FieldLabel htmlFor={fieldId("email")}>Email</FieldLabel>
-          <Input
-            aria-invalid={Boolean(state.errors?.email)}
-            disabled={editing}
-            id={fieldId("email")}
-            name="email"
-            onChange={updateValue("email")}
-            type="email"
-            required={!editing}
-            value={values.email}
-          />
-          {editing ? (
-            <FieldDescription>
-              Email is the account’s sign-in identity and cannot be edited.
-            </FieldDescription>
-          ) : null}
-          <FieldErrors errors={state.errors?.email} />
-        </Field>
-      ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={
+          createLayout
+            ? "grid grid-cols-2 gap-4"
+            : "grid gap-4 sm:grid-cols-2"
+        }
+        data-employee-form-row={createLayout ? "contact" : undefined}
+      >
+        {includeEmail && createLayout ? (
+          <Field>
+            <FieldLabel htmlFor={fieldId("email")}>Email</FieldLabel>
+            <Input
+              aria-invalid={Boolean(state.errors?.email)}
+              disabled={editing}
+              id={fieldId("email")}
+              name="email"
+              onChange={updateValue("email")}
+              type="email"
+              required={!editing}
+              value={values.email}
+            />
+            {editing ? (
+              <FieldDescription>
+                Email is the account’s sign-in identity and cannot be edited.
+              </FieldDescription>
+            ) : null}
+            <FieldErrors errors={state.errors?.email} />
+          </Field>
+        ) : null}
         <Field>
           <FieldLabel htmlFor={fieldId("phone")}>Phone</FieldLabel>
           <Input
@@ -172,6 +264,22 @@ function EmployeeProfileFieldControls({
           />
           <FieldErrors errors={state.errors?.phone} />
         </Field>
+        {!createLayout ? (
+          <Field>
+            <FieldLabel htmlFor={fieldId("jobTitle")}>Job title</FieldLabel>
+            <Input
+              aria-invalid={Boolean(state.errors?.jobTitle)}
+              id={fieldId("jobTitle")}
+              name="jobTitle"
+              onChange={updateValue("jobTitle")}
+              required
+              value={values.jobTitle}
+            />
+            <FieldErrors errors={state.errors?.jobTitle} />
+          </Field>
+        ) : null}
+      </div>
+      {createLayout ? (
         <Field>
           <FieldLabel htmlFor={fieldId("jobTitle")}>Job title</FieldLabel>
           <Input
@@ -184,8 +292,8 @@ function EmployeeProfileFieldControls({
           />
           <FieldErrors errors={state.errors?.jobTitle} />
         </Field>
-      </div>
-      {includeAvatar ? (
+      ) : null}
+      {includeAvatar && !createLayout ? (
         <Field>
           <FieldLabel htmlFor={fieldId("avatar")}>
             {editing ? "Replace profile photo" : "Profile photo (optional)"}
@@ -208,7 +316,9 @@ function EmployeeProfileFieldControls({
 export function EmployeeForm({
   action,
   canChooseRole = false,
+  createLayout = false,
   employee,
+  fullWidthSubmit = false,
   returnHref = "/dashboard/employees",
   returnLabel = "Back to employees",
   onSuccess,
@@ -217,7 +327,9 @@ export function EmployeeForm({
 }: {
   action: EmployeeFormAction
   canChooseRole?: boolean
+  createLayout?: boolean
   employee?: EmployeeSummary
+  fullWidthSubmit?: boolean
   onSuccess?: (state: ActionState) => void
   returnHref?: string
   returnLabel?: string
@@ -230,6 +342,10 @@ export function EmployeeForm({
   )
   const handledSuccess = useRef<string | null>(null)
   const editing = Boolean(employee)
+  const [role, setRole] = useState<"employee" | "manager" | "owner">(
+    (state.values?.role as "employee" | "manager" | "owner" | undefined) ??
+      "employee"
+  )
 
   useEffect(() => {
     if (state.ok && state.message && handledSuccess.current !== state.message) {
@@ -249,6 +365,7 @@ export function EmployeeForm({
                 <Link
                   className="underline"
                   href={`/dashboard/employees/${state.destinationId}`}
+                  prefetch={false}
                 >
                   View employee
                 </Link>
@@ -261,16 +378,32 @@ export function EmployeeForm({
             <AlertDescription>{warning}</AlertDescription>
           </Alert>
         ))}
+        <EmployeeProfileFields
+          createLayout={createLayout}
+          employee={employee}
+          state={state}
+        />
         {!editing ? (
           <Field>
             <FieldLabel htmlFor="role">Role</FieldLabel>
             {canChooseRole ? (
               <Select
-                defaultValue={state.values?.role ?? "employee"}
                 name="role"
+                onValueChange={(value) => {
+                  if (value) {
+                    setRole(value as "employee" | "manager" | "owner")
+                  }
+                }}
+                value={role}
               >
                 <SelectTrigger id="role">
-                  <SelectValue />
+                  <SelectValue>
+                    {role === "employee"
+                      ? "Employee"
+                      : role === "manager"
+                        ? "Manager"
+                        : "Owner"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">Employee</SelectItem>
@@ -290,9 +423,16 @@ export function EmployeeForm({
             </FieldDescription>
           </Field>
         ) : null}
-        <EmployeeProfileFields employee={employee} state={state} />
-        <div className="flex flex-wrap gap-3">
-          <Button disabled={pending} type="submit">
+        <div
+          className={
+            fullWidthSubmit ? "grid w-full" : "flex flex-wrap gap-3"
+          }
+        >
+          <Button
+            className={fullWidthSubmit ? "w-full" : undefined}
+            disabled={pending}
+            type="submit"
+          >
             {pending
               ? editing
                 ? "Saving…"
@@ -305,7 +445,7 @@ export function EmployeeForm({
             <Button
               nativeButton={false}
               variant="outline"
-              render={<Link href={returnHref} />}
+              render={<Link href={returnHref} prefetch={false} />}
             >
               {returnLabel}
             </Button>

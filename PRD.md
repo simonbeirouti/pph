@@ -1702,6 +1702,17 @@ Automated implementation evidence (2026-07-29):
   for both roles. Changed-file ESLint, TypeScript, the 10-test job-detail suite,
   `git diff --check`, and the employee Pixel 7 plus desktop-owner
   execution/review journey pass with decoded-image assertions in both viewers.
+- Shared job-detail hierarchy follow-up (2026-07-30): reviewer sheets and
+  assigned-worker dialogs/drawers now use the same decision-oriented order:
+  job details, work and evidence, then history. The later UI-refinement
+  checkpoint removed the separate comment composer in favour of the employee
+  work-note surface labelled “Work note or comment”; legacy comments remain
+  visible in collapsed History, and stored comment/offline contracts remain
+  compatible without migration.
+  The compact metadata grid sits immediately below the header divider without
+  a redundant visible section title while retaining an accessible region name.
+  Changed-file ESLint, TypeScript, 12 focused job-detail component checks, and
+  `git diff --check` pass for both role-specific surfaces and the shared order.
 - Dashboard/offline/push UI remediation (2026-07-30): removed the employee
   dashboard's nested roster/work section cards while retaining its greeting,
   plain headings, current shift, single next shift, and individual job cards.
@@ -1721,6 +1732,78 @@ Automated implementation evidence (2026-07-29):
   public-route, or reference-file change was required. Used the Vercel
   React/Next.js and Playwright project skills. S12 remains `in_progress` for the
   existing manual staging and real-device gates.
+- UI refinement checkpoint — dashboard (2026-07-30): aligned the dashboard
+  route fallback with the flat operational-section presentation while retaining
+  statistic and row-card geometry plus the accessible busy state. Changed-file
+  ESLint and the 7-test loading-state component suite pass. No database,
+  permission, environment-variable, public-route, or reference-file change was
+  required. Used the Vercel React/Next.js and Playwright project skills; S12
+  remains `in_progress`.
+- UI refinement checkpoint — jobs (2026-07-30): added the mobile capped,
+  scrollable creation drawer, scroll-safe desktop create/edit dialogs, a
+  split-button template launcher, compact paired fields, capitalised priority
+  display, a 0–10 completion-photo select, the shortened Require note control,
+  and query-keyed employee detail remounting. Work notes are the single
+  authoring surface while legacy comments remain in History. Changed-file
+  ESLint, TypeScript, 21 focused component tests, and the desktop Chromium
+  create/filter/reassign journey pass; the combined mobile browser checkpoint
+  is recorded below. No schema, migration, RLS, permission, environment,
+  offline-operation, or route contract changed.
+- UI refinement checkpoint — employees (2026-07-30): employee creation now
+  uses a capped scrollable drawer on mobile and a scroll-safe dialog on
+  desktop, with a centred circular photo picker, compact name/contact rows,
+  capitalised role display, and a full-width Create and invite action.
+  Changed-file ESLint, TypeScript, and 2 focused component tests pass.
+- UI refinement checkpoint — roster (2026-07-30): paired employee/date in the
+  create-shift form, expanded Create shift to full width, and allowed the
+  employee filter to span mobile width while retaining its compact desktop
+  width. Changed-file ESLint and all 19 focused roster-calendar component tests
+  pass.
+- The jobs, employees, and roster UI checkpoints used the Vercel React/Next.js
+  and Playwright project skills. They required no database, permission,
+  environment-variable, public-route, or reference-file changes. S12 remains
+  `in_progress` for the existing staging and real-device gates.
+- UI refinement browser checkpoint (2026-07-30): 12 focused Playwright checks
+  pass across desktop Chromium, Mobile Chrome, and Mobile Safari. Coverage
+  proves desktop dialog versus mobile drawer selection, viewport-capped and
+  scroll-reachable job/employee forms, split-template prefill, immediate
+  employee job opening after client-side query navigation, the merged work-note
+  copy, employee avatar preview/upload handling, and responsive roster form and
+  filter controls. The existing full invitation lifecycle also reached and
+  persisted the new employee/avatar successfully, then failed later at its
+  unrelated generated invite callback (`/auth/confirm/error?reason=invalid`);
+  that pre-existing integration gate remains deferred and does not change this
+  UI checkpoint's result.
+- Local-first v2 repository checkpoint (2026-07-30): a valid hydrated
+  IndexedDB snapshot is now the normal mounted dashboard read source online and
+  offline, after the authenticated SSR cold-start handoff. Repository readiness,
+  connectivity, and sync state are independent; warm dashboard links use local
+  history with Next route prefetch disabled, Realtime invalidations request an
+  incremental repository sync instead of `router.refresh()`, and background
+  revalidation leaves rendered content in place.
+- Online and offline edits now share the durable outbox path. Queueing writes the
+  operation, optional blob, and optimistic snapshot atomically; sync applies
+  acknowledgements, conflicts, canonical ID mappings, domain patches, revision
+  metadata, and remaining optimistic state in one IndexedDB transaction.
+  Incremental sync pages the role-scoped revision feed in bounded 5,000-row
+  batches, rebuilds affected projections, and falls back to a complete bootstrap
+  for schema/revision gaps, identity or role changes, unsupported tables, or an
+  excessive backlog.
+- Verification passed changed-file ESLint, TypeScript, 7 focused Vitest files /
+  62 tests, the production build, the focused offline-v2 database file / 14
+  assertions, 14 all-role local-first Playwright journeys across desktop
+  Chromium and Mobile Chrome, and the 2 desktop/mobile assigned-work reconnect
+  regressions. No migration, RLS, environment-variable, public-route, or
+  private-media CacheStorage contract changed. The legacy work-pack migration
+  remains intentionally available, and TanStack Query is not part of the active
+  repository path. Used the Supabase, Supabase Postgres, Vercel React/Next.js,
+  and Playwright project skills. S12 and TODO-015 remain `in_progress` for the
+  existing native iOS/Android staging gates, so the release remains **NO-GO**.
+- Production diagnostics cleanup (2026-07-30): removed the development-only
+  dashboard payload logger so role, job, roster, and timezone summaries are no
+  longer emitted to the server console. Changed-file ESLint, TypeScript, and a
+  repository search for the debug marker pass; no behaviour, schema, permission,
+  environment-variable, or route contract changed.
 
 ## 13. Prototype and production readiness
 
@@ -1869,7 +1952,7 @@ resolution changes product behaviour, update this document first.
 | TODO-010 | All steps       | S12    | Reconcile `.env.example`, runtime validation, deployment variables, and `.env.local` instructions | `complete`    |
 | TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete`    |
 | TODO-014 | S03/S05/S10     | S11    | Add the original IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete`    |
-| TODO-015 | S11/real-device | S12    | Replace narrow assigned-work fallback with complete all-role offline-first dashboard and sync     | `in_progress` |
+| TODO-015 | S11/real-device | S12    | Validate the complete all-role local-first dashboard and sync through native staging acceptance   | `in_progress` |
 
 Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
 TODO-012, and TODO-013.

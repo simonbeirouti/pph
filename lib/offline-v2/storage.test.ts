@@ -3,6 +3,9 @@ import "fake-indexeddb/auto"
 import { afterEach, describe, expect, it } from "vitest"
 
 import {
+  commitOfflineV2Operation,
+  commitOfflineV2Sync,
+  getOfflineV2Blob,
   getOfflineV2Identity,
   getOfflineV2Operations,
   getOfflineV2Snapshot,
@@ -117,5 +120,66 @@ describe("offline v2 IndexedDB", () => {
     ).toBe(true)
     expect(isOfflineLeaseValid(expiry, Date.parse(expiry))).toBe(false)
     expect(isOfflineLeaseValid("invalid", Date.now())).toBe(false)
+  })
+
+  it("atomically persists an optimistic snapshot, operation, and blob", async () => {
+    const operation = {
+      clientOperationId: "40000000-0000-4000-8000-000000000002",
+      createdAt: "2026-07-29T01:00:00.000Z",
+      dependsOn: [],
+      entity: { id: 1, source: "server" as const },
+      entityType: "job" as const,
+      expectedVersion: 1,
+      kind: "job.note" as const,
+      payload: { body: "Locally saved" },
+      state: "pending" as const,
+    }
+    const optimistic = {
+      ...snapshot(),
+      refreshedAt: "2026-07-29T01:00:00.000Z",
+    }
+    const blob = new Blob(["evidence"], { type: "image/png" })
+
+    await commitOfflineV2Operation({
+      blob,
+      operation,
+      snapshot: optimistic,
+    })
+
+    expect(await getOfflineV2Operations()).toEqual([operation])
+    expect((await getOfflineV2Snapshot())?.refreshedAt).toBe(
+      optimistic.refreshedAt
+    )
+    expect(await getOfflineV2Blob(operation.clientOperationId)).not.toBeNull()
+  })
+
+  it("commits acknowledgements, mappings, conflicts, and snapshot together", async () => {
+    const operation = {
+      clientOperationId: "40000000-0000-4000-8000-000000000003",
+      createdAt: "2026-07-29T01:00:00.000Z",
+      dependsOn: [],
+      entity: { id: "local-job", source: "local" as const },
+      entityType: "job" as const,
+      expectedVersion: null,
+      kind: "job.create" as const,
+      payload: { temporaryId: -10 },
+      state: "pending" as const,
+    }
+    await commitOfflineV2Operation({
+      blob: new Blob(["pending"]),
+      operation,
+      snapshot: snapshot(),
+    })
+
+    await commitOfflineV2Sync({
+      conflicts: [],
+      idMappings: { "-10": 1401, "local-job": 1401 },
+      operations: [],
+      snapshot: { ...snapshot(), revision: 2 },
+    })
+
+    expect(await getOfflineV2Operations()).toEqual([])
+    expect(await getOfflineV2Blob(operation.clientOperationId)).toBeNull()
+    expect((await getOfflineV2Snapshot())?.revision).toBe(2)
   })
 })

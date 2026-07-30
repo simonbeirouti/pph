@@ -160,6 +160,109 @@ export async function putOfflineV2Operation(operation: OfflineV2Operation) {
   )
 }
 
+export async function commitOfflineV2Operation({
+  blob,
+  operation,
+  snapshot,
+}: {
+  blob?: Blob
+  operation: OfflineV2Operation
+  snapshot: OfflineV2Snapshot
+}) {
+  const database = await openDatabase()
+  const storeNames: StoreName[] = [
+    STORES.outbox,
+    STORES.snapshots,
+    STORES.entities,
+  ]
+  if (blob) storeNames.push(STORES.blobs)
+  const transaction = database.transaction(storeNames, "readwrite")
+  transaction
+    .objectStore(STORES.outbox)
+    .put(operation, operation.clientOperationId)
+  transaction
+    .objectStore(STORES.snapshots)
+    .put(snapshot, ACTIVE_SNAPSHOT_KEY)
+  const entities = transaction.objectStore(STORES.entities)
+  entities.clear()
+  for (const [key, value] of normaliseSnapshot(snapshot)) {
+    entities.put(value, key)
+  }
+  if (blob) {
+    transaction
+      .objectStore(STORES.blobs)
+      .put(blob, operation.clientOperationId)
+  }
+  await transactionDone(transaction)
+}
+
+export async function commitOfflineV2Sync({
+  conflicts,
+  idMappings,
+  operations,
+  snapshot,
+}: {
+  conflicts: OfflineConflict[]
+  idMappings: Record<string, number>
+  operations: OfflineV2Operation[]
+  snapshot: OfflineV2Snapshot
+}) {
+  const currentOperations = await getOfflineV2Operations()
+  const retainedOperationIds = new Set(
+    operations.map((operation) => operation.clientOperationId)
+  )
+  const rewrittenSnapshot = rewriteMappedValues(
+    snapshot,
+    idMappings
+  ) as OfflineV2Snapshot
+  const rewrittenOperations = operations.map(
+    (operation) =>
+      rewriteMappedValues(operation, idMappings) as OfflineV2Operation
+  )
+  const database = await openDatabase()
+  const transaction = database.transaction(
+    [
+      STORES.blobs,
+      STORES.conflicts,
+      STORES.entities,
+      STORES.mappings,
+      STORES.outbox,
+      STORES.snapshots,
+    ],
+    "readwrite"
+  )
+  const mappingStore = transaction.objectStore(STORES.mappings)
+  for (const [localId, serverId] of Object.entries(idMappings)) {
+    mappingStore.put(serverId, localId)
+  }
+  const outbox = transaction.objectStore(STORES.outbox)
+  outbox.clear()
+  for (const operation of rewrittenOperations) {
+    outbox.put(operation, operation.clientOperationId)
+  }
+  const blobs = transaction.objectStore(STORES.blobs)
+  for (const operation of currentOperations) {
+    if (!retainedOperationIds.has(operation.clientOperationId)) {
+      blobs.delete(operation.clientOperationId)
+    }
+  }
+  const conflictStore = transaction.objectStore(STORES.conflicts)
+  conflictStore.clear()
+  for (const conflict of conflicts) {
+    conflictStore.put(conflict, conflict.clientOperationId)
+  }
+  transaction
+    .objectStore(STORES.snapshots)
+    .put(rewrittenSnapshot, ACTIVE_SNAPSHOT_KEY)
+  const entities = transaction.objectStore(STORES.entities)
+  entities.clear()
+  for (const [key, value] of normaliseSnapshot(rewrittenSnapshot)) {
+    entities.put(value, key)
+  }
+  await transactionDone(transaction)
+  return rewrittenSnapshot
+}
+
 export async function getOfflineV2Operations() {
   const operations = await getAllValues<OfflineV2Operation>(STORES.outbox)
   return operations.toSorted((left, right) =>

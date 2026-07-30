@@ -37,7 +37,8 @@ export function NavUser({
           render={
             <Link
               href="/dashboard/profile"
-              onNavigate={() => {
+              prefetch={false}
+              onClick={() => {
                 if (isMobile) setOpenMobile(false)
               }}
             />

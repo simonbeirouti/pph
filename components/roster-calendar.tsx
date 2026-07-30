@@ -169,6 +169,7 @@ function ShiftDetails({
                 <Link
                   className="block rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted"
                   href={`/dashboard/jobs?job=${job.id}`}
+                  prefetch={false}
                 >
                   {job.title}
                 </Link>
@@ -1289,7 +1290,7 @@ export function RosterCalendar({
     href: string,
     options?: { replace?: boolean }
   ) => {
-    if (offline.isOffline) {
+    if (offline.usesLocalRepository) {
       offline.navigate?.(href, options)
     } else if (options?.replace) {
       router.replace(href, { scroll: false })
@@ -1540,7 +1541,7 @@ export function RosterCalendar({
       toast.error("Unable to change the shift lock.")
     } finally {
       setContextActionShiftId(null)
-      if (!offline.isOffline) router.refresh()
+      if (!offline.usesLocalRepository) router.refresh()
     }
   }
   const menuActions: ShiftMenuActions | null = readOnly
@@ -1599,7 +1600,7 @@ export function RosterCalendar({
       toast.error("Unable to delete the shift.")
     } finally {
       setContextActionShiftId(null)
-      if (!offline.isOffline) router.refresh()
+      if (!offline.usesLocalRepository) router.refresh()
     }
   }
 
@@ -1651,7 +1652,7 @@ export function RosterCalendar({
               >
                 <SelectTrigger
                   aria-label="Filter employee"
-                  className="w-full max-w-56 min-w-0"
+                  className="w-full min-w-0 sm:w-56"
                 >
                   <SelectValue>
                     {selectedEmployee?.displayName ?? "All team"}
@@ -1683,6 +1684,7 @@ export function RosterCalendar({
                     employeeMembershipId: navigationEmployeeId,
                     mode,
                   })}
+                  prefetch={false}
                 />
               }
               size="icon"
@@ -1700,6 +1702,7 @@ export function RosterCalendar({
                     employeeMembershipId: navigationEmployeeId,
                     mode,
                   })}
+                  prefetch={false}
                 />
               }
               variant="outline"
@@ -1717,6 +1720,7 @@ export function RosterCalendar({
                     employeeMembershipId: navigationEmployeeId,
                     mode,
                   })}
+                  prefetch={false}
                 />
               }
               size="icon"
@@ -1832,7 +1836,7 @@ export function RosterCalendar({
             onSaved={(updatedShift) => {
               setOptimisticShift(updatedShift)
               setEditingShift(null)
-              if (!offline.isOffline) router.refresh()
+              if (!offline.usesLocalRepository) router.refresh()
             }}
             shift={editingShift}
             timezone={timezone}

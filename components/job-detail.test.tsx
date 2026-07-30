@@ -18,6 +18,10 @@ import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
 import type { JobDetail } from "@/lib/jobs/types"
 
 const isMobile = vi.fn(() => false)
+const navigationMocks = vi.hoisted(() => ({
+  job: "1401" as string | null,
+  replace: vi.fn(),
+}))
 const uploadMocks = vi.hoisted(() => ({
   optimize: vi.fn(),
   toastError: vi.fn(),
@@ -35,7 +39,9 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => isMobile(),
 }))
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), replace: navigationMocks.replace }),
+  useSearchParams: () =>
+    new URLSearchParams(navigationMocks.job ? `job=${navigationMocks.job}` : ""),
 }))
 vi.mock("@/lib/uploads/job-evidence-optimizer", () => ({
   optimizeJobEvidenceFile: uploadMocks.optimize,
@@ -119,6 +125,7 @@ afterEach(() => {
   isMobile.mockReturnValue(false)
   uploadMocks.tusFiles = []
   uploadMocks.tusOptions = []
+  navigationMocks.job = "1401"
   vi.clearAllMocks()
 })
 
@@ -138,25 +145,27 @@ describe("job detail surfaces", () => {
       screen.queryByText("Add completion information and submit the job.")
     ).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Start job" })).toBeVisible()
-    expect(screen.queryByLabelText("Work note")).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText("Work note or comment")
+    ).not.toBeInTheDocument()
     expect(screen.getByText("Submission requirements")).toBeVisible()
     expect(screen.getByText("assigned").parentElement).toHaveClass(
       "justify-center"
     )
     expect(
       screen.getByRole("button", { name: "History, 0 updates" })
-    ).toHaveAttribute("aria-expanded", "true")
+    ).toHaveAttribute("aria-expanded", "false")
     expect(
       screen.queryByRole("button", { name: "Comments" })
     ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Add comment")).not.toBeInTheDocument()
     expect(screen.queryByText("Evidence")).not.toBeInTheDocument()
     expect(container.ownerDocument.querySelector("dl")).toHaveClass(
       "grid-cols-2"
     )
-    expect(screen.getByText("Location").parentElement).toHaveClass(
-      "text-center"
-    )
-    expect(screen.getByText("Due").parentElement).toHaveClass("text-center")
+    expect(screen.getByText("Assigned to")).toBeVisible()
+    expect(screen.getByText("Location").parentElement).toHaveClass("text-left")
+    expect(screen.getByText("Due").parentElement).toHaveClass("text-left")
   })
 
   it("reveals completion controls after the employee starts work", () => {
@@ -171,7 +180,7 @@ describe("job detail surfaces", () => {
     expect(
       screen.queryByText("Notes and photos become read-only after submission.")
     ).not.toBeInTheDocument()
-    expect(screen.getByLabelText("Work note")).toBeVisible()
+    expect(screen.getByLabelText("Work note or comment")).toBeVisible()
     expect(screen.getByLabelText("Completion photos")).toHaveAttribute(
       "accept",
       "image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
@@ -333,7 +342,7 @@ describe("job detail surfaces", () => {
     expect(
       screen.queryByRole("button", { name: "Save" })
     ).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText("Work note"), {
+    fireEvent.change(screen.getByLabelText("Work note or comment"), {
       target: { value: "Completed safely." },
     })
     fireEvent.click(screen.getByRole("button", { name: "Save" }))
@@ -392,6 +401,83 @@ describe("job detail surfaces", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("opens employee detail from the live URL for the same and another job", () => {
+    const { rerender } = render(
+      <EmployeeJobDetail
+        detail={detail}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("dialog", { name: detail.title })
+    ).toHaveAttribute("data-open")
+
+    navigationMocks.job = null
+    rerender(
+      <EmployeeJobDetail detail={detail} timezone="Australia/Melbourne" />
+    )
+    expect(
+      screen.getByRole("dialog", { name: detail.title })
+    ).toHaveAttribute("data-closed")
+
+    navigationMocks.job = String(detail.id)
+    rerender(
+      <EmployeeJobDetail detail={detail} timezone="Australia/Melbourne" />
+    )
+    expect(
+      screen.getByRole("dialog", { name: detail.title })
+    ).toHaveAttribute("data-open")
+
+    const nextDetail = {
+      ...detail,
+      id: 1402,
+      title: "Inspect front entry",
+    }
+    navigationMocks.job = String(nextDetail.id)
+    rerender(
+      <EmployeeJobDetail
+        detail={nextDetail}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("dialog", { name: "Inspect front entry" })
+    ).toHaveAttribute("data-open")
+  })
+
+  it("opens the owner sheet from the live URL and closes through the route", () => {
+    const { rerender } = render(
+      <OwnerJobDetail
+        detail={detail}
+        employees={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("dialog", { name: detail.title })
+    ).toHaveAttribute("data-open")
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+    expect(navigationMocks.replace).toHaveBeenCalledWith("/dashboard/jobs", {
+      scroll: false,
+    })
+
+    navigationMocks.job = null
+    rerender(
+      <OwnerJobDetail
+        detail={detail}
+        employees={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+    expect(
+      screen.getByRole("dialog", { name: detail.title })
+    ).toHaveAttribute("data-closed")
+  })
+
   it("shows the evidence gallery only after a photo exists", () => {
     render(
       <EmployeeJobDetail
@@ -436,6 +522,73 @@ describe("job detail surfaces", () => {
       })
     ).toHaveClass("object-contain")
   })
+
+  it.each(["employee", "owner"] as const)(
+    "keeps legacy comments in history for the %s view",
+    (role) => {
+      const orderedDetail: JobDetail = {
+        ...detail,
+        evidence: [
+          {
+            createdAt: "2026-07-27T01:00:00.000Z",
+            id: 1,
+            mimeType: "image/jpeg",
+            removable: false,
+            signedUrl: "https://example.com/evidence.jpg",
+            sizeBytes: 1024,
+            uploadedByMembershipId: 1103,
+          },
+        ],
+        status: "in_review",
+        timeline: [
+          {
+            authorMembershipId: 1103,
+            body: "Existing conversation",
+            createdAt: "2026-07-27T02:00:00.000Z",
+            id: 1,
+            metadata: {},
+            type: "comment",
+          },
+        ],
+      }
+      if (role === "employee") {
+        render(
+          <EmployeeJobDetail
+            detail={orderedDetail}
+            timezone="Australia/Melbourne"
+          />
+        )
+      } else {
+        render(
+          <OwnerJobDetail
+            detail={orderedDetail}
+            employees={[]}
+            timezone="Australia/Melbourne"
+          />
+        )
+      }
+      const jobDetails = screen.getByRole("region", { name: "Job details" })
+      const evidence = screen.getByRole("heading", { name: "Evidence" })
+      const history = screen.getByRole("button", {
+        name: "History, 1 update",
+      })
+      const follows = (first: Element, second: Element) =>
+        Boolean(
+          first.compareDocumentPosition(second) &
+            Node.DOCUMENT_POSITION_FOLLOWING
+        )
+
+      expect(follows(jobDetails, evidence)).toBe(true)
+      expect(follows(evidence, history)).toBe(true)
+      expect(screen.queryByText("Existing conversation")).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "Comments" })
+      ).not.toBeInTheDocument()
+      expect(history).toHaveAttribute("aria-expanded", "false")
+      fireEvent.click(history)
+      expect(screen.getByText("Existing conversation")).toBeVisible()
+    }
+  )
 
   it("uses the forty-percent owner review sheet", () => {
     const timeline = Array.from({ length: 4 }, (_, index) => ({
@@ -485,12 +638,15 @@ describe("job detail surfaces", () => {
     ).not.toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "History, 4 updates" })
-    ).toHaveAttribute("aria-expanded", "true")
-    expect(screen.getByRole("button", { name: "Comments" })).toHaveAttribute(
-      "aria-expanded",
-      "true"
+    ).toHaveAttribute("aria-expanded", "false")
+    expect(
+      screen.queryByRole("button", { name: "Comments" })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Add comment")).not.toBeInTheDocument()
+    expect(screen.queryByText("Owner history 4")).not.toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole("button", { name: "History, 4 updates" })
     )
-    expect(screen.getByLabelText("Add comment")).toBeVisible()
     expect(screen.getByText("Owner history 4")).toBeVisible()
     expect(screen.getByText("Owner history 2")).toBeVisible()
     expect(screen.queryByText("Owner history 1")).not.toBeInTheDocument()
@@ -506,7 +662,7 @@ describe("job detail surfaces", () => {
       createdAt: `2026-07-27T0${index}:00:00.000Z`,
       id: index + 1,
       metadata: {},
-      type: "comment" as const,
+      type: "note" as const,
     }))
 
     render(
@@ -516,6 +672,9 @@ describe("job detail surfaces", () => {
       />
     )
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "History, 7 updates" })
+    )
     expect(screen.getByText("History entry 7")).toBeVisible()
     expect(screen.getByText("History entry 5")).toBeVisible()
     expect(screen.queryByText("History entry 4")).not.toBeInTheDocument()

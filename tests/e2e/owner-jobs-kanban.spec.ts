@@ -160,6 +160,14 @@ test("owner creates, filters, and reassigns a job", async ({
   const dialog = ownerPage.getByRole("dialog", { name: "Create job" })
   expect(pageErrors).toEqual([])
   await expect(dialog).toBeVisible()
+  const formScroll = dialog.locator("[data-job-form-scroll]")
+  await expect(formScroll).toHaveClass(/overflow-y-auto/)
+  const dialogBox = await dialog.boundingBox()
+  expect(dialogBox).not.toBeNull()
+  expect(dialogBox!.y).toBeGreaterThanOrEqual(0)
+  expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(
+    ownerPage.viewportSize()!.height
+  )
   await dialog.getByLabel("Title").fill(title)
   await dialog
     .getByLabel("Description")
@@ -196,9 +204,12 @@ test("owner creates, filters, and reassigns a job", async ({
   await dialog.getByLabel("Due", { exact: true }).click()
   await ownerPage.getByLabel("Due time").fill("10:00")
   await ownerPage.keyboard.press("Escape")
-  await dialog.getByLabel("Minimum completion photos").fill("1")
   await dialog
-    .getByRole("checkbox", { name: "Require a completion note" })
+    .getByRole("combobox", { name: "Minimum completion photos" })
+    .click()
+  await ownerPage.getByRole("option", { name: "1", exact: true }).click()
+  await dialog
+    .getByRole("checkbox", { name: "Require note" })
     .check()
   await dialog.getByRole("button", { name: "Create job" }).click()
   await expect(dialog).not.toBeVisible({ timeout: 15_000 })
@@ -221,6 +232,15 @@ test("owner creates, filters, and reassigns a job", async ({
 
   await card.getByRole("button", { name: `Edit ${title}` }).click()
   const editDialog = ownerPage.getByRole("dialog", { name: "Edit job" })
+  await expect(
+    editDialog.locator("[data-job-form-scroll]")
+  ).toHaveClass(/overflow-y-auto/)
+  const editDialogBox = await editDialog.boundingBox()
+  expect(editDialogBox).not.toBeNull()
+  expect(editDialogBox!.y).toBeGreaterThanOrEqual(0)
+  expect(editDialogBox!.y + editDialogBox!.height).toBeLessThanOrEqual(
+    ownerPage.viewportSize()!.height
+  )
   await expect(editDialog.getByLabel("Assignee")).toContainText("Alex Employee")
   await editDialog
     .getByLabel("Description")
