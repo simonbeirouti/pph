@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -414,9 +415,26 @@ describe("job detail surfaces", () => {
     )
 
     expect(screen.getByText("Evidence")).toBeVisible()
+    const thumbnail = screen.getByRole("img", {
+      name: /Completion evidence added/i,
+    })
+    expect(thumbnail).toBeVisible()
+    expect(thumbnail).toHaveClass("object-contain")
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /View completion evidence added/i,
+      })
+    )
+    const viewer = screen.getByRole("dialog", {
+      name: "Completion evidence",
+    })
+    expect(viewer).toBeVisible()
     expect(
-      screen.getByRole("img", { name: /Completion evidence added/i })
-    ).toBeVisible()
+      within(viewer).getByRole("img", {
+        name: /Full completion evidence added/i,
+      })
+    ).toHaveClass("object-contain")
   })
 
   it("uses the forty-percent owner review sheet", () => {

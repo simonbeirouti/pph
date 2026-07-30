@@ -1693,6 +1693,15 @@ Automated implementation evidence (2026-07-29):
   migration, RLS, environment-variable, or public-route change was required.
   Installed iOS Safari over trusted staging HTTPS remains the required
   real-device acceptance, so S12 and TODO-015 remain `in_progress`.
+- Evidence presentation follow-up (2026-07-30): hosted Storage inspection
+  confirmed the reported employee and owner tiles referenced valid PNG objects
+  whose bytes matched the selected portrait screenshots; sync had not replaced
+  or corrupted them. The shared gallery's square `object-cover` thumbnails were
+  instead zooming tall evidence into a misleading centre crop. Evidence
+  thumbnails now use contained scaling and open an accessible full-size viewer
+  for both roles. Changed-file ESLint, TypeScript, the 10-test job-detail suite,
+  `git diff --check`, and the employee Pixel 7 plus desktop-owner
+  execution/review journey pass with decoded-image assertions in both viewers.
 - Dashboard/offline/push UI remediation (2026-07-30): removed the employee
   dashboard's nested roster/work section cards while retaining its greeting,
   plain headings, current shift, single next shift, and individual job cards.

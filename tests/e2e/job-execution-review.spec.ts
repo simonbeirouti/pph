@@ -142,6 +142,24 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   await expect(employeePage.getByText("Changes saved.")).toBeVisible({
     timeout: 20_000,
   })
+  const employeeEvidenceButtons = employeePage.getByRole("button", {
+    name: /View completion evidence added/,
+  })
+  await expect(employeeEvidenceButtons).toHaveCount(2)
+  await employeeEvidenceButtons.first().click()
+  const employeeEvidenceViewer = employeePage.getByRole("dialog", {
+    name: "Completion evidence",
+  })
+  await expect(employeeEvidenceViewer).toBeVisible()
+  await expect
+    .poll(() =>
+      employeeEvidenceViewer
+        .getByRole("img", { name: /Full completion evidence added/ })
+        .evaluate((image: HTMLImageElement) => image.naturalWidth)
+    )
+    .toBeGreaterThan(0)
+  await employeeEvidenceViewer.getByRole("button", { name: "Close" }).click()
+  await expect(employeeEvidenceViewer).not.toBeVisible()
   await employeePage.keyboard.press("Escape")
   await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
@@ -162,6 +180,24 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   await ownerPage.goto(jobUrl!)
   const ownerSheet = ownerPage.locator('[data-slot="sheet-content"]')
   await expect(ownerSheet).toBeVisible()
+  const ownerEvidenceButtons = ownerSheet.getByRole("button", {
+    name: /View completion evidence added/,
+  })
+  await expect(ownerEvidenceButtons).toHaveCount(2)
+  await ownerEvidenceButtons.first().click()
+  const ownerEvidenceViewer = ownerPage.getByRole("dialog", {
+    name: "Completion evidence",
+  })
+  await expect(ownerEvidenceViewer).toBeVisible()
+  await expect
+    .poll(() =>
+      ownerEvidenceViewer
+        .getByRole("img", { name: /Full completion evidence added/ })
+        .evaluate((image: HTMLImageElement) => image.naturalWidth)
+    )
+    .toBeGreaterThan(0)
+  await ownerEvidenceViewer.getByRole("button", { name: "Close" }).click()
+  await expect(ownerEvidenceViewer).not.toBeVisible()
   const sheetBox = await ownerSheet.boundingBox()
   expect(sheetBox).not.toBeNull()
   expect(sheetBox!.width / ownerPage.viewportSize()!.width).toBeCloseTo(0.4, 1)

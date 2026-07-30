@@ -1077,73 +1077,117 @@ function EvidenceGallery({
   const router = useRouter()
   const offline = useOfflineV2Actions()
   const [pendingId, setPendingId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   if (!detail.evidence.length) return null
+  const selectedAsset =
+    detail.evidence.find((asset) => asset.id === selectedId) ?? null
 
   return (
-    <section className="grid gap-3">
-      <h3 className="font-medium">Evidence</h3>
-      <div className="grid grid-cols-2 gap-2">
-        {detail.evidence.map((asset) => (
-          <figure
-            className="relative overflow-hidden rounded-lg border"
-            key={asset.id}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer */}
-            <img
-              alt={`Completion evidence added ${formatShortZonedDate(asset.createdAt, timezone)}`}
-              className="aspect-square w-full object-cover"
-              src={asset.signedUrl}
-            />
-            {asset.removable ? (
-              <Button
-                aria-label="Remove completion photo"
-                className="absolute top-2 right-2"
-                disabled={pendingId === asset.id}
-                onClick={async () => {
-                  setPendingId(asset.id)
-                  const queued = await offline.queue({
-                    entityId: detail.id,
-                    entityType: "job",
-                    expectedVersion: detail.version ?? null,
-                    kind: "job.evidence.remove",
-                    payload: { assetId: asset.id },
-                    optimistic: (snapshot) =>
-                      updateJobEverywhere(snapshot, detail.id, (current) => ({
-                        ...current,
-                        completionPhotoCount: Math.max(
-                          0,
-                          Number(current.completionPhotoCount ?? 0) - 1
-                        ),
-                        evidence: Array.isArray(current.evidence)
-                          ? current.evidence.filter(
-                              (item) =>
-                                typeof item !== "object" ||
-                                item === null ||
-                                !("id" in item) ||
-                                item.id !== asset.id
-                            )
-                          : [],
-                      })),
-                  })
-                  const result = queued
-                    ? { message: "Photo removal saved.", ok: true }
-                    : await removeJobEvidenceAction(detail.id, asset.id)
-                  if (result.ok) toast.success(result.message)
-                  else toast.error(result.message)
-                  setPendingId(null)
-                  if (!queued) router.refresh()
-                }}
-                size="icon-sm"
-                type="button"
-                variant="destructive"
+    <>
+      <section className="grid gap-3">
+        <h3 className="font-medium">Evidence</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {detail.evidence.map((asset) => {
+            const addedDate = formatShortZonedDate(asset.createdAt, timezone)
+            return (
+              <figure
+                className="relative aspect-square overflow-hidden rounded-lg border bg-muted/20"
+                key={asset.id}
               >
-                <Trash2Icon />
-              </Button>
-            ) : null}
-          </figure>
-        ))}
-      </div>
-    </section>
+                <button
+                  aria-label={`View completion evidence added ${addedDate}`}
+                  className="block size-full cursor-zoom-in"
+                  onClick={() => setSelectedId(asset.id)}
+                  type="button"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer */}
+                  <img
+                    alt={`Completion evidence added ${addedDate}`}
+                    className="size-full object-contain"
+                    src={asset.signedUrl}
+                  />
+                </button>
+                {asset.removable ? (
+                  <Button
+                    aria-label="Remove completion photo"
+                    className="absolute top-2 right-2"
+                    disabled={pendingId === asset.id}
+                    onClick={async () => {
+                      setPendingId(asset.id)
+                      const queued = await offline.queue({
+                        entityId: detail.id,
+                        entityType: "job",
+                        expectedVersion: detail.version ?? null,
+                        kind: "job.evidence.remove",
+                        payload: { assetId: asset.id },
+                        optimistic: (snapshot) =>
+                          updateJobEverywhere(
+                            snapshot,
+                            detail.id,
+                            (current) => ({
+                              ...current,
+                              completionPhotoCount: Math.max(
+                                0,
+                                Number(current.completionPhotoCount ?? 0) - 1
+                              ),
+                              evidence: Array.isArray(current.evidence)
+                                ? current.evidence.filter(
+                                    (item) =>
+                                      typeof item !== "object" ||
+                                      item === null ||
+                                      !("id" in item) ||
+                                      item.id !== asset.id
+                                  )
+                                : [],
+                            })
+                          ),
+                      })
+                      const result = queued
+                        ? { message: "Photo removal saved.", ok: true }
+                        : await removeJobEvidenceAction(detail.id, asset.id)
+                      if (result.ok) toast.success(result.message)
+                      else toast.error(result.message)
+                      setPendingId(null)
+                      if (!queued) router.refresh()
+                    }}
+                    size="icon-sm"
+                    type="button"
+                    variant="destructive"
+                  >
+                    <Trash2Icon />
+                  </Button>
+                ) : null}
+              </figure>
+            )
+          })}
+        </div>
+      </section>
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null)
+        }}
+        open={selectedAsset !== null}
+      >
+        <DialogContent className="max-h-[calc(100svh-2rem)] max-w-[calc(100%-2rem)] overflow-hidden p-3 sm:max-w-5xl">
+          <DialogHeader className="pr-8">
+            <DialogTitle>Completion evidence</DialogTitle>
+            <DialogDescription>
+              {selectedAsset
+                ? `Added ${formatShortZonedDate(selectedAsset.createdAt, timezone)}`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAsset ? (
+            // eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer
+            <img
+              alt={`Full completion evidence added ${formatShortZonedDate(selectedAsset.createdAt, timezone)}`}
+              className="max-h-[calc(100svh-8rem)] w-full object-contain"
+              src={selectedAsset.signedUrl}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
