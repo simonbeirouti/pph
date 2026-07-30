@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import type { APIRequestContext, Browser } from "@playwright/test"
+import type { APIRequestContext, Browser, Locator } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
@@ -95,6 +95,30 @@ async function signIn(browser: Browser, email: string, password: string) {
   return { context, page }
 }
 
+async function expectPairedEmployeeFields(dialog: Locator) {
+  await expect(dialog.getByLabel("Job title")).toHaveCount(0)
+  const [firstNameBox, lastNameBox, emailBox, phoneBox, roleBox] =
+    await Promise.all([
+      dialog.getByLabel("First name").boundingBox(),
+      dialog.getByLabel("Last name").boundingBox(),
+      dialog.getByLabel("Email").boundingBox(),
+      dialog.getByLabel("Phone").boundingBox(),
+      dialog.getByRole("combobox", { name: "Role" }).boundingBox(),
+    ])
+  expect(firstNameBox).not.toBeNull()
+  expect(lastNameBox).not.toBeNull()
+  expect(emailBox).not.toBeNull()
+  expect(phoneBox).not.toBeNull()
+  expect(roleBox).not.toBeNull()
+  expect(Math.abs(firstNameBox!.y - lastNameBox!.y)).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(firstNameBox!.width - lastNameBox!.width)
+  ).toBeLessThanOrEqual(1)
+  expect(Math.abs(emailBox!.y - phoneBox!.y)).toBeLessThanOrEqual(1)
+  expect(Math.abs(emailBox!.width - phoneBox!.width)).toBeLessThanOrEqual(1)
+  expect(roleBox!.width).toBeGreaterThan(firstNameBox!.width * 1.8)
+}
+
 test("credential login succeeds and failures remain generic", async ({
   page,
 }) => {
@@ -126,12 +150,15 @@ test("owner opens employee details in a sheet without navigation", async ({
   const alexRow = ownerPage.getByRole("row", {
     name: "Open Alex Employee details",
   })
-  await alexRow.getByRole("cell", { name: "Operator" }).click()
+  await alexRow.click()
 
   await expect(ownerPage).toHaveURL(/\/dashboard\/employees$/)
   const sheet = ownerPage.getByRole("dialog")
   await expect(sheet).toBeVisible()
   await expect(sheet.getByText("Alex Employee", { exact: true })).toBeVisible()
+  await expect(sheet.getByText(/^active$/i)).toBeVisible()
+  await expect(sheet.getByText("Operator", { exact: true })).toHaveCount(0)
+  await expect(sheet.getByLabel("Job title")).toHaveCount(0)
   await expect(
     sheet.getByRole("button", {
       name: "Change Alex Employee profile photo",
@@ -186,6 +213,9 @@ test("owner opens employee details in a sheet without navigation", async ({
     .click()
   const invitedSheet = ownerPage.getByRole("dialog")
   await expect(
+    invitedSheet.getByText("Invite pending", { exact: true })
+  ).toBeVisible()
+  await expect(
     invitedSheet.getByRole("button", { name: "Resend invitation" })
   ).toBeVisible()
   await expect(
@@ -221,29 +251,31 @@ test("owner can edit their own profile", async ({ ownerPage }) => {
   ).toBeVisible()
 })
 
-test("employee form preserves values after server validation", async ({
+test("employee dialog pairs profile fields and omits job title", async ({
   ownerPage,
-}) => {
+}, testInfo) => {
+  test.skip(testInfo.project.name.includes("mobile"))
   await ownerPage.goto("/dashboard/employees")
   await ownerPage.getByRole("button", { name: "Add employee" }).click()
   const dialog = ownerPage.getByRole("dialog", { name: "Add employee" })
   await expect(dialog).toHaveAttribute("data-slot", "dialog-content")
   await expect(ownerPage.locator('[data-slot="drawer-popup"]')).toHaveCount(0)
   await expect(dialog.locator(".overflow-y-auto")).toHaveCount(1)
-  await dialog.getByLabel("First name").fill("Preserved")
-  await dialog.getByLabel("Last name").fill("Values")
-  await dialog.getByLabel("Email").fill("preserved@example.test")
-  await dialog.getByLabel("Phone").fill(" ")
-  await dialog.getByLabel("Job title").fill("Operator")
-  const submit = dialog.getByRole("button", { name: "Create and invite" })
-  await expect(submit).toHaveClass(/w-full/)
-  await submit.click()
+  await expectPairedEmployeeFields(dialog)
+})
 
-  await expect(ownerPage.getByText("Enter a phone number.")).toBeVisible()
-  await expect(ownerPage.getByLabel("First name")).toHaveValue("Preserved")
-  await expect(ownerPage.getByLabel("Email")).toHaveValue(
-    "preserved@example.test"
-  )
+test("mobile employee drawer pairs profile fields and omits job title", async ({
+  ownerPage,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.includes("mobile"))
+  await ownerPage.goto("/dashboard/employees")
+  await ownerPage.getByRole("button", { name: "Add employee" }).tap()
+  const drawer = ownerPage.getByRole("dialog", { name: "Add employee" })
+  await expect(drawer).toBeVisible()
+  await expect(
+    ownerPage.locator('[data-slot="drawer-popup"]:visible')
+  ).toBeVisible()
+  await expectPairedEmployeeFields(drawer)
 })
 
 test("owner completes invitation, avatar, activation, and access lifecycle", async ({
@@ -266,22 +298,20 @@ test("owner completes invitation, avatar, activation, and access lifecycle", asy
     await ownerPage.getByLabel("Last name").fill(lastName)
     await ownerPage.getByLabel("Email").fill(email)
     await ownerPage.getByLabel("Phone").fill("0400 555 010")
-    await ownerPage.getByLabel("Job title").fill("Operations Assistant")
-    await ownerPage
-      .getByLabel("Profile photo", { exact: true })
-      .setInputFiles({
-        buffer: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-          "base64"
-        ),
-        mimeType: "image/png",
-        name: "avatar.png",
-      })
+    await expect(ownerPage.getByLabel("Job title")).toHaveCount(0)
+    await ownerPage.getByLabel("Profile photo", { exact: true }).setInputFiles({
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64"
+      ),
+      mimeType: "image/png",
+      name: "avatar.png",
+    })
     await ownerPage.getByRole("button", { name: "Create and invite" }).click()
     await expect(ownerPage.getByRole("dialog")).not.toBeVisible()
     await expect(
       ownerPage.getByRole("row", { name: `Open ${displayName} details` })
-    ).toContainText("sent")
+    ).toContainText("Invite pending")
     const ownerJobsPage = await ownerPage.context().newPage()
     await ownerJobsPage.goto("/dashboard/jobs")
     await expect(

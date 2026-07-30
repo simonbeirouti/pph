@@ -45,6 +45,7 @@ export function EmployeeProfileFields({
   idPrefix = "",
   includeAvatar = true,
   includeEmail = true,
+  includeJobTitle = true,
   state,
 }: {
   employee?: EmployeeSummary
@@ -52,6 +53,7 @@ export function EmployeeProfileFields({
   idPrefix?: string
   includeAvatar?: boolean
   includeEmail?: boolean
+  includeJobTitle?: boolean
   state: ActionState
 }) {
   const firstName = state.values?.firstName ?? employee?.firstName ?? ""
@@ -67,6 +69,7 @@ export function EmployeeProfileFields({
       idPrefix={idPrefix}
       includeAvatar={includeAvatar}
       includeEmail={includeEmail}
+      includeJobTitle={includeJobTitle}
       initialValues={{
         email,
         firstName,
@@ -86,6 +89,7 @@ function EmployeeProfileFieldControls({
   idPrefix,
   includeAvatar,
   includeEmail,
+  includeJobTitle,
   initialValues,
   state,
 }: {
@@ -94,6 +98,7 @@ function EmployeeProfileFieldControls({
   idPrefix: string
   includeAvatar: boolean
   includeEmail: boolean
+  includeJobTitle: boolean
   initialValues: {
     email: string
     firstName: string
@@ -194,11 +199,13 @@ function EmployeeProfileFieldControls({
         className={
           createLayout
             ? "grid grid-cols-2 gap-4 pt-2"
-            : "grid gap-4 pt-2 sm:grid-cols-2"
+            : !includeJobTitle
+              ? "grid grid-cols-1 gap-4"
+              : "grid gap-4 pt-2 sm:grid-cols-2"
         }
         data-employee-form-row={createLayout ? "name" : undefined}
       >
-        <Field>
+        <Field className={!includeJobTitle ? "pt-2" : undefined}>
           <FieldLabel htmlFor={fieldId("firstName")}>First name</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.firstName)}
@@ -210,7 +217,7 @@ function EmployeeProfileFieldControls({
           />
           <FieldErrors errors={state.errors?.firstName} />
         </Field>
-        <Field>
+        <Field className={!includeJobTitle ? "pt-2" : undefined}>
           <FieldLabel htmlFor={fieldId("lastName")}>Last name</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.lastName)}
@@ -227,12 +234,14 @@ function EmployeeProfileFieldControls({
         className={
           createLayout
             ? "grid grid-cols-2 gap-4"
-            : "grid gap-4 sm:grid-cols-2"
+            : !includeJobTitle
+              ? "grid grid-cols-1 gap-4"
+              : "grid gap-4 sm:grid-cols-2"
         }
         data-employee-form-row={createLayout ? "contact" : undefined}
       >
         {includeEmail && createLayout ? (
-          <Field>
+          <Field className={!includeJobTitle ? "pt-2" : undefined}>
             <FieldLabel htmlFor={fieldId("email")}>Email</FieldLabel>
             <Input
               aria-invalid={Boolean(state.errors?.email)}
@@ -252,7 +261,7 @@ function EmployeeProfileFieldControls({
             <FieldErrors errors={state.errors?.email} />
           </Field>
         ) : null}
-        <Field>
+        <Field className={!includeJobTitle ? "pt-2" : undefined}>
           <FieldLabel htmlFor={fieldId("phone")}>Phone</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.phone)}
@@ -264,7 +273,7 @@ function EmployeeProfileFieldControls({
           />
           <FieldErrors errors={state.errors?.phone} />
         </Field>
-        {!createLayout ? (
+        {includeJobTitle && !createLayout ? (
           <Field>
             <FieldLabel htmlFor={fieldId("jobTitle")}>Job title</FieldLabel>
             <Input
@@ -279,7 +288,7 @@ function EmployeeProfileFieldControls({
           </Field>
         ) : null}
       </div>
-      {createLayout ? (
+      {includeJobTitle && createLayout ? (
         <Field>
           <FieldLabel htmlFor={fieldId("jobTitle")}>Job title</FieldLabel>
           <Input
@@ -292,6 +301,9 @@ function EmployeeProfileFieldControls({
           />
           <FieldErrors errors={state.errors?.jobTitle} />
         </Field>
+      ) : null}
+      {!includeJobTitle ? (
+        <input name="jobTitle" type="hidden" value={values.jobTitle} />
       ) : null}
       {includeAvatar && !createLayout ? (
         <Field>
@@ -319,6 +331,7 @@ export function EmployeeForm({
   createLayout = false,
   employee,
   fullWidthSubmit = false,
+  includeJobTitle = true,
   returnHref = "/dashboard/employees",
   returnLabel = "Back to employees",
   onSuccess,
@@ -330,6 +343,7 @@ export function EmployeeForm({
   createLayout?: boolean
   employee?: EmployeeSummary
   fullWidthSubmit?: boolean
+  includeJobTitle?: boolean
   onSuccess?: (state: ActionState) => void
   returnHref?: string
   returnLabel?: string
@@ -381,6 +395,7 @@ export function EmployeeForm({
         <EmployeeProfileFields
           createLayout={createLayout}
           employee={employee}
+          includeJobTitle={includeJobTitle}
           state={state}
         />
         {!editing ? (

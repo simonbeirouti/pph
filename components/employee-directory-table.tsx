@@ -104,10 +104,8 @@ export function EmployeeDirectoryTable({
         <TableHeader>
           <TableRow>
             <TableHead>Employee</TableHead>
-            <TableHead>Job title</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Invitation</TableHead>
             <TableHead>Today</TableHead>
           </TableRow>
         </TableHeader>
@@ -145,7 +143,6 @@ export function EmployeeDirectoryTable({
                   </span>
                 </div>
               </TableCell>
-              <TableCell>{employee.jobTitle}</TableCell>
               <TableCell>
                 <Badge variant="outline" className="capitalize">
                   {employee.role}
@@ -153,22 +150,10 @@ export function EmployeeDirectoryTable({
               </TableCell>
               <TableCell>
                 <Badge variant="secondary" className="capitalize">
-                  {employee.status}
+                  {employee.status === "invited"
+                    ? "Invite pending"
+                    : employee.status}
                 </Badge>
-              </TableCell>
-              <TableCell>
-                {employee.status === "invited" ? (
-                  <Badge variant="outline" className="capitalize">
-                    {employee.inviteDeliveryStatus}
-                  </Badge>
-                ) : (
-                  <span
-                    aria-label="Not applicable"
-                    className="text-muted-foreground"
-                  >
-                    —
-                  </span>
-                )}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {shiftSummaries[employee.membershipId]?.current

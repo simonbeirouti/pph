@@ -26,6 +26,7 @@ export default async function Page() {
           <EmployeeForm
             action={createEmployeeAction}
             canChooseRole={actor.role === "owner"}
+            includeJobTitle={false}
           />
         </CardContent>
       </Card>

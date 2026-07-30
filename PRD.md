@@ -1754,11 +1754,29 @@ Automated implementation evidence (2026-07-29):
   desktop, with a centred circular photo picker, compact name/contact rows,
   capitalised role display, and a full-width Create and invite action.
   Changed-file ESLint, TypeScript, and 2 focused component tests pass.
+- Employee UI refinement follow-up (2026-07-30): removed the job-title control
+  and display from employee-directory create and detail surfaces while
+  preserving existing stored titles and assigning new profiles a role-derived
+  internal fallback. First/last name and email/phone now use paired 50/50 rows
+  in both the desktop dialog and mobile drawer, with added field-label spacing;
+  role remains full width. Directory and profile status presentation now uses
+  one state label: Active for active memberships and Invite pending for invited
+  memberships. Changed-file ESLint, TypeScript, 2 focused Vitest files / 3
+  tests, and 3 focused desktop/mobile Chromium Playwright checks pass. No
+  schema, migration, RLS, permission, environment-variable, public-route, or
+  reference-file change was required. Used the Vercel React/Next.js and
+  Playwright project skills; S12 remains `in_progress`.
 - UI refinement checkpoint — roster (2026-07-30): paired employee/date in the
   create-shift form, expanded Create shift to full width, and allowed the
   employee filter to span mobile width while retaining its compact desktop
   width. Changed-file ESLint and all 19 focused roster-calendar component tests
   pass.
+- UI refinement checkpoint — profile (2026-07-30): capped the profile form
+  section at `max-w-7xl` and made its identity/logout header stack on narrow
+  screens so the logout action remains visible for every active role. Changed-
+  file ESLint passes. No database, permission, environment-variable,
+  public-route, or reference-file change was required; S12 remains
+  `in_progress`.
 - The jobs, employees, and roster UI checkpoints used the Vercel React/Next.js
   and Playwright project skills. They required no database, permission,
   environment-variable, public-route, or reference-file changes. S12 remains
@@ -1813,6 +1831,14 @@ Automated implementation evidence (2026-07-29):
   environment-variable, public-route, or reference-file change was required.
 - Hosted seed maintenance (2026-07-30): added `hello@simonbeirouti.com` as the
   sole seeded user and active owner of the Pure Peninsula Honey organisation.
+- Sidebar identity refinement (2026-07-30): replaced the generated building
+  icon with the checked-in `public/logo.png` asset and removed the current
+  user's role from the organisation header. The logo fills the complete 32px
+  icon tile in both expanded and collapsed states, covering the button hover
+  background consistently with the previous organisation icon treatment.
+  Changed-file ESLint passes; no schema, permission, environment-variable,
+  public-route, or reference-file change was required. S12 remains
+  `in_progress` for the existing native iOS/Android staging gates.
   Removed all deterministic example users, organisations, shifts, jobs, and job
   updates from the seed. The repository `supa` wrapper reset the linked remote
   database, replayed all migrations, and applied `supabase/seed.sql`; a linked

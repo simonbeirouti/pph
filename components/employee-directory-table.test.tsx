@@ -30,7 +30,7 @@ const baseEmployee: EmployeeSummary = {
 afterEach(cleanup)
 
 describe("EmployeeDirectoryTable", () => {
-  it("shows invitation delivery only while an employee is invited", () => {
+  it("shows one membership status and omits job titles", () => {
     const invitedEmployee: EmployeeSummary = {
       ...baseEmployee,
       displayName: "Indie Invited",
@@ -55,14 +55,20 @@ describe("EmployeeDirectoryTable", () => {
     const activeRow = screen.getByRole("row", {
       name: "Open Alex Employee details",
     })
+    expect(within(activeRow).getByText(/^active$/i)).toBeVisible()
     expect(within(activeRow).queryByText(/^sent$/i)).not.toBeInTheDocument()
-    expect(
-      within(activeRow).getByLabelText("Not applicable")
-    ).toBeInTheDocument()
+    expect(within(activeRow).queryByText("Operator")).not.toBeInTheDocument()
 
     const invitedRow = screen.getByRole("row", {
       name: "Open Indie Invited details",
     })
-    expect(within(invitedRow).getByText(/^sent$/i)).toBeVisible()
+    expect(within(invitedRow).getByText(/^invite pending$/i)).toBeVisible()
+    expect(within(invitedRow).queryByText(/^invited$/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("columnheader", { name: "Job title" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("columnheader", { name: "Invitation" })
+    ).not.toBeInTheDocument()
   })
 })

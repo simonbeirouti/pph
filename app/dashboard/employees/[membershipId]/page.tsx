@@ -65,16 +65,14 @@ export default async function Page({
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold">{employee.displayName}</h1>
               <Badge className="capitalize" variant="secondary">
-                {employee.status}
+                {employee.status === "invited"
+                  ? "Invite pending"
+                  : employee.status}
               </Badge>
               <Badge className="capitalize" variant="outline">
                 {employee.role}
               </Badge>
-              <Badge className="capitalize" variant="outline">
-                Invite {employee.inviteDeliveryStatus}
-              </Badge>
             </div>
-            <p className="text-muted-foreground">{employee.jobTitle}</p>
             <p className="text-sm">
               {employee.email} · {employee.phone}
             </p>
@@ -132,17 +130,21 @@ export default async function Page({
       </div>
 
       {canManage ? (
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit profile</CardTitle>
-          <CardDescription>
-            Update contact information, job title, or profile photo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EmployeeForm action={updateAction} employee={employee} />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit profile</CardTitle>
+            <CardDescription>
+              Update contact information or the profile photo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmployeeForm
+              action={updateAction}
+              employee={employee}
+              includeJobTitle={false}
+            />
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   )

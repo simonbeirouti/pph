@@ -45,6 +45,13 @@ export function EmployeeCreateDialog({
       | "employee"
       | "manager"
       | "owner"
+    const jobTitle =
+      String(formData.get("jobTitle") ?? "").trim() ||
+      (role === "employee"
+        ? "Employee"
+        : role === "manager"
+          ? "Manager"
+          : "Owner")
     await offline.queue({
       ...(avatar instanceof File && avatar.size ? { blob: avatar } : {}),
       entityId: localId,
@@ -53,7 +60,7 @@ export function EmployeeCreateDialog({
       payload: {
         email: String(formData.get("email") ?? ""),
         firstName,
-        jobTitle: String(formData.get("jobTitle") ?? ""),
+        jobTitle,
         lastName,
         phone: String(formData.get("phone") ?? ""),
         role,
@@ -73,7 +80,7 @@ export function EmployeeCreateDialog({
                   firstName,
                   inviteDeliveryStatus: "pending",
                   inviteLastAttemptedAt: null,
-                  jobTitle: String(formData.get("jobTitle") ?? ""),
+                  jobTitle,
                   lastName,
                   membershipId: temporaryId,
                   phone: String(formData.get("phone") ?? ""),
@@ -109,6 +116,7 @@ export function EmployeeCreateDialog({
       canChooseRole={canChooseRole}
       createLayout
       fullWidthSubmit
+      includeJobTitle={false}
       onSuccess={(state) => {
         setOpen(false)
         toast.success(state.message)

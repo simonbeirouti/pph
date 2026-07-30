@@ -44,13 +44,21 @@ describe("EmployeeCreateDialog", () => {
       "rounded-full",
       "overflow-hidden"
     )
-    expect(within(dialog).getByLabelText("Profile photo")).toHaveClass("sr-only")
-    expect(
-      dialog.querySelector('[data-employee-form-row="name"]')
-    ).toHaveClass("grid-cols-2")
+    expect(within(dialog).getByLabelText("Profile photo")).toHaveClass(
+      "sr-only"
+    )
+    expect(dialog.querySelector('[data-employee-form-row="name"]')).toHaveClass(
+      "grid-cols-2"
+    )
     expect(
       dialog.querySelector('[data-employee-form-row="contact"]')
     ).toHaveClass("grid-cols-2")
+    expect(within(dialog).queryByLabelText("Job title")).not.toBeInTheDocument()
+    for (const label of ["First name", "Last name", "Phone"]) {
+      expect(
+        within(dialog).getByLabelText(label).closest('[data-slot="field"]')
+      ).toHaveClass("pt-2")
+    }
 
     const role = within(dialog).getByRole("combobox", { name: "Role" })
     expect(role).toHaveTextContent("Employee")
@@ -82,5 +90,14 @@ describe("EmployeeCreateDialog", () => {
     expect(
       container.ownerDocument.querySelector('[data-slot="drawer-content"]')
     ).toHaveClass("min-h-0", "overflow-y-auto")
+    expect(
+      container.ownerDocument.querySelector('[data-employee-form-row="name"]')
+    ).toHaveClass("grid-cols-2")
+    expect(
+      container.ownerDocument.querySelector(
+        '[data-employee-form-row="contact"]'
+      )
+    ).toHaveClass("grid-cols-2")
+    expect(screen.queryByLabelText("Job title")).not.toBeInTheDocument()
   })
 })

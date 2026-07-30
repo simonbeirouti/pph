@@ -127,16 +127,15 @@ export function EmployeeSheetProfile({
           type="file"
         />
         <SheetTitle className="mt-2 text-xl">{employee.displayName}</SheetTitle>
-        <SheetDescription>{employee.jobTitle}</SheetDescription>
+        <SheetDescription className="sr-only">
+          Employee profile and work details.
+        </SheetDescription>
         <div className="flex flex-wrap justify-center gap-2 pt-2">
           <Badge className="capitalize" variant="secondary">
-            {employee.status}
+            {employee.status === "invited" ? "Invite pending" : employee.status}
           </Badge>
           <Badge className="capitalize" variant="outline">
             {employee.role}
-          </Badge>
-          <Badge className="capitalize" variant="outline">
-            Invite {employee.inviteDeliveryStatus}
           </Badge>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 pt-3">
@@ -216,7 +215,7 @@ export function EmployeeSheetProfile({
               <div>
                 <h3 className="font-medium">Edit profile</h3>
                 <FieldDescription>
-                  Update the employee’s name, phone number, or job title.
+                  Update the employee’s name or phone number.
                 </FieldDescription>
               </div>
               <div onChange={markProfileDirty}>
@@ -225,6 +224,7 @@ export function EmployeeSheetProfile({
                   idPrefix={`sheet-${employee.membershipId}-`}
                   includeAvatar={false}
                   includeEmail={false}
+                  includeJobTitle={false}
                   state={state}
                 />
               </div>

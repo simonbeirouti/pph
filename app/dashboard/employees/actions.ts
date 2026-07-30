@@ -125,13 +125,21 @@ export async function createEmployeeAction(
   formData: FormData
 ): Promise<ActionState> {
   const actor = await requirePeopleManager()
+  const role = String(formData.get("role") ?? "employee")
+  const jobTitle =
+    String(formData.get("jobTitle") ?? "").trim() ||
+    (role === "employee"
+      ? "Employee"
+      : role === "manager"
+        ? "Manager"
+        : "Owner")
   const values = {
     email: formData.get("email"),
     firstName: formData.get("firstName"),
-    jobTitle: formData.get("jobTitle"),
+    jobTitle,
     lastName: formData.get("lastName"),
     phone: formData.get("phone"),
-    role: formData.get("role") ?? "employee",
+    role,
   }
   const parsed = teamMemberSchema.safeParse(values)
   const avatarResult = await validateAvatar(

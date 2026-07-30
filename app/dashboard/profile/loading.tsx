@@ -5,10 +5,10 @@ export default function ProfileLoading() {
     <div
       aria-busy="true"
       aria-label="Loading profile"
-      className="grid w-full gap-6"
+      className="grid w-full max-w-7xl gap-6"
       role="status"
     >
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <Skeleton className="size-16 shrink-0 rounded-full" />
           <Skeleton className="h-8 w-48 max-w-full" />

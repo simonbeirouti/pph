@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import {
   BriefcaseBusinessIcon,
-  Building2Icon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
@@ -59,15 +59,18 @@ export function AppSidebar({
                 <Link href="/dashboard" onClick={closeMobileSidebar} prefetch={false} />
               }
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <Building2Icon className="size-4" />
+              <div className="flex group-data-[state=collapsed]:-mr-2 aspect-square size-8 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary">
+                <Image
+                  alt=""
+                  className="size-full object-cover"
+                  height={32}
+                  src="/logo.png"
+                  width={32}
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">
                   {membership.organisationName}
-                </span>
-                <span className="truncate text-xs capitalize">
-                  {membership.role}
                 </span>
               </div>
             </SidebarMenuButton>
