@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -6,6 +12,7 @@ import {
   subscribeToPushAction,
   unsubscribeFromPushAction,
 } from "@/app/dashboard/profile/notification-actions"
+import { PushNotificationPrompt } from "@/components/push-notification-prompt"
 import { PushNotificationProvider } from "@/components/push-notification-provider"
 import { PushNotificationSettings } from "@/components/push-notification-settings"
 
@@ -57,6 +64,15 @@ function renderSettings(key = publicKey) {
   )
 }
 
+function renderNotificationExperience() {
+  return render(
+    <PushNotificationProvider publicKey={publicKey}>
+      <PushNotificationPrompt />
+      <PushNotificationSettings />
+    </PushNotificationProvider>
+  )
+}
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -64,13 +80,22 @@ afterEach(() => {
 })
 
 describe("push notification settings", () => {
-  it("requests permission on launch and persists an approved subscription", async () => {
+  it("prompts on launch and persists a subscription after user approval", async () => {
     const mocks = installPushMocks()
     vi.mocked(subscribeToPushAction).mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
 
-    renderSettings()
+    renderNotificationExperience()
 
+    const prompt = await screen.findByRole("region", {
+      name: "Turn on notifications",
+    })
+    expect(mocks.requestPermission).not.toHaveBeenCalled()
+    await user.click(
+      within(prompt).getByRole("button", { name: "Enable notifications" })
+    )
     await screen.findByRole("button", { name: "Disable on this browser" })
+    expect(prompt).not.toBeInTheDocument()
     expect(mocks.requestPermission).toHaveBeenCalledOnce()
     expect(mocks.subscribe).toHaveBeenCalledWith(
       expect.objectContaining({ userVisibleOnly: true })
@@ -82,7 +107,7 @@ describe("push notification settings", () => {
     })
   })
 
-  it("shows a launch-time denial without retrying permission", async () => {
+  it("shows a launch-time denial with recovery instructions", async () => {
     const mocks = installPushMocks("denied")
     renderSettings()
 
@@ -90,12 +115,17 @@ describe("push notification settings", () => {
       await screen.findByText(/blocked in this browser's site settings/)
     ).toBeVisible()
     expect(
-      screen.getByRole("button", { name: "Enable notifications" })
-    ).toBeDisabled()
+      screen.getByRole("button", {
+        name: "Check and enable notifications",
+      })
+    ).toBeEnabled()
+    expect(
+      screen.getByText(/set Notifications to Allow, then check again/)
+    ).toBeVisible()
     expect(mocks.requestPermission).not.toHaveBeenCalled()
   })
 
-  it("allows a manual retry after the launch prompt is dismissed", async () => {
+  it("allows a manual retry after the permission prompt is dismissed", async () => {
     const mocks = installPushMocks()
     mocks.requestPermission
       .mockResolvedValueOnce("default")
@@ -104,9 +134,11 @@ describe("push notification settings", () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(
-      await screen.findByRole("button", { name: "Enable notifications" })
-    )
+    const enableButton = await screen.findByRole("button", {
+      name: "Enable notifications",
+    })
+    await user.click(enableButton)
+    await user.click(enableButton)
 
     expect(mocks.requestPermission).toHaveBeenCalledTimes(2)
     await screen.findByRole("button", { name: "Disable on this browser" })
@@ -133,14 +165,18 @@ describe("push notification settings", () => {
     expect(mocks.subscribe).not.toHaveBeenCalled()
   })
 
-  it("keeps failed automatic enrollment non-blocking", async () => {
+  it("keeps failed enrollment non-blocking", async () => {
     installPushMocks()
     vi.mocked(subscribeToPushAction).mockResolvedValue({
       message: "Push notifications could not be enabled.",
       ok: false,
     })
+    const user = userEvent.setup()
     renderSettings()
 
+    await user.click(
+      await screen.findByRole("button", { name: "Enable notifications" })
+    )
     expect(
       await screen.findByText("Push notifications could not be enabled.")
     ).toBeVisible()

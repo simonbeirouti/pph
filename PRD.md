@@ -711,9 +711,11 @@ Acceptance criteria:
 - Installation guidance is hidden when running in standalone mode.
 - Unsupported browsers receive the standard responsive web application without errors or blocked workflows.
 - On an authenticated dashboard launch, a browser whose push permission is
-  still `default` receives an immediate permission request. Approval creates
-  and persists the device subscription; dismissal, denial, unsupported
-  capability, or enrolment failure never blocks the standard application.
+  still `default` receives an immediate in-app opt-in prompt on every dashboard
+  route. Its explicit Enable action requests browser permission and, when
+  approved, creates and persists the device subscription; dismissal, denial,
+  unsupported capability, or enrolment failure never blocks the standard
+  application.
 - Profile controls remain available to disable or re-enable push on the current
   browser. A granted browser with no subscription remains disabled until the
   user re-enables it from Profile.
@@ -1721,8 +1723,9 @@ Automated implementation evidence (2026-07-29):
   automatic preparation, hidden provider state, queuing, replay, conflict
   retention, offline navigation, and logout purge remain intact.
 - Push enrolment now runs once at the authenticated dashboard client boundary.
-  A `default` permission immediately requests access and persists approval;
-  denied, dismissed, unsupported, and failed states remain non-blocking.
+  A `default` permission immediately presents an in-app opt-in action and its
+  user gesture requests browser access and persists approval; denied,
+  dismissed, unsupported, and failed states remain non-blocking.
   Existing subscriptions are retained, while granted browsers without a
   subscription remain opted out until Profile re-enables them.
 - Verification passed changed-file ESLint, `pnpm typecheck`, 2 focused Vitest
@@ -1732,6 +1735,18 @@ Automated implementation evidence (2026-07-29):
   public-route, or reference-file change was required. Used the Vercel
   React/Next.js and Playwright project skills. S12 remains `in_progress` for the
   existing manual staging and real-device gates.
+- Push permission-prompt remediation (2026-07-31): replaced the automatic
+  hydration-time browser permission request with a visible dashboard-wide
+  opt-in action so browser permission is requested from a user gesture. Profile
+  now explains how to recover a browser-blocked site permission and keeps an
+  active check-and-enable action available after the setting is changed.
+  Changed-file ESLint, `pnpm typecheck`, 2 focused Vitest files / 15 tests, and
+  `git diff --check` pass. The focused Chromium Playwright check could not enter
+  the app because the configured `employee@example.test` account returned
+  invalid login credentials; rerun remains part of the existing S12 integration
+  gate. No database, RLS, environment-variable, public-route, or reference-file
+  change was required. Used the Vercel React/Next.js and Playwright project
+  skills; S12 remains `in_progress`.
 - UI refinement checkpoint — dashboard (2026-07-30): aligned the dashboard
   route fallback with the flat operational-section presentation while retaining
   statistic and row-card geometry plus the accessible busy state. Changed-file

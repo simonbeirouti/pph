@@ -17,7 +17,8 @@ export function PushNotificationSettings() {
   const offline = useOptionalOfflineV2()
   const { busy, disable, enable, errorMessage, publicKey, state } =
     usePushNotifications()
-  const connected = offline?.networkReachability !== "offline" &&
+  const connected =
+    offline?.networkReachability !== "offline" &&
     offline?.networkReachability !== "unreachable"
 
   const descriptions = {
@@ -39,6 +40,12 @@ export function PushNotificationSettings() {
             ? descriptions[state]
             : "Reconnect to change push notification settings."}
         </CardDescription>
+        {connected && state === "denied" ? (
+          <p className="text-sm text-muted-foreground">
+            Open this site&apos;s permissions from the icon beside the address
+            bar, set Notifications to Allow, then check again below.
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent>
         {errorMessage ? (
@@ -65,7 +72,6 @@ export function PushNotificationSettings() {
               busy ||
               !connected ||
               state === "checking" ||
-              state === "denied" ||
               state === "unsupported"
             }
             onClick={() => void enable()}
@@ -75,7 +81,9 @@ export function PushNotificationSettings() {
             ) : (
               <BellIcon />
             )}
-            Enable notifications
+            {state === "denied"
+              ? "Check and enable notifications"
+              : "Enable notifications"}
           </Button>
         )}
       </CardContent>

@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -25,12 +24,16 @@ type PushNotificationContextValue = {
   disable: () => Promise<void>
   enable: () => Promise<void>
   errorMessage: string
+  permission: NotificationPermission | "unsupported"
   publicKey: string
   state: PushNotificationState
 }
 
 const PushNotificationContext =
   createContext<PushNotificationContextValue | null>(null)
+
+const BLOCKED_MESSAGE =
+  "Notifications are still blocked. Allow them in this site's browser settings, then try again."
 
 function decodeApplicationServerKey(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4)
@@ -83,65 +86,67 @@ export function PushNotificationProvider({
   const [state, setState] = useState<PushNotificationState>(
     publicKey ? "checking" : "unsupported"
   )
+  const [permission, setPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported")
   const [busy, setBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-  const launchCheckStarted = useRef(false)
 
   useEffect(() => {
-    if (launchCheckStarted.current) return
-    launchCheckStarted.current = true
     let active = true
 
-    const checkOnLaunch = async () => {
+    const checkPermission = async () => {
       if (!navigator.onLine) {
         if (active) setState("unsubscribed")
         return
       }
       if (!pushIsSupported(publicKey)) {
-        if (active) setState("unsupported")
+        if (active) {
+          setPermission("unsupported")
+          setState("unsupported")
+        }
         return
       }
-      if (Notification.permission === "denied") {
-        if (active) setState("denied")
+      const currentPermission = Notification.permission
+      if (active) setPermission(currentPermission)
+      if (currentPermission === "denied") {
+        if (active) {
+          setErrorMessage("")
+          setState("denied")
+        }
         return
       }
-      if (Notification.permission === "granted") {
+      if (currentPermission === "granted") {
         try {
           const registration = await navigator.serviceWorker.ready
           const subscription = await registration.pushManager.getSubscription()
-          if (active) setState(subscription ? "subscribed" : "unsubscribed")
+          if (active) {
+            setErrorMessage("")
+            setState(subscription ? "subscribed" : "unsubscribed")
+          }
         } catch {
           if (active) setState("unsupported")
         }
         return
       }
 
-      if (active) setBusy(true)
-      try {
-        const permission = await Notification.requestPermission()
-        if (!active) return
-        if (permission !== "granted") {
-          setState(permission === "denied" ? "denied" : "unsubscribed")
-          return
-        }
-        await createAndPersistSubscription(publicKey)
-        if (active) setState("subscribed")
-      } catch (error) {
-        if (!active) return
+      if (active) {
+        setErrorMessage("")
         setState("unsubscribed")
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Push notifications could not be enabled."
-        )
-      } finally {
-        if (active) setBusy(false)
       }
     }
 
-    void checkOnLaunch()
+    const checkWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkPermission()
+    }
+
+    void checkPermission()
+    window.addEventListener("focus", checkPermission)
+    document.addEventListener("visibilitychange", checkWhenVisible)
     return () => {
       active = false
+      window.removeEventListener("focus", checkPermission)
+      document.removeEventListener("visibilitychange", checkWhenVisible)
     }
   }, [publicKey])
 
@@ -152,9 +157,19 @@ export function PushNotificationProvider({
       if (!navigator.onLine) {
         throw new Error("Reconnect to change push notification settings.")
       }
-      const permission = await Notification.requestPermission()
-      if (permission !== "granted") {
-        setState(permission === "denied" ? "denied" : "unsubscribed")
+      if (!pushIsSupported(publicKey)) {
+        setPermission("unsupported")
+        setState("unsupported")
+        return
+      }
+      const requestedPermission = await Notification.requestPermission()
+      setPermission(requestedPermission)
+      if (requestedPermission !== "granted") {
+        setState(requestedPermission === "denied" ? "denied" : "unsubscribed")
+        if (requestedPermission === "denied") {
+          setErrorMessage(BLOCKED_MESSAGE)
+          toast.error(BLOCKED_MESSAGE)
+        }
         return
       }
       await createAndPersistSubscription(publicKey)
@@ -207,10 +222,11 @@ export function PushNotificationProvider({
       disable,
       enable,
       errorMessage,
+      permission,
       publicKey,
       state,
     }),
-    [busy, disable, enable, errorMessage, publicKey, state]
+    [busy, disable, enable, errorMessage, permission, publicKey, state]
   )
 
   return (

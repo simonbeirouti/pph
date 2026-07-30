@@ -4,7 +4,7 @@ import { expect, test } from "./fixtures"
 
 const endpoint = "https://push.example.test/playwright-device"
 
-test("dashboard launch opts in and profile controls opt out and back in", async ({
+test("dashboard prompt opts in and profile controls opt out and back in", async ({
   employeePage,
 }) => {
   const admin = createClient(
@@ -62,7 +62,30 @@ test("dashboard launch opts in and profile controls opt out and back in", async 
   }, endpoint)
 
   try {
-    await employeePage.goto("/dashboard/profile")
+    await employeePage.goto("/dashboard")
+    const notificationPrompt = employeePage.getByRole("region", {
+      name: "Turn on notifications",
+    })
+    await expect(notificationPrompt).toBeVisible()
+    await expect
+      .poll(() =>
+        employeePage.evaluate(
+          () =>
+            (window as typeof window & { __permissionRequests: string[] })
+              .__permissionRequests.length
+        )
+      )
+      .toBe(0)
+    await notificationPrompt
+      .getByRole("button", { name: "Enable notifications" })
+      .click()
+    await expect(notificationPrompt).toHaveCount(0)
+    const mobileNavigation = employeePage.getByRole("button", {
+      name: "Toggle navigation",
+    })
+    if (await mobileNavigation.isVisible()) await mobileNavigation.click()
+    await employeePage.getByRole("link", { name: "Alex Employee" }).click()
+    await expect(employeePage).toHaveURL(/\/dashboard\/profile$/)
     const disable = employeePage.getByRole("button", {
       name: "Disable on this browser",
     })
@@ -115,6 +138,11 @@ test("profile reports browser-denied notification permission", async ({
     employeePage.getByText(/blocked in this browser's site settings/)
   ).toBeVisible()
   await expect(
-    employeePage.getByRole("button", { name: "Enable notifications" })
-  ).toBeDisabled()
+    employeePage.getByRole("button", {
+      name: "Check and enable notifications",
+    })
+  ).toBeEnabled()
+  await expect(
+    employeePage.getByText(/set Notifications to Allow, then check again/)
+  ).toBeVisible()
 })

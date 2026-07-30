@@ -8,6 +8,7 @@ import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import { OfflineDashboardBoundary } from "@/components/offline-dashboard-router"
 import { useOfflineV2 } from "@/components/offline-v2-provider"
 import { DashboardRealtimeProvider } from "@/components/dashboard-realtime-provider"
+import { PushNotificationPrompt } from "@/components/push-notification-prompt"
 import { PwaInstallCard } from "@/components/pwa-install-card"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { ViewerTimezoneSync } from "@/components/viewer-timezone-sync"
@@ -73,6 +74,7 @@ export function DashboardChrome({
             </div>
           </header>
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-contain p-4 md:p-6">
+            <PushNotificationPrompt />
             <OfflineDashboardBoundary>{children}</OfflineDashboardBoundary>
           </main>
         </SidebarInset>
