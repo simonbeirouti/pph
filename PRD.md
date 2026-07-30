@@ -1862,8 +1862,8 @@ Automated implementation evidence (2026-07-29):
   repository search for the debug marker pass; no behaviour, schema, permission,
   environment-variable, or route contract changed.
 - Invitation email refinement (2026-07-30): restyled the Supabase invite
-  template with the product's yellow and neutral palette, the centred square bee
-  logo without an additional header background, borderless email-safe table
+  template with the product's yellow and neutral palette, the centred
+  transparent bee logo, borderless email-safe table
   layout, centred copy, clear acceptance action, and unexpected-invitation
   guidance. The existing token-hash invite route remains unchanged. Template
   validation and `git diff --check` pass; no schema, permission,
