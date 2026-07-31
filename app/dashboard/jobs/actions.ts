@@ -590,6 +590,34 @@ export async function archiveJobAction(
   return { message: "Job approved and archived.", ok: true }
 }
 
+export async function deleteJobAction(
+  jobId: number
+): Promise<SimpleActionResult> {
+  await requireOperations()
+  const parsed = z.coerce.number().int().positive().safeParse(jobId)
+  if (!parsed.success) return { message: "The job is unavailable.", ok: false }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("delete_job", {
+    p_job_id: parsed.data,
+  })
+  if (error || !data) {
+    return {
+      message:
+        "Only unsubmitted jobs that are not managed by a schedule can be deleted.",
+      ok: false,
+    }
+  }
+
+  const paths = data.filter((path): path is string => Boolean(path))
+  if (paths.length) {
+    const admin = createAdminClient()
+    await admin.storage.from("job-evidence").remove(paths)
+  }
+  refreshJobViews()
+  return { message: "Job deleted.", ok: true }
+}
+
 export async function retryJobNotificationAction(
   deliveryId: number
 ): Promise<SimpleActionResult> {

@@ -226,19 +226,27 @@ export function JobCreateDialog({
 export function JobEditDialog({
   currentAssigneeName,
   employees,
+  hideTrigger = false,
   job,
   onUpdated,
+  onOpenChange,
+  open: controlledOpen,
   rosterShifts,
   timezone,
 }: {
   currentAssigneeName?: string
   employees: readonly JobBoardEmployee[]
+  hideTrigger?: boolean
   job: JobCard
   onUpdated: (job: JobCard) => void
+  onOpenChange?: (open: boolean) => void
+  open?: boolean
   rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const offline = useOfflineV2Actions()
   const action = useMemo<JobFormAction>(
     () => async (state, formData) => {
@@ -277,17 +285,19 @@ export function JobEditDialog({
 
   return (
     <>
-      <Button
-        aria-label={`Edit ${job.title}`}
-        className="absolute top-2 right-2 z-10"
-        onClick={() => setOpen(true)}
-        onPointerDown={(event) => event.stopPropagation()}
-        size="icon-sm"
-        type="button"
-        variant="ghost"
-      >
-        <PencilIcon className="size-4" />
-      </Button>
+      {!hideTrigger ? (
+        <Button
+          aria-label={`Edit ${job.title}`}
+          className="absolute top-2 right-2 z-10"
+          onClick={() => setOpen(true)}
+          onPointerDown={(event) => event.stopPropagation()}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          <PencilIcon className="size-4" />
+        </Button>
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
           <DialogHeader className="shrink-0">

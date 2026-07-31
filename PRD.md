@@ -1934,6 +1934,16 @@ Automated implementation evidence (2026-07-29):
   configured production project (0 current archived rows). No migration, RLS,
   permission, environment-variable, or public-route change was required; S12
   remains `in_progress`.
+- Job deletion restoration (2026-07-31): replaced each editable job card's
+  inline edit control with a three-dot menu containing Edit and Delete. Delete
+  requires confirmation and is limited to operations roles deleting unsubmitted,
+  unscheduled jobs; the protected database RPC removes unfinished activity and
+  evidence metadata, then the server action removes related private storage.
+  Submitted/review and schedule-managed jobs remain preserved history. Added a
+  migration and focused component/database coverage. Changed-file ESLint,
+  TypeScript, and the focused component suite pass; local database migration and
+  pgTAP verification are deferred because the local Postgres service is not
+  running. S12 remains `in_progress`.
 
 ## 13. Prototype and production readiness
 

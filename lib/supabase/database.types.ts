@@ -1913,6 +1913,10 @@ export type Database = {
           submission_update_id: number
         }[]
       }
+      delete_job: {
+        Args: { p_job_id: number }
+        Returns: string[]
+      }
       update_job: {
         Args: {
           p_assignee_membership_id?: number

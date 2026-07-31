@@ -13,6 +13,8 @@ import {
   ClockIcon,
   FileTextIcon,
   MapPinIcon,
+  MoreHorizontalIcon,
+  Trash2Icon,
   UserRoundCheckIcon,
   UserRoundXIcon,
 } from "lucide-react"
@@ -20,7 +22,10 @@ import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import { reassignJobAction } from "@/app/dashboard/jobs/actions"
+import {
+  deleteJobAction,
+  reassignJobAction,
+} from "@/app/dashboard/jobs/actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import {
   updateJobEverywhere,
@@ -29,6 +34,16 @@ import {
 import { JobCreateDialog, JobEditDialog } from "@/components/job-create-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Card,
   CardAction,
@@ -45,6 +60,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -143,6 +164,8 @@ export function JobWorkspace({
   const [jobs, setJobs] = useState(() => [...initialJobs])
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set())
   const [assignmentJob, setAssignmentJob] = useState<JobCard | null>(null)
+  const [deleteJob, setDeleteJob] = useState<JobCard | null>(null)
+  const [editJob, setEditJob] = useState<JobCard | null>(null)
   const pendingIdsRef = useRef(new Set<number>())
   const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
   const columns = columnsForJobView(view)
@@ -318,6 +341,32 @@ export function JobWorkspace({
     viewRef.current = job.status === "archived" ? "archived" : "workflow"
     setView(viewRef.current)
     toast.success("Job updated.")
+  }
+
+  async function persistDeletion(job: JobCard) {
+    if (pendingIdsRef.current.has(job.id)) return
+    pendingIdsRef.current.add(job.id)
+    setPendingIds((current) => new Set(current).add(job.id))
+    try {
+      const result = await deleteJobAction(job.id)
+      if (!result.ok) {
+        toast.error(result.message)
+        return
+      }
+      const next = jobsRef.current.filter((current) => current.id !== job.id)
+      jobsRef.current = next
+      setJobs(next)
+      toast.success(result.message)
+    } catch {
+      toast.error("The job could not be deleted. Try again.")
+    } finally {
+      pendingIdsRef.current.delete(job.id)
+      setPendingIds((current) => {
+        const next = new Set(current)
+        next.delete(job.id)
+        return next
+      })
+    }
   }
 
   return (
@@ -513,9 +562,9 @@ export function JobWorkspace({
                   items={board[column.key]}
                   key={column.key}
                   onAssign={persistAssignment}
-                  onUpdated={updateSavedJob}
+                  onDelete={(job) => setDeleteJob(job)}
+                  onEdit={(job) => setEditJob(job)}
                   pendingIds={pendingIds}
-                  rosterShifts={rosterShifts}
                   timezone={timezone}
                 />
               ))}
@@ -537,6 +586,56 @@ export function JobWorkspace({
           if (!open) setAssignmentJob(null)
         }}
       />
+      {editJob ? (
+        <JobEditDialog
+          currentAssigneeName={
+            employeeById.get(editJob.assigneeMembershipId ?? -1)?.displayName ??
+            (editJob.assigneeMembershipId ? "Former employee" : undefined)
+          }
+          employees={assignmentTargets}
+          hideTrigger
+          job={editJob}
+          onOpenChange={(open) => {
+            if (!open) setEditJob(null)
+          }}
+          onUpdated={(job) => {
+            updateSavedJob(job)
+            setEditJob(null)
+          }}
+          open
+          rosterShifts={rosterShifts}
+          timezone={timezone}
+        />
+      ) : null}
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) setDeleteJob(null)
+        }}
+        open={Boolean(deleteJob)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteJob
+                ? `“${deleteJob.title}” and its unfinished activity will be permanently deleted.`
+                : "This job will be permanently deleted."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteJob) void persistDeletion(deleteJob)
+                setDeleteJob(null)
+              }}
+              variant="destructive"
+            >
+              Delete job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -706,9 +805,9 @@ function JobColumn({
   employeeById,
   items,
   onAssign,
-  onUpdated,
+  onDelete,
+  onEdit,
   pendingIds,
-  rosterShifts,
   timezone,
 }: {
   assignmentTargets: readonly JobBoardEmployee[]
@@ -719,9 +818,9 @@ function JobColumn({
     jobId: number,
     assigneeMembershipId: number | null
   ) => Promise<void>
-  onUpdated: (job: JobCard) => void
+  onDelete: (job: JobCard) => void
+  onEdit: (job: JobCard) => void
   pendingIds: ReadonlySet<number>
-  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const { isDropTarget, ref } = useDroppable({
@@ -770,9 +869,9 @@ function JobColumn({
               job={job}
               key={`${column.key}-${job.id}`}
               onAssign={onAssign}
-              onUpdated={onUpdated}
+              onDelete={onDelete}
+              onEdit={onEdit}
               pending={pendingIds.has(job.id)}
-              rosterShifts={rosterShifts}
               timezone={timezone}
             />
           ))
@@ -812,9 +911,9 @@ function JobCardView({
   index,
   job,
   onAssign,
-  onUpdated,
+  onDelete,
+  onEdit,
   pending,
-  rosterShifts,
   timezone,
 }: {
   assignee: JobBoardEmployee | null
@@ -825,9 +924,9 @@ function JobCardView({
     jobId: number,
     assigneeMembershipId: number | null
   ) => Promise<void>
-  onUpdated: (job: JobCard) => void
+  onDelete: (job: JobCard) => void
+  onEdit: (job: JobCard) => void
   pending: boolean
-  rosterShifts: readonly JobRosterShiftOption[]
   timezone: string
 }) {
   const { handleRef, isDragging, ref } = useSortable({
@@ -963,18 +1062,30 @@ function JobCardView({
         ) : null}
       </div>
       {editable ? (
-        <div onPointerDown={(event) => event.stopPropagation()}>
-          <JobEditDialog
-            currentAssigneeName={
-              assignee?.displayName ??
-              (job.assigneeMembershipId ? "Former employee" : undefined)
-            }
-            employees={assignmentTargets}
-            job={job}
-            onUpdated={onUpdated}
-            rosterShifts={rosterShifts}
-            timezone={timezone}
-          />
+        <div
+          className="absolute top-2 right-2 z-10"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={`Job actions for ${job.title}`}
+              render={<Button size="icon-sm" variant="ghost" />}
+            >
+              <MoreHorizontalIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(job)}>
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(job)}
+                variant="destructive"
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : null}
       <div

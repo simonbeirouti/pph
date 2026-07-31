@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   createJobAction,
+  deleteJobAction,
   reassignJobAction,
 } from "@/app/dashboard/jobs/actions"
 import { AssignmentDialog, JobWorkspace } from "@/components/job-workspace"
@@ -25,6 +26,7 @@ const toastMocks = vi.hoisted(() => ({
 
 vi.mock("@/app/dashboard/jobs/actions", () => ({
   createJobAction: vi.fn(),
+  deleteJobAction: vi.fn(),
   reassignJobAction: vi.fn(),
   updateJobAction: vi.fn(),
 }))
@@ -83,6 +85,37 @@ afterEach(() => {
 })
 
 describe("JobWorkspace", () => {
+  it("offers Edit and Delete from the job actions menu and deletes after confirmation", async () => {
+    const user = userEvent.setup()
+    vi.mocked(deleteJobAction).mockResolvedValue({
+      message: "Job deleted.",
+      ok: true,
+    })
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[job]}
+        rosterShifts={rosterShifts}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Job actions for Inspect loading bay" })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete job?" })
+    ).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Delete job" }))
+
+    await waitFor(() => {
+      expect(deleteJobAction).toHaveBeenCalledWith(1401)
+    })
+    expect(screen.queryByLabelText("Job Inspect loading bay")).not.toBeInTheDocument()
+  })
+
   it("prefills template defaults while keeping every job field editable", async () => {
     const user = userEvent.setup()
     render(

@@ -1,6 +1,6 @@
 begin;
 
-select plan(47);
+select plan(50);
 
 select has_table('public', 'job_assets', 'job evidence metadata exists');
 select has_table(
@@ -48,6 +48,12 @@ select has_function(
   'archive_job',
   array['bigint', 'integer'],
   'version-aware archive transition exists'
+);
+select has_function(
+  'public',
+  'delete_job',
+  array['bigint'],
+  'protected job deletion exists'
 );
 select has_function(
   'public',
@@ -435,6 +441,25 @@ select is(
   ),
   0::bigint,
   'cross-organisation owner cannot read evidence'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000001',
+  true
+);
+select lives_ok(
+  $$
+    select public.delete_job(
+      (select id from public.jobs where title = 'S05 HEIF format')
+    )
+  $$,
+  'operations role can delete an unsubmitted job with immutable activity'
+);
+select is(
+  (select count(*) from public.jobs where title = 'S05 HEIF format'),
+  0::bigint,
+  'deleted job is no longer available'
 );
 
 select * from finish();
