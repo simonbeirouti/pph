@@ -1,6 +1,6 @@
 begin;
 
-select plan(30);
+select plan(32);
 
 select has_table('public', 'roster_shifts', 'roster shifts prerequisite exists');
 select has_table('public', 'jobs', 'jobs exists');
@@ -127,6 +127,24 @@ select lives_ok(
     )
   $$,
   'owner creates an assigned job'
+);
+select lives_ok(
+  $$
+    select public.create_job(
+      p_title => 'Owner self-assigned job',
+      p_assignee_membership_id => 1101
+    )
+  $$,
+  'owner creates a job assigned to their own membership'
+);
+select is(
+  (
+    select assignee_membership_id
+    from public.jobs
+    where title = 'Owner self-assigned job'
+  ),
+  1101::bigint,
+  'owner self-assignment is persisted'
 );
 select is(
   (

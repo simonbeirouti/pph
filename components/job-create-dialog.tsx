@@ -2,14 +2,13 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
 import { CalendarIcon, ChevronDownIcon, PencilIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { createJobAction, updateJobAction } from "@/app/dashboard/jobs/actions"
 import {
   updateJobEverywhere,
   useOfflineV2Actions,
 } from "@/components/offline-v2-actions"
-import { FieldErrors } from "@/components/employee-form"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -35,11 +34,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -63,10 +58,7 @@ import type {
 } from "@/lib/jobs/types"
 import { INITIAL_JOB_ACTION_STATE } from "@/lib/jobs/types"
 import type { JobTemplateOption } from "@/lib/templates/types"
-import {
-  isoToLocalDateTime,
-  localDateTimeToIso,
-} from "@/lib/jobs/validation"
+import { isoToLocalDateTime, localDateTimeToIso } from "@/lib/jobs/validation"
 
 type JobFormAction = (
   state: JobActionState,
@@ -221,10 +213,7 @@ export function JobCreateDialog({
                 Add work to the board. Times use {timezone}.
               </DialogDescription>
             </DialogHeader>
-            <div
-              className="min-h-0 overflow-y-auto pr-1"
-              data-job-form-scroll
-            >
+            <div className="min-h-0 overflow-y-auto pr-1" data-job-form-scroll>
               {form}
             </div>
           </DialogContent>
@@ -265,9 +254,7 @@ export function JobEditDialog({
         description: String(payload.description ?? ""),
         dueAt: nullableLocalDateTime(payload.dueAt, timezone),
         location: String(payload.location ?? ""),
-        minimumCompletionPhotos: Number(
-          payload.minimumCompletionPhotos ?? 0
-        ),
+        minimumCompletionPhotos: Number(payload.minimumCompletionPhotos ?? 0),
         priority: String(payload.priority ?? "normal") as JobCard["priority"],
         requiresCompletionNote: Boolean(payload.requiresCompletionNote),
         scheduledAt: nullableLocalDateTime(payload.scheduledAt, timezone),
@@ -309,10 +296,7 @@ export function JobEditDialog({
               Update job details and requirements. Times use {timezone}.
             </DialogDescription>
           </DialogHeader>
-          <div
-            className="min-h-0 overflow-y-auto pr-1"
-            data-job-form-scroll
-          >
+          <div className="min-h-0 overflow-y-auto pr-1" data-job-form-scroll>
             <JobForm
               action={action}
               currentAssigneeName={currentAssigneeName}
@@ -336,9 +320,7 @@ export function JobEditDialog({
 
 function formPayload(formData: FormData) {
   return {
-    assigneeMembershipId: String(
-      formData.get("assigneeMembershipId") ?? ""
-    ),
+    assigneeMembershipId: String(formData.get("assigneeMembershipId") ?? ""),
     description: String(formData.get("description") ?? ""),
     dueAt: String(formData.get("dueAt") ?? ""),
     location: String(formData.get("location") ?? ""),
@@ -401,7 +383,7 @@ function JobForm({
     initialJob?.priority ?? initialTemplate?.priority ?? "normal"
   )
   const [assigneeMembershipId, setAssigneeMembershipId] = useState(
-    initialJob?.assigneeMembershipId ?? initialTemplate?.assigneeMembershipId
+    (initialJob?.assigneeMembershipId ?? initialTemplate?.assigneeMembershipId)
       ? String(
           initialJob?.assigneeMembershipId ??
             initialTemplate?.assigneeMembershipId
@@ -437,6 +419,7 @@ function JobForm({
   )
   const defaultsKey = initialTemplate?.id ?? "none"
   const handledJobId = useRef<number | null>(null)
+  const handledErrorState = useRef<JobActionState | null>(null)
   const fieldId = (name: string) => `${idPrefix}${name}`
 
   useEffect(() => {
@@ -446,6 +429,15 @@ function JobForm({
     }
   }, [onSaved, state.job])
 
+  useEffect(() => {
+    if (state.ok || !state.message || handledErrorState.current === state)
+      return
+
+    handledErrorState.current = state
+    const fieldMessages = Object.values(state.errors ?? {}).flat()
+    toast.error([...new Set(fieldMessages)].join(" ") || state.message)
+  }, [state])
+
   return (
     <form action={formAction}>
       <FieldGroup>
@@ -454,26 +446,18 @@ function JobForm({
           type="hidden"
           value={initialTemplate?.id ?? ""}
         />
-        {state.message && !state.ok ? (
-          <Alert variant="destructive">
-            <AlertDescription>{state.message}</AlertDescription>
-          </Alert>
-        ) : null}
         <Field>
           <FieldLabel htmlFor={fieldId("title")}>Title</FieldLabel>
           <Input
             aria-invalid={Boolean(state.errors?.title)}
             defaultValue={
-              state.values?.title ??
-              initialTemplate?.title ??
-              initialJob?.title
+              state.values?.title ?? initialTemplate?.title ?? initialJob?.title
             }
             id={fieldId("title")}
             key={`title-${defaultsKey}-${state.values?.title ?? initialJob?.title ?? ""}`}
             name="title"
             required
           />
-          <FieldErrors errors={state.errors?.title} />
         </Field>
         <Field>
           <FieldLabel htmlFor={fieldId("description")}>Description</FieldLabel>
@@ -489,7 +473,6 @@ function JobForm({
             name="description"
             rows={4}
           />
-          <FieldErrors errors={state.errors?.description} />
         </Field>
         <div
           className="grid grid-cols-2 gap-4"
@@ -508,7 +491,6 @@ function JobForm({
               key={`location-${defaultsKey}-${state.values?.location ?? initialJob?.location ?? ""}`}
               name="location"
             />
-            <FieldErrors errors={state.errors?.location} />
           </Field>
           <Field>
             <FieldLabel htmlFor={fieldId("priority")}>Priority</FieldLabel>
@@ -533,7 +515,6 @@ function JobForm({
                 <SelectItem value="urgent">Urgent</SelectItem>
               </SelectContent>
             </Select>
-            <FieldErrors errors={state.errors?.priority} />
           </Field>
         </div>
         <div
@@ -573,7 +554,6 @@ function JobForm({
                 ))}
               </SelectContent>
             </Select>
-            <FieldErrors errors={state.errors?.assigneeMembershipId} />
           </Field>
           <Field>
             <FieldLabel htmlFor={fieldId("roster-shift")}>
@@ -622,7 +602,6 @@ function JobForm({
                 ))}
               </SelectContent>
             </Select>
-            <FieldErrors errors={state.errors?.rosterShiftId} />
           </Field>
         </div>
         <div
@@ -668,9 +647,7 @@ function JobForm({
               value={minimumCompletionPhotos}
             >
               <SelectTrigger
-                aria-invalid={Boolean(
-                  state.errors?.minimumCompletionPhotos
-                )}
+                aria-invalid={Boolean(state.errors?.minimumCompletionPhotos)}
                 className="w-full"
                 id={fieldId("minimum-photos")}
               >
@@ -684,9 +661,8 @@ function JobForm({
                 ))}
               </SelectContent>
             </Select>
-            <FieldErrors errors={state.errors?.minimumCompletionPhotos} />
           </Field>
-          <Field className="self-center" orientation="horizontal">
+          <Field className="h-8 self-end" orientation="horizontal">
             <Checkbox
               checked={requiresCompletionNote}
               id={fieldId("requires-note")}
@@ -778,7 +754,6 @@ function DateTimePicker({
           </div>
         </PopoverContent>
       </Popover>
-      <FieldErrors errors={error} />
     </Field>
   )
 }

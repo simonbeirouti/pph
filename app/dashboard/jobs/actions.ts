@@ -151,8 +151,30 @@ export async function createJobAction(
   })
 
   if (error || !data) {
+    const failure = error?.message.toLocaleLowerCase() ?? ""
+    if (failure.includes("assignee")) {
+      return {
+        errors: {
+          assigneeMembershipId: ["Choose an active assignee."],
+        },
+        message: "Choose an active assignee.",
+        ok: false,
+        values: preservedJobValues(values),
+      }
+    }
+    if (failure.includes("due time") || failure.includes("scheduled time")) {
+      return {
+        errors: {
+          dueAt: ["Make sure the due time is after the scheduled time."],
+          scheduledAt: ["Check the scheduled time."],
+        },
+        message: "Make sure the due time is after the scheduled time.",
+        ok: false,
+        values: preservedJobValues(values),
+      }
+    }
     return {
-      message: "Unable to create the job. Check the assignee and times.",
+      message: "The job could not be created. Try again.",
       ok: false,
       values: preservedJobValues(values),
     }

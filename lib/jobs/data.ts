@@ -28,6 +28,16 @@ type EmployeeJobRow = JobRow & {
   job_updates: Array<{ count: number }>
 }
 
+function assignmentTargets(
+  employees: readonly Awaited<ReturnType<typeof listEmployees>>[number][],
+  actor: Awaited<ReturnType<typeof requireOperations>>
+) {
+  return employees.filter(
+    (employee) =>
+      employee.role !== "owner" || employee.membershipId === actor.membershipId
+  )
+}
+
 const JOB_FIELDS =
   "id, assignee_membership_id, title, description, location, priority, status, scheduled_at, due_at, requires_completion_note, minimum_completion_photos, archived_at, updated_at, version"
 
@@ -84,13 +94,15 @@ export const getOwnerJobBoardData = cache(async () => {
   }
 
   return {
-    employees: employees.map((employee): JobBoardEmployee => ({
-      active: employee.status === "active",
-      avatarUrl: employee.avatarUrl,
-      displayName: employee.displayName,
-      jobTitle: employee.jobTitle,
-      membershipId: employee.membershipId,
-    })),
+    employees: assignmentTargets(employees, owner).map(
+      (employee): JobBoardEmployee => ({
+        active: employee.status === "active",
+        avatarUrl: employee.avatarUrl,
+        displayName: employee.displayName,
+        jobTitle: employee.jobTitle,
+        membershipId: employee.membershipId,
+      })
+    ),
     jobs: (jobsResult.data ?? []).map((row) => toJobCard(row as JobRow)),
     rosterShifts: (shiftsResult.data ?? []).map(
       (shift): JobRosterShiftOption => ({
@@ -153,13 +165,15 @@ export const getOwnerJobsPageData = cache(
 
     return {
       archivePagination,
-      employees: employees.map((employee): JobBoardEmployee => ({
-        active: employee.status === "active",
-        avatarUrl: employee.avatarUrl,
-        displayName: employee.displayName,
-        jobTitle: employee.jobTitle,
-        membershipId: employee.membershipId,
-      })),
+      employees: assignmentTargets(employees, owner).map(
+        (employee): JobBoardEmployee => ({
+          active: employee.status === "active",
+          avatarUrl: employee.avatarUrl,
+          displayName: employee.displayName,
+          jobTitle: employee.jobTitle,
+          membershipId: employee.membershipId,
+        })
+      ),
       jobs: [...(workflowResult.data ?? []), ...(archiveResult.data ?? [])].map(
         (row) => toJobCard(row as JobRow)
       ),

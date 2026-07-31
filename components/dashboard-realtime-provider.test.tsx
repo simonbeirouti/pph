@@ -8,6 +8,13 @@ import {
 import { createClient } from "@/lib/supabase/browser"
 import type { RealtimeInvalidation } from "@/lib/realtime/events"
 
+const refresh = vi.fn()
+const router = { refresh }
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+}))
+
 vi.mock("@/lib/supabase/browser", () => ({
   createClient: vi.fn(),
 }))
@@ -105,15 +112,24 @@ describe("DashboardRealtimeProvider", () => {
 
     act(() => updateStatus?.("SUBSCRIBED"))
     act(() => {
-      broadcast?.({ payload: event })
       broadcast?.({ payload: { ...event, eventId: "" } })
+    })
+    act(() => vi.advanceTimersByTime(150))
+    expect(listener).not.toHaveBeenCalled()
+    expect(invalidate).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
+
+    act(() => {
+      broadcast?.({ payload: event })
       broadcast?.({ payload: { ...event, entityId: 1402 } })
     })
 
     expect(listener).toHaveBeenCalledTimes(2)
     expect(invalidate).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
     window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
@@ -145,6 +161,34 @@ describe("DashboardRealtimeProvider", () => {
     act(() => updateStatus?.("SUBSCRIBED"))
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
+    window.removeEventListener("pph:offline-invalidate", invalidate)
+  })
+
+  it("refreshes server and offline views after a stale tab becomes visible", async () => {
+    const invalidate = vi.fn()
+    window.addEventListener("pph:offline-invalidate", invalidate)
+    renderProvider()
+    await act(async () => {})
+    act(() => updateStatus?.("SUBSCRIBED"))
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    })
+    act(() => document.dispatchEvent(new Event("visibilitychange")))
+    act(() => vi.advanceTimersByTime(30_000))
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    })
+    act(() => document.dispatchEvent(new Event("visibilitychange")))
+
+    expect(invalidate).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(150))
+    expect(invalidate).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
     window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 

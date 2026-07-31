@@ -30,7 +30,7 @@ The Employee Operations Dashboard is a responsive web application for companies 
 V1 supports one organisation per user and three roles:
 
 - **Owner:** controls access and roles, manages all operations, and reviews
-  employee and manager work. Owners are not operational job assignees.
+  employee and manager work. Owners may assign operational jobs to themselves.
 - **Manager:** manages the employee lifecycle and operations, performs assigned
   work, and reviews employee work.
 - **Employee:** sees their own roster and assigned jobs, records work, uploads photos, leaves notes and comments, and submits jobs for review.
@@ -104,12 +104,13 @@ An owner can:
   invited-or-active owners.
 - View all employee profiles, shifts, jobs, comments, notes, and evidence.
 - Create, edit, assign, reassign, archive, and review jobs.
+- Assign operational jobs to their own active membership.
 - Create and manage job templates and schedules.
 - Create shifts from the roster calendar, exactly edit and archive them from
   employee profiles, and assign not-started jobs while creating a shift.
 - Comment on any job in their organisation.
 
-An owner cannot be assigned operational jobs.
+An owner cannot assign an operational job to another owner.
 
 ### 2.2 Manager
 
@@ -390,7 +391,8 @@ Acceptance criteria:
 
 - Title is required.
 - Due time cannot precede scheduled time.
-- An assignee must be an active employee in the organisation.
+- An assignee must be an active employee or manager in the organisation, or the
+  active owner assigning the job to themselves.
 - After an assignee is selected, the owner can choose from that employee's
   current and upcoming rostered shifts.
 - Choosing a rostered shift sets the job's scheduled and due date/times from
@@ -1391,21 +1393,21 @@ integrated V1 release review.
 Current release decision: **NO-GO**. S11 is complete and S12 is in progress, so
 the application is not yet approved for production.
 
-| Step | Capability                             | Status        | Checkpoint   | Verification summary                                                                                                    |
-| ---- | -------------------------------------- | ------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| S00  | Product and implementation baseline    | `complete`    | `8a07533`    | Baseline documents, environment contract, and reference assets recorded                                                 |
-| S01  | Platform foundation                    | `complete`    | `2e26642`    | Lint, types, unit, database, desktop/mobile E2E, and build passed                                                       |
-| S02  | Authentication and employees           | `complete`    | `049a0e9`    | Invitation, activation, employee lifecycle, storage, and isolation passed                                               |
-| S03  | Progressive Web App shell              | `complete`    | `b43f944`    | Manifest, install assets, service-worker lifecycle, headers, and degradation passed                                     |
-| S04  | Owner jobs and Kanban                  | `complete`    | `f00c938`    | Workflow, assignment, permissions, and desktop/mobile board journeys passed                                             |
-| S05  | Employee execution and owner review    | `complete`    | `ef897ef`    | Evidence, submission, review, notification, and private-storage checks passed                                           |
-| S06  | Roster data and views                  | `complete`    | `ca99a70`    | Organisation and employee views, time handling, and scheduling passed                                                   |
-| S07  | Roster interactions                    | `complete`    | `18c1987`    | Desktop/mobile creation, exact editing, archive, and transactional assignment passed                                    |
-| S08  | Templates and job schedules            | `complete`    | `26e65e6`    | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                                         |
-| S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                                      |
-| S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed                         |
-| S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed                    |
-| S12  | Integration and production hardening   | `in_progress` | working tree | Offline photo forced-400 retry passes in desktop/mobile Chromium; native Safari/Android staging acceptance remains       |
+| Step | Capability                             | Status        | Checkpoint   | Verification summary                                                                                               |
+| ---- | -------------------------------------- | ------------- | ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| S00  | Product and implementation baseline    | `complete`    | `8a07533`    | Baseline documents, environment contract, and reference assets recorded                                            |
+| S01  | Platform foundation                    | `complete`    | `2e26642`    | Lint, types, unit, database, desktop/mobile E2E, and build passed                                                  |
+| S02  | Authentication and employees           | `complete`    | `049a0e9`    | Invitation, activation, employee lifecycle, storage, and isolation passed                                          |
+| S03  | Progressive Web App shell              | `complete`    | `b43f944`    | Manifest, install assets, service-worker lifecycle, headers, and degradation passed                                |
+| S04  | Owner jobs and Kanban                  | `complete`    | `f00c938`    | Workflow, assignment, permissions, and desktop/mobile board journeys passed                                        |
+| S05  | Employee execution and owner review    | `complete`    | `ef897ef`    | Evidence, submission, review, notification, and private-storage checks passed                                      |
+| S06  | Roster data and views                  | `complete`    | `ca99a70`    | Organisation and employee views, time handling, and scheduling passed                                              |
+| S07  | Roster interactions                    | `complete`    | `18c1987`    | Desktop/mobile creation, exact editing, archive, and transactional assignment passed                               |
+| S08  | Templates and job schedules            | `complete`    | `26e65e6`    | Timezone generation, uniqueness, retry, RLS, and desktop/mobile journeys passed                                    |
+| S09  | Operational dashboards                 | `complete`    | `26e65e6`    | Role-specific composition, filters, loading states, and responsive journeys passed                                 |
+| S10  | Access governance and review hierarchy | `complete`    | `f8431ee`    | Role hierarchy, owner invariants, review locking, notifications, and multi-user journeys passed                    |
+| S11  | Offline assigned-worker completion     | `complete`    | working tree | 15 database, 165 unit, and 20 production desktop/mobile PWA checks passed; lint, types, build passed               |
+| S12  | Integration and production hardening   | `in_progress` | working tree | Offline photo forced-400 retry passes in desktop/mobile Chromium; native Safari/Android staging acceptance remains |
 
 ### Step 1: Platform foundation — complete
 
@@ -1764,6 +1766,33 @@ Automated implementation evidence (2026-07-29):
   create/filter/reassign journey pass; the combined mobile browser checkpoint
   is recorded below. No schema, migration, RLS, permission, environment,
   offline-operation, or route contract changed.
+- Job form refinement follow-up (2026-07-31): standardised employee-sheet
+  profile field spacing; replaced inline job-form validation messages with a
+  specific error toast and red invalid controls; aligned Require note with the
+  adjacent control; and changed the assignment contract so an active owner is
+  available to assign jobs to their own membership while other owners remain
+  excluded. Added a new collision-safe Supabase migration plus focused
+  component and database coverage. Changed-file ESLint, TypeScript, 10 focused
+  component tests, and `git diff --check` pass. The focused database migration
+  and pgTAP check remain deferred because Docker Desktop and the local Supabase
+  stack were unavailable. No environment-variable or public-route change was
+  required. Used the Vercel React/Next.js, Playwright, Supabase, and Supabase
+  Postgres skills; S12 remains `in_progress`.
+- Dashboard realtime correction (2026-07-31): restored the debounced App Router
+  refresh that had been replaced by an offline-cache-only invalidation, while
+  retaining the same coalesced event for the IndexedDB snapshot. Valid job,
+  roster, membership, profile, evidence, review, template, and schedule
+  broadcasts now refresh the mounted server screen and background offline
+  replica together; malformed events, private role-scoped topics, reconnect
+  recovery, stale-tab recovery, and channel cleanup remain enforced. The
+  database trigger and manager-topic audit found complete existing coverage, so
+  no migration, RLS, permission, environment-variable, or public-route change
+  was required. Twelve focused realtime unit tests, changed-file ESLint,
+  TypeScript, Prettier, and `git diff --check` pass. The expanded multi-user
+  dashboard/jobs/roster Playwright journey and focused pgTAP checks are ready
+  but remain deferred because the local Supabase database is unavailable.
+  Used the Supabase, Supabase Postgres, Vercel React/Next.js, and Playwright
+  project skills; S12 remains `in_progress`.
 - UI refinement checkpoint — employees (2026-07-30): employee creation now
   uses a capped scrollable drawer on mobile and a scroll-safe dialog on
   desktop, with a centred circular photo picker, compact name/contact rows,
@@ -2054,6 +2083,7 @@ resolution changes product behaviour, update this document first.
 | TODO-011 | S01/S04/S06/S07 | S12    | Remove superseded reference duplicates and verify repository-native imports                       | `complete`    |
 | TODO-014 | S03/S05/S10     | S11    | Add the original IndexedDB work pack, outbox, idempotent replay, and offline security boundaries  | `complete`    |
 | TODO-015 | S11/real-device | S12    | Validate the complete all-role local-first dashboard and sync through native staging acceptance   | `in_progress` |
+| TODO-016 | S12/realtime    | S12    | Run the expanded multi-user realtime browser journey and focused pgTAP checks on the local stack  | `in_progress` |
 
 Completed integration items: TODO-001, TODO-002, TODO-005, TODO-006, TODO-009,
 TODO-012, and TODO-013.

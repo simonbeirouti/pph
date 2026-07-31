@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
 
 import { EmployeeProfileFields, FieldErrors } from "@/components/employee-form"
@@ -218,7 +212,7 @@ export function EmployeeSheetProfile({
                   Update the employee’s name or phone number.
                 </FieldDescription>
               </div>
-              <div onChange={markProfileDirty}>
+              <div className="grid gap-4" onChange={markProfileDirty}>
                 <EmployeeProfileFields
                   employee={employee}
                   idPrefix={`sheet-${employee.membershipId}-`}

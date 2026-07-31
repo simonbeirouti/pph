@@ -9,12 +9,18 @@ import {
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { reassignJobAction } from "@/app/dashboard/jobs/actions"
+import {
+  createJobAction,
+  reassignJobAction,
+} from "@/app/dashboard/jobs/actions"
 import { AssignmentDialog, JobWorkspace } from "@/components/job-workspace"
 import type { JobBoardEmployee, JobCard } from "@/lib/jobs/types"
 
 const viewportMocks = vi.hoisted(() => ({
   mobile: false,
+}))
+const toastMocks = vi.hoisted(() => ({
+  error: vi.fn(),
 }))
 
 vi.mock("@/app/dashboard/jobs/actions", () => ({
@@ -24,6 +30,9 @@ vi.mock("@/app/dashboard/jobs/actions", () => ({
 }))
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => viewportMocks.mobile,
+}))
+vi.mock("sonner", () => ({
+  toast: toastMocks,
 }))
 
 const employees: JobBoardEmployee[] = [
@@ -179,7 +188,57 @@ describe("JobWorkspace", () => {
       within(screen.getByRole("dialog", { name: "Create job" }))
         .getByRole("checkbox", { name: "Require note" })
         .closest('[data-slot="field"]')
-    ).toHaveClass("self-center")
+    ).toHaveClass("h-8", "self-end")
+  })
+
+  it("toasts specific validation issues and only marks invalid controls", async () => {
+    vi.mocked(createJobAction).mockResolvedValue({
+      errors: {
+        assigneeMembershipId: ["Choose an active assignee."],
+        dueAt: ["Make sure the due time is after the scheduled time."],
+      },
+      message: "Check the highlighted fields.",
+      ok: false,
+      values: {
+        assigneeMembershipId: "1103",
+        dueAt: "2026-07-31T10:00",
+        title: "Clean the yard",
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create job" }))
+    const dialog = screen.getByRole("dialog", { name: "Create job" })
+    await user.type(within(dialog).getByLabelText("Title"), "Clean the yard")
+    await user.click(within(dialog).getByRole("button", { name: "Create job" }))
+
+    await waitFor(() =>
+      expect(toastMocks.error).toHaveBeenCalledWith(
+        "Choose an active assignee. Make sure the due time is after the scheduled time."
+      )
+    )
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument()
+    expect(
+      within(dialog).getByRole("combobox", { name: "Assignee" })
+    ).toHaveAttribute("aria-invalid", "true")
+    expect(within(dialog).getByRole("button", { name: "Due" })).toHaveAttribute(
+      "aria-invalid",
+      "true"
+    )
+    expect(within(dialog).getByLabelText("Title")).toHaveAttribute(
+      "aria-invalid",
+      "false"
+    )
+    expect(
+      within(dialog).queryByText("Choose an active assignee.")
+    ).not.toBeInTheDocument()
   })
 
   it("schedules a job from the selected employee's rostered shift", async () => {
