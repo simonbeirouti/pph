@@ -45,6 +45,7 @@ begin
   where job_id = v_job.id and organisation_id = v_actor.organisation_id;
   delete from public.job_operation_receipts
   where job_id = v_job.id and organisation_id = v_actor.organisation_id;
+  perform set_config('app.allow_job_deletion', 'true', true);
   delete from public.job_updates
   where job_id = v_job.id and organisation_id = v_actor.organisation_id;
   delete from public.jobs
@@ -57,3 +58,17 @@ $$;
 revoke all on function public.delete_job(bigint)
   from public, anon, authenticated, service_role;
 grant execute on function public.delete_job(bigint) to authenticated;
+
+create or replace function private.prevent_job_update_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE'
+    and current_setting('app.allow_job_deletion', true) = 'true' then
+    return old;
+  end if;
+  raise exception 'job updates are append-only' using errcode = '55000';
+end;
+$$;

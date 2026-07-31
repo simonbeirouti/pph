@@ -602,9 +602,25 @@ export async function deleteJobAction(
     p_job_id: parsed.data,
   })
   if (error || !data) {
+    const failure = error?.message.toLocaleLowerCase() ?? ""
+    if (error?.code === "PGRST202" || failure.includes("delete_job")) {
+      return {
+        message: "Job deletion is not available in the connected database.",
+        ok: false,
+      }
+    }
+    if (error?.code === "P0002" || failure.includes("unavailable")) {
+      return { message: "The job is no longer available.", ok: false }
+    }
+    if (error?.code === "55000" || failure.includes("unsubmitted")) {
+      return {
+        message:
+          "Only unsubmitted jobs that are not managed by a schedule can be deleted.",
+        ok: false,
+      }
+    }
     return {
-      message:
-        "Only unsubmitted jobs that are not managed by a schedule can be deleted.",
+      message: "The job could not be deleted. Try again.",
       ok: false,
     }
   }
