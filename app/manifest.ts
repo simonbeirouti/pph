@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Employee Operations Dashboard",
-    short_name: "Employee Ops",
+    name: "Pure Peninsula Honey",
+    short_name: "Pure Peninsula Honey",
     description:
       "Roster employees, assign operational jobs, and review completed work.",
     start_url: "/dashboard",

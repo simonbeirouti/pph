@@ -1,4 +1,4 @@
-# Employee Ops production runbook
+# Pure Peninsula Honey production runbook
 
 ## Release artifact and configuration
 

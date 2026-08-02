@@ -157,7 +157,7 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     self.registration.showNotification(label, {
-      body: "Open Employee Ops to view the update.",
+      body: "Open Pure Peninsula Honey to view the update.",
       data: { url },
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

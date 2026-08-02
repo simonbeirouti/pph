@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 export const metadata: Metadata = {
-  title: "Employee Operations Dashboard",
+  title: "Pure Peninsula Honey",
   description:
     "Roster employees, assign operational jobs, and review completed work.",
   icons: {
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Employee Ops",
+    title: "Pure Peninsula Honey",
   },
 }
 

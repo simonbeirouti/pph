@@ -1,4 +1,4 @@
-# Employee Operations Dashboard V1
+# Pure Peninsula Honey V1
 
 ## Document status
 
@@ -25,7 +25,7 @@ readiness. It consolidates the former `FEATURES.md` implementation register.
 
 ## 1. Product overview
 
-The Employee Operations Dashboard is a responsive web application for companies that need to roster employees, assign operational jobs, collect completion evidence, and review completed work.
+Pure Peninsula Honey is a responsive web application for companies that need to roster employees, assign operational jobs, collect completion evidence, and review completed work.
 
 V1 supports one organisation per user and three roles:
 
@@ -1897,6 +1897,33 @@ Automated implementation evidence (2026-07-29):
   guidance. The existing token-hash invite route remains unchanged. Template
   validation and `git diff --check` pass; no schema, permission,
   environment-variable, public-route, or reference-file change was required.
+- Owner submission-email refinement (2026-08-02): audited the only V1
+  application email sent to an owner (the job-submission review notification)
+  and restyled it to match the invitation email's yellow and neutral palette,
+  centred bee logo, borderless email-safe table layout, clear completion
+  summary, and prominent review action. The recipient, direct review link,
+  idempotent delivery ledger, and private-evidence exclusion are unchanged.
+  The focused Vitest template checks, changed-file ESLint, and `git diff
+  --check` pass; no schema, permission, environment-variable, public-route, or
+  reference-file change was required. S12 remains `in_progress` for the
+  existing native iOS/Android staging gates.
+- Password-recovery email refinement (2026-08-02): added and configured the
+  Supabase Auth recovery template with the same yellow and neutral palette,
+  centred bee logo, email-safe table layout, reset-password action, and safe
+  unexpected-request guidance as the invitation email. The standard Supabase
+  `{{ .ConfirmationURL }}` recovery flow is preserved. Prettier template
+  validation, configuration/path placeholder checks, and `git diff --check`
+  pass; no schema, permission, environment-variable, public-route, or
+  reference-file change was required. S12 remains `in_progress` for the
+  existing native iOS/Android staging gates.
+- Brand refinement (2026-08-02): changed the user-facing product name to Pure
+  Peninsula Hone across root metadata, Apple web-app metadata, PWA manifest and
+  install guidance, service-worker notification copy, Auth email subjects and
+  templates, job-submission email image text, documentation, and the local
+  seeded organisation. Focused manifest, PWA-install, and submission-email
+  tests pass; no schema, permission, environment-variable, or route contract
+  changed. S12 remains `in_progress` for the existing native iOS/Android
+  staging gates.
 - Hosted seed maintenance (2026-07-30): added `hello@simonbeirouti.com` as the
   sole seeded user and active owner of the Pure Peninsula Honey organisation.
 - Sidebar identity refinement (2026-07-30): replaced the generated building

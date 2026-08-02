@@ -48,9 +48,9 @@ test("publishes signed-out install metadata and valid PNG icons", async ({
         type: "image/png",
       },
     ],
-    name: "Employee Operations Dashboard",
+    name: "Pure Peninsula Honey",
     orientation: "portrait-primary",
-    short_name: "Employee Ops",
+    short_name: "Pure Peninsula Honey",
     start_url: "/dashboard",
     theme_color: "#facc15",
   })
@@ -183,7 +183,7 @@ test("keeps Auth and the application usable without service-worker support", asy
     employeePage.getByRole("heading", { name: /^Hi, Alex/ })
   ).toBeVisible()
   await expect(
-    employeePage.getByRole("region", { name: "Install Employee Ops" })
+    employeePage.getByRole("region", { name: "Install Pure Peninsula Honey" })
   ).toBeVisible()
 })
 
@@ -211,7 +211,7 @@ test("shows employee guidance and remembers dismissal", async ({
 }) => {
   await employeePage.goto("/dashboard")
   const guidance = employeePage.getByRole("region", {
-    name: "Install Employee Ops",
+    name: "Install Pure Peninsula Honey",
   })
   await expect(guidance).toBeVisible()
   await guidance
@@ -221,7 +221,7 @@ test("shows employee guidance and remembers dismissal", async ({
 
   await employeePage.reload()
   await expect(
-    employeePage.getByRole("region", { name: "Install Employee Ops" })
+    employeePage.getByRole("region", { name: "Install Pure Peninsula Honey" })
   ).toHaveCount(0)
 })
 
@@ -230,7 +230,7 @@ test("does not show employee install guidance to owners", async ({
 }) => {
   await ownerPage.goto("/dashboard")
   await expect(
-    ownerPage.getByRole("region", { name: "Install Employee Ops" })
+    ownerPage.getByRole("region", { name: "Install Pure Peninsula Honey" })
   ).toHaveCount(0)
 })
 
@@ -278,6 +278,6 @@ test("hides guidance in standalone mode and preserves signed-out routing", async
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible()
   await expect(
-    page.getByRole("region", { name: "Install Employee Ops" })
+    page.getByRole("region", { name: "Install Pure Peninsula Honey" })
   ).toHaveCount(0)
 })

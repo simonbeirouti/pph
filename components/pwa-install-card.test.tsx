@@ -98,7 +98,7 @@ describe("PWA install guidance", () => {
     render(<PwaInstallCard />)
 
     const guidance = await screen.findByRole("region", {
-      name: "Install Employee Ops",
+      name: "Install Pure Peninsula Honey",
     })
 
     expect(guidance).toBeVisible()
@@ -136,7 +136,7 @@ describe("PWA install guidance", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Install Employee Ops" })
+        screen.queryByRole("region", { name: "Install Pure Peninsula Honey" })
       ).not.toBeInTheDocument()
     )
   })
@@ -156,7 +156,7 @@ describe("PWA install guidance", () => {
     render(<PwaInstallCard />)
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Install Employee Ops" })
+        screen.queryByRole("region", { name: "Install Pure Peninsula Honey" })
       ).not.toBeInTheDocument()
     )
   })
@@ -169,7 +169,7 @@ describe("PWA install guidance", () => {
       await Promise.resolve()
     })
     const guidance = screen.getByRole("region", {
-      name: "Install Employee Ops",
+      name: "Install Pure Peninsula Honey",
     })
 
     expect(guidance).not.toHaveClass("motion-safe:animate-bounce")
@@ -186,7 +186,7 @@ describe("PWA install guidance", () => {
     const user = userEvent.setup()
     const prompt = vi.fn().mockResolvedValue(undefined)
     render(<PwaInstallCard />)
-    await screen.findByRole("region", { name: "Install Employee Ops" })
+    await screen.findByRole("region", { name: "Install Pure Peninsula Honey" })
 
     const event = Object.assign(new Event("beforeinstallprompt"), {
       prompt,
@@ -202,7 +202,7 @@ describe("PWA install guidance", () => {
     expect(prompt).toHaveBeenCalledOnce()
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Install Employee Ops" })
+        screen.queryByRole("region", { name: "Install Pure Peninsula Honey" })
       ).not.toBeInTheDocument()
     )
   })
@@ -211,13 +211,13 @@ describe("PWA install guidance", () => {
     const requestPermission = vi.fn()
     vi.stubGlobal("Notification", { requestPermission })
     render(<PwaInstallCard />)
-    await screen.findByRole("region", { name: "Install Employee Ops" })
+    await screen.findByRole("region", { name: "Install Pure Peninsula Honey" })
 
     fireEvent(window, new Event("appinstalled"))
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Install Employee Ops" })
+        screen.queryByRole("region", { name: "Install Pure Peninsula Honey" })
       ).not.toBeInTheDocument()
     )
     expect(requestPermission).not.toHaveBeenCalled()

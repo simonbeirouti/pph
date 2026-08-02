@@ -24,6 +24,13 @@ describe("job submission email", () => {
     expect(message.text).toContain("2 completion photos required")
     expect(message.text).toContain("/dashboard/jobs?job=1401")
     expect(message.html).not.toContain("job-evidence")
+    expect(message.html).toContain("background-color: #f5f5f5")
+    expect(message.html).toContain(
+      'src="https://app.example.test/icons/logo-transparent.png"'
+    )
+    expect(message.html).toContain('bgcolor="#facc15"')
+    expect(message.html).toContain("Ready for review")
+    expect(message.html).toContain('alt="Pure Peninsula Honey"')
   })
 
   it("escapes user-controlled values in HTML", () => {

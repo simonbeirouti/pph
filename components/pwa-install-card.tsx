@@ -152,7 +152,7 @@ export function PwaInstallCard() {
         />
         <div className="flex min-w-0 flex-col items-start gap-2">
           <CardTitle className="pr-8 text-base" id="install-app-title">
-            Install Employee Ops
+            Install Pure Peninsula Honey
           </CardTitle>
           {ios ? (
             <p className="text-muted-foreground">

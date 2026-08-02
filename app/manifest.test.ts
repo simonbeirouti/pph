@@ -5,8 +5,8 @@ import manifest from "@/app/manifest"
 describe("PWA manifest", () => {
   it("publishes the install metadata and icon contract", () => {
     expect(manifest()).toEqual({
-      name: "Employee Operations Dashboard",
-      short_name: "Employee Ops",
+      name: "Pure Peninsula Honey",
+      short_name: "Pure Peninsula Honey",
       description:
         "Roster employees, assign operational jobs, and review completed work.",
       start_url: "/dashboard",

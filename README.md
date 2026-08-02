@@ -1,6 +1,6 @@
-# Employee Operations Dashboard
+# Pure Peninsula Honey
 
-The S02 application is a Next.js 16 employee operations dashboard backed by
+Pure Peninsula Honey is a Next.js 16 workforce operations dashboard backed by
 Supabase. It includes credential login, owner-managed employee invitations,
 activation and access controls, private avatars, organisation-scoped Row Level
 Security, and deterministic local test users.

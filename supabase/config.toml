@@ -252,8 +252,12 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 [auth.email.template.invite]
-subject = "You are invited to Employee Operations"
+subject = "You are invited to Pure Peninsula Honey"
 content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Pure Peninsula Honey password"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

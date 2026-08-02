@@ -39,13 +39,56 @@ export function buildSubmissionEmail(input: SubmissionEmailInput) {
     `Requirements: ${requirementSummary}`,
     `Review the job: ${input.reviewUrl}`,
   ].join("\n\n")
-  const html = `<p>${escapeHtml(input.employeeName)} submitted <strong>${escapeHtml(
-    input.jobTitle
-  )}</strong> for ${escapeHtml(input.organisationName)}.</p><p><strong>Submitted:</strong> ${escapeHtml(
-    submittedAt
-  )}<br><strong>Requirements:</strong> ${escapeHtml(
-    requirementSummary
-  )}</p><p><a href="${escapeHtml(input.reviewUrl)}">Review the job</a></p>`
+  const logoUrl = new URL(
+    "/icons/logo-transparent.png",
+    input.reviewUrl
+  ).toString()
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f5f5f5; color: #171717; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f5f5f5;">
+      <tr>
+        <td align="center" style="padding: 32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background-color: #ffffff;">
+            <tr>
+              <td align="center" style="padding-top: 32px;">
+                <img src="${escapeHtml(logoUrl)}" width="144" alt="Pure Peninsula Honey" style="display: block; width: 144px; max-width: 100%; height: auto; border: 0;" />
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding: 32px; text-align: center;">
+                <p style="margin: 0 0 12px; color: #854d0e; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; line-height: 20px; text-transform: uppercase;">Ready for review</p>
+                <h1 style="margin: 0 0 12px; color: #171717; font-size: 26px; line-height: 34px;">A job has been submitted</h1>
+                <p style="margin: 0 0 24px; color: #525252; font-size: 16px; line-height: 26px;">${escapeHtml(input.employeeName)} has submitted <strong>${escapeHtml(input.jobTitle)}</strong> for ${escapeHtml(input.organisationName)}.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 0 0 24px; background-color: #fefce8;">
+                  <tr>
+                    <td style="padding: 18px 20px; color: #422006; font-size: 14px; line-height: 22px; text-align: left;">
+                      <strong>Submitted</strong><br />${escapeHtml(submittedAt)}<br /><br />
+                      <strong>Completion requirements</strong><br />${escapeHtml(requirementSummary)}
+                    </td>
+                  </tr>
+                </table>
+                <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="center" bgcolor="#facc15" style="border-radius: 8px;">
+                      <a href="${escapeHtml(input.reviewUrl)}" style="display: inline-block; padding: 12px 20px; color: #422006; font-size: 15px; font-weight: 700; line-height: 20px; text-decoration: none;">Review the job</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin: 24px 0 0; color: #737373; font-size: 13px; line-height: 20px;">You are receiving this because you created this job.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
 
   return {
     from: input.from,
