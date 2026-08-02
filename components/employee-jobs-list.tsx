@@ -7,12 +7,12 @@ import {
   MapPinIcon,
   SendIcon,
 } from "lucide-react"
-import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
 import { toast } from "sonner"
 
 import { submitJobAction } from "@/app/dashboard/jobs/actions"
+import { OpenJobLink } from "@/components/job-detail-controller"
 import {
   updateJobEverywhere,
   useOfflineV2Actions,
@@ -149,7 +149,10 @@ function JobCardActions({ href, job }: { href: string; job: JobCard }) {
 
   return (
     <div className={cn("grid gap-2", canSubmit && "grid-cols-2")}>
-      <Button nativeButton={false} render={<Link href={href} prefetch={false} />}>
+      <Button
+        nativeButton={false}
+        render={<OpenJobLink href={href} job={job} />}
+      >
         Open job
       </Button>
       {canSubmit ? (

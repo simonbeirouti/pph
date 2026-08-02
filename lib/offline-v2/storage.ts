@@ -70,7 +70,9 @@ function transactionDone(transaction: IDBTransaction) {
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error)
     transaction.onabort = () =>
-      reject(transaction.error ?? new Error("Offline storage transaction aborted"))
+      reject(
+        transaction.error ?? new Error("Offline storage transaction aborted")
+      )
   })
 }
 
@@ -153,11 +155,7 @@ export async function getOfflineV2Identity() {
 }
 
 export async function putOfflineV2Operation(operation: OfflineV2Operation) {
-  await putValue(
-    STORES.outbox,
-    operation.clientOperationId,
-    operation
-  )
+  await putValue(STORES.outbox, operation.clientOperationId, operation)
 }
 
 export async function commitOfflineV2Operation({
@@ -180,18 +178,14 @@ export async function commitOfflineV2Operation({
   transaction
     .objectStore(STORES.outbox)
     .put(operation, operation.clientOperationId)
-  transaction
-    .objectStore(STORES.snapshots)
-    .put(snapshot, ACTIVE_SNAPSHOT_KEY)
+  transaction.objectStore(STORES.snapshots).put(snapshot, ACTIVE_SNAPSHOT_KEY)
   const entities = transaction.objectStore(STORES.entities)
   entities.clear()
   for (const [key, value] of normaliseSnapshot(snapshot)) {
     entities.put(value, key)
   }
   if (blob) {
-    transaction
-      .objectStore(STORES.blobs)
-      .put(blob, operation.clientOperationId)
+    transaction.objectStore(STORES.blobs).put(blob, operation.clientOperationId)
   }
   await transactionDone(transaction)
 }
@@ -281,25 +275,16 @@ export async function removeOfflineV2Operation(clientOperationId: string) {
   await transactionDone(transaction)
 }
 
-export async function putOfflineV2Blob(
-  clientOperationId: string,
-  blob: Blob
-) {
+export async function putOfflineV2Blob(clientOperationId: string, blob: Blob) {
   await putValue(STORES.blobs, clientOperationId, blob)
 }
 
 export async function getOfflineV2Blob(clientOperationId: string) {
-  return (
-    (await getValue<Blob>(STORES.blobs, clientOperationId)) ?? null
-  )
+  return (await getValue<Blob>(STORES.blobs, clientOperationId)) ?? null
 }
 
 export async function putOfflineConflict(conflict: OfflineConflict) {
-  await putValue(
-    STORES.conflicts,
-    conflict.clientOperationId,
-    conflict
-  )
+  await putValue(STORES.conflicts, conflict.clientOperationId, conflict)
 }
 
 export async function getOfflineConflicts() {
@@ -317,9 +302,7 @@ export async function putOfflineIdMapping(localId: string, serverId: number) {
   await putValue(STORES.mappings, localId, serverId)
 }
 
-export async function applyOfflineIdMappings(
-  mappings: Record<string, number>
-) {
+export async function applyOfflineIdMappings(mappings: Record<string, number>) {
   if (!Object.keys(mappings).length) return
   const [operations, snapshot] = await Promise.all([
     getOfflineV2Operations(),
@@ -357,35 +340,52 @@ export async function getOfflineMedia(key: string) {
   return (await getValue<Blob>(STORES.media, key)) ?? null
 }
 
-export async function cacheOfflineSnapshotMedia(snapshot: OfflineV2Snapshot) {
-  const urls = snapshotMediaUrls(snapshot)
-  for (const url of urls) {
-    const key = mediaKey(url)
-    if (await getOfflineMedia(key)) continue
-    const response = await fetch(url, {
-      cache: "no-store",
-      credentials: "omit",
-    }).catch(() => null)
-    if (!response?.ok) return false
-    const blob = await response.blob()
-    const capacity = await estimateOfflineCapacity(blob.size)
-    if (!capacity.sufficient) return false
-    await putOfflineMedia(key, blob)
+export async function cacheOfflineSnapshotMedia(
+  snapshot: OfflineV2Snapshot,
+  jobIds?: readonly number[]
+) {
+  const urls = snapshotMediaUrls(snapshot, jobIds)
+  let nextIndex = 0
+  let complete = true
+  const cacheOne = async () => {
+    while (complete) {
+      const url = urls[nextIndex]
+      nextIndex += 1
+      if (!url) return
+      const key = mediaKey(url)
+      if (await getOfflineMedia(key)) continue
+      const response = await fetch(url, {
+        cache: "no-store",
+        credentials: "omit",
+      }).catch(() => null)
+      if (!response?.ok) {
+        complete = false
+        return
+      }
+      const blob = await response.blob()
+      const capacity = await estimateOfflineCapacity(blob.size)
+      if (!capacity.sufficient) {
+        complete = false
+        return
+      }
+      await putOfflineMedia(key, blob)
+    }
   }
-  return true
+  await Promise.all(Array.from({ length: Math.min(3, urls.length) }, cacheOne))
+  return complete
 }
 
-export async function hydrateOfflineSnapshotMedia(
-  snapshot: OfflineV2Snapshot
-) {
+export async function hydrateOfflineSnapshotMedia(snapshot: OfflineV2Snapshot) {
   const hydrated = structuredClone(snapshot)
   const replacements = new Map<string, string>()
   for (const url of snapshotMediaUrls(hydrated)) {
     const blob = await getOfflineMedia(mediaKey(url))
     if (blob) replacements.set(url, URL.createObjectURL(blob))
   }
-  hydrated.profile.avatarUrl =
-    replaceMediaUrl(hydrated.profile.avatarUrl, replacements)
+  hydrated.profile.avatarUrl = replaceMediaUrl(
+    hydrated.profile.avatarUrl,
+    replacements
+  )
   if (hydrated.people) {
     hydrated.people.employees = hydrated.people.employees.map((employee) => ({
       ...employee,
@@ -413,9 +413,7 @@ export async function setOfflineLogoutPending(pending: boolean) {
 }
 
 export async function isOfflineLogoutPending() {
-  return (
-    (await getValue<boolean>(STORES.metadata, LOGOUT_PENDING_KEY)) === true
-  )
+  return (await getValue<boolean>(STORES.metadata, LOGOUT_PENDING_KEY)) === true
 }
 
 export async function purgeOfflineV2Data(options?: {
@@ -425,17 +423,12 @@ export async function purgeOfflineV2Data(options?: {
     ? await getValue<boolean>(STORES.metadata, LOGOUT_PENDING_KEY)
     : false
   const database = await openDatabase()
-  const transaction = database.transaction(
-    Object.values(STORES),
-    "readwrite"
-  )
+  const transaction = database.transaction(Object.values(STORES), "readwrite")
   for (const storeName of Object.values(STORES)) {
     transaction.objectStore(storeName).clear()
   }
   if (logoutPending) {
-    transaction
-      .objectStore(STORES.metadata)
-      .put(true, LOGOUT_PENDING_KEY)
+    transaction.objectStore(STORES.metadata).put(true, LOGOUT_PENDING_KEY)
   }
   await transactionDone(transaction)
 }
@@ -517,26 +510,34 @@ function normaliseSnapshot(snapshot: OfflineV2Snapshot) {
   for (const schedule of snapshot.templates?.schedules ?? []) {
     entities.set(`job-schedule:${schedule.id}`, schedule)
   }
-  entities.set(
-    `profile:${snapshot.profile.membershipId}`,
-    snapshot.profile
-  )
+  entities.set(`profile:${snapshot.profile.membershipId}`, snapshot.profile)
   return entities
 }
 
-function snapshotMediaUrls(snapshot: OfflineV2Snapshot) {
+function snapshotMediaUrls(
+  snapshot: OfflineV2Snapshot,
+  jobIds?: readonly number[]
+) {
   const urls = new Set<string>()
-  for (const detail of Object.values(snapshot.jobDetails)) {
+  const details = jobIds
+    ? jobIds.flatMap((jobId) => {
+        const detail = snapshot.jobDetails[jobId]
+        return detail ? [detail] : []
+      })
+    : Object.values(snapshot.jobDetails)
+  for (const detail of details) {
     if (detail.status === "archived") continue
     for (const asset of detail.evidence) {
       if (asset.signedUrl) urls.add(asset.signedUrl)
     }
   }
-  if (snapshot.profile.avatarUrl) urls.add(snapshot.profile.avatarUrl)
-  for (const employee of snapshot.people?.employees ?? []) {
-    if (employee.avatarUrl) urls.add(employee.avatarUrl)
+  if (!jobIds) {
+    if (snapshot.profile.avatarUrl) urls.add(snapshot.profile.avatarUrl)
+    for (const employee of snapshot.people?.employees ?? []) {
+      if (employee.avatarUrl) urls.add(employee.avatarUrl)
+    }
   }
-  return urls
+  return [...urls]
 }
 
 function mediaKey(url: string) {
@@ -548,7 +549,7 @@ function replaceMediaUrl(
   value: string | null,
   replacements: Map<string, string>
 ) {
-  return value ? replacements.get(value) ?? value : null
+  return value ? (replacements.get(value) ?? value) : null
 }
 
 function rewriteMappedValues(

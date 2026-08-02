@@ -36,9 +36,7 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
     .getByRole("combobox", { name: "Minimum completion photos" })
     .click()
   await ownerPage.getByRole("option", { name: "1", exact: true }).click()
-  await createDialog
-    .getByRole("checkbox", { name: "Require note" })
-    .check()
+  await createDialog.getByRole("checkbox", { name: "Require note" }).check()
   await createDialog.getByRole("button", { name: "Create job" }).click()
   await expect(createDialog).not.toBeVisible()
   const jobUrl = await ownerPage
@@ -65,9 +63,7 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
 
   await employeePage.keyboard.press("Escape")
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
-  await expect(
-    employeePage.locator('[data-slot="drawer-popup"]')
-  ).toBeHidden()
+  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
 
   const anotherJob = employeePage
     .getByRole("article")

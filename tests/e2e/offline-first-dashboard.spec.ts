@@ -78,10 +78,7 @@ test("a warm online owner keeps App Router navigation and server screens", async
   const dashboardRscRequests: string[] = []
   ownerPage.on("request", (request) => {
     const url = new URL(request.url())
-    if (
-      url.pathname.startsWith("/dashboard") &&
-      url.searchParams.has("_rsc")
-    ) {
+    if (url.pathname.startsWith("/dashboard") && url.searchParams.has("_rsc")) {
       dashboardRscRequests.push(url.toString())
     }
   })
@@ -99,6 +96,56 @@ test("a warm online owner keeps App Router navigation and server screens", async
   await expect(
     ownerPage.locator("[data-offline-provider]").first()
   ).toHaveAttribute("data-view-source", "server")
+})
+
+test("a prepared job opens from IndexedDB before one delayed detail refresh", async ({
+  employeePage,
+}) => {
+  await prepare(employeePage)
+  await employeePage.goto("/dashboard/jobs")
+  const openLink = employeePage
+    .getByRole("button", { name: "Open job" })
+    .first()
+  await expect(openLink).toBeVisible()
+  const href = await openLink.getAttribute("href")
+  expect(href).toMatch(/^\/dashboard\/jobs\?job=\d+$/)
+  const jobId = Number(
+    new URL(href!, "https://pph.test").searchParams.get("job")
+  )
+  const cachedDetail = await cachedJobDetail(employeePage, jobId)
+  expect(cachedDetail).not.toBeNull()
+
+  const refreshedTitle = `${cachedDetail!.title} (fresh)`
+  let detailRequests = 0
+  const dashboardRscRequests: string[] = []
+  employeePage.on("request", (request) => {
+    const url = new URL(request.url())
+    if (url.pathname.startsWith("/dashboard") && url.searchParams.has("_rsc")) {
+      dashboardRscRequests.push(url.toString())
+    }
+  })
+  await employeePage.route(`**/api/jobs/${jobId}`, async (route) => {
+    detailRequests += 1
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await route.fulfill({
+      body: JSON.stringify({ ...cachedDetail, title: refreshedTitle }),
+      contentType: "application/json",
+      headers: { "Cache-Control": "private, no-store" },
+      status: 200,
+    })
+  })
+
+  const openedAt = Date.now()
+  await openLink.click()
+  await expect(
+    employeePage.getByRole("heading", { name: cachedDetail!.title })
+  ).toBeVisible()
+  expect(Date.now() - openedAt).toBeLessThan(200)
+  await expect.poll(() => detailRequests).toBe(1)
+  expect(dashboardRscRequests).toEqual([])
+  await expect(
+    employeePage.getByRole("heading", { name: refreshedTitle })
+  ).toBeVisible()
 })
 
 test("an online owner mutation uses the server action and leaves the outbox empty", async ({
@@ -268,6 +315,26 @@ function offlineOutboxCount(page: Page) {
           count.onsuccess = () => resolve(count.result)
         }
       })
+  )
+}
+
+async function cachedJobDetail(page: Page, jobId: number) {
+  return page.evaluate(
+    (id) =>
+      new Promise<{ id: number; title: string } | null>((resolve, reject) => {
+        const request = indexedDB.open("pph-offline-v2")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const value = request.result
+            .transaction("snapshots", "readonly")
+            .objectStore("snapshots")
+            .get("active")
+          value.onerror = () => reject(value.error)
+          value.onsuccess = () =>
+            resolve(value.result?.jobDetails?.[id] ?? null)
+        }
+      }),
+    jobId
   )
 }
 

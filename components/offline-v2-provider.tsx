@@ -104,8 +104,7 @@ export function OfflineV2Provider({
   const [status, setStatus] = useState<OfflineSyncStatus>("preparing")
   const [repositoryState, setRepositoryState] =
     useState<OfflineRepositoryState>("preparing")
-  const [syncState, setSyncState] =
-    useState<OfflineRepositorySyncState>("idle")
+  const [syncState, setSyncState] = useState<OfflineRepositorySyncState>("idle")
   const [currentPath, setCurrentPath] = useState("/dashboard")
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
@@ -231,10 +230,10 @@ export function OfflineV2Provider({
       const syncResult = "operationResults" in payload ? payload : null
       const currentSnapshot = snapshotStateRef.current
       const nextSnapshot = syncResult
-        ? syncResult.fullSnapshot ??
+        ? (syncResult.fullSnapshot ??
           (syncResult.patch && currentSnapshot
             ? applyOfflineV2Patch(currentSnapshot, syncResult.patch)
-            : currentSnapshot)
+            : currentSnapshot))
         : (payload as OfflineV2Snapshot)
       if (!nextSnapshot) {
         throw new Error("Synchronisation did not return repository data")
@@ -265,7 +264,8 @@ export function OfflineV2Provider({
         const result = resultById.get(operation.clientOperationId)
         if (!result) return [operation]
         if (result.status === "acknowledged") return []
-        const replayed = replayedById.get(operation.clientOperationId) ?? operation
+        const replayed =
+          replayedById.get(operation.clientOperationId) ?? operation
         return [
           {
             ...replayed,
@@ -307,14 +307,23 @@ export function OfflineV2Provider({
           })
         : optimisticSnapshot
       if (!syncResult) await persistOfflineV2Snapshot(committedSnapshot)
-      const mediaComplete = await cacheOfflineSnapshotMedia(committedSnapshot)
+      const detailPatch = syncResult?.patch?.jobDetails
+      const mediaComplete = detailPatch
+        ? await cacheOfflineSnapshotMedia(
+            committedSnapshot,
+            detailPatch.reset
+              ? undefined
+              : Object.keys(detailPatch.upsert).map(Number)
+          )
+        : syncResult
+          ? true
+          : await cacheOfflineSnapshotMedia(committedSnapshot)
       const shellReady = await ensureOfflineShellReady(
         navigator.serviceWorker,
         window.caches
       )
-      const hydratedSnapshot = await hydrateOfflineSnapshotMedia(
-        committedSnapshot
-      )
+      const hydratedSnapshot =
+        await hydrateOfflineSnapshotMedia(committedSnapshot)
       snapshotStateRef.current = hydratedSnapshot
       setSnapshot(hydratedSnapshot)
       setOperations(nextOperations)
@@ -482,11 +491,7 @@ export function OfflineV2Provider({
       operations.length > 0 ||
       conflicts.length > 0 ||
       syncState === "needs_attention"
-    if (
-      networkReachability === "online" &&
-      !cachedShell &&
-      !hasLocalWork
-    ) {
+    if (networkReachability === "online" && !cachedShell && !hasLocalWork) {
       return
     }
     if (repositoryState !== "ready" && repositoryState !== "locked") return
@@ -639,9 +644,7 @@ export function OfflineV2Provider({
       <div
         className="contents"
         data-offline-provider={status}
-        data-offline-repository={
-          viewSource
-        }
+        data-offline-repository={viewSource}
         data-network-reachability={networkReachability}
         data-repository-state={repositoryState}
         data-sync-state={syncState}

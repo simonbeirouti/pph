@@ -120,10 +120,7 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     for (const originalOperation of operations) {
-      const storedOperation = resolveOperationIds(
-        originalOperation,
-        idMappings
-      )
+      const storedOperation = resolveOperationIds(originalOperation, idMappings)
       const operation =
         storedOperation.entityType === "job" &&
         storedOperation.entity.source === "server" &&
@@ -268,9 +265,7 @@ export async function POST(request: Request) {
         }
         const destinationId =
           result.result?.destinationId ??
-          (isRecord(result.result?.job)
-            ? result.result.job.id
-            : undefined)
+          (isRecord(result.result?.job) ? result.result.job.id : undefined)
         if (
           operation.entity.source === "local" &&
           typeof destinationId === "number"
@@ -298,15 +293,15 @@ export async function POST(request: Request) {
       supabase,
       parsed.data.revision
     )
-    const domains =
+    const selection =
       parsed.data.schemaVersion === OFFLINE_V2_SCHEMA_VERSION && complete
-        ? domainsForChanges(changes.map((change) => change.entity_type))
+        ? domainsForChanges(changes)
         : null
     const fullSnapshot =
-      domains === null ? await buildOfflineV2Snapshot() : null
+      selection === null ? await buildOfflineV2Snapshot() : null
     const domainSnapshot =
-      !fullSnapshot && domains?.size
-        ? await buildOfflineV2Domains(domains)
+      !fullSnapshot && selection?.domains.size
+        ? await buildOfflineV2Domains(selection.domains, selection.jobDetailIds)
         : null
     const { data: currentRevision, error: revisionError } = await supabase.rpc(
       "get_offline_sync_revision"
@@ -317,15 +312,15 @@ export async function POST(request: Request) {
       refreshedAt.getTime() + OFFLINE_V2_LEASE_MS
     ).toISOString()
     const revision =
-      fullSnapshot?.revision ??
-      currentRevision ??
-      parsed.data.revision
+      fullSnapshot?.revision ?? currentRevision ?? parsed.data.revision
     const patch =
-      fullSnapshot || !domains
+      fullSnapshot || !selection
         ? undefined
         : buildDomainPatch({
             baseRevision: parsed.data.revision,
-            domains,
+            deletedJobIds: selection.deletedJobIds,
+            domains: selection.domains,
+            jobDetailIds: selection.jobDetailIds,
             leaseExpiresAt,
             refreshedAt: refreshedAt.toISOString(),
             revision,
@@ -336,8 +331,8 @@ export async function POST(request: Request) {
         changedAt: change.changed_at,
         entityId: change.entity_id,
         entityType: change.entity_type,
-        operation:
-          change.operation === "delete" ? "delete" : "upsert",
+        operation: change.operation === "delete" ? "delete" : "upsert",
+        relatedJobId: change.related_job_id,
         revision: change.revision,
       })),
       conflicts,
@@ -366,6 +361,7 @@ type SyncChangeRow = {
   entity_id: number
   entity_type: string
   operation: string
+  related_job_id: number | null
   revision: number
 }
 
@@ -390,25 +386,38 @@ async function readSyncChanges(client: SyncClient, afterRevision: number) {
 
 type PatchDomain = OfflineV2DomainName
 
-function domainsForChanges(entityTypes: string[]) {
+type DomainSelection = {
+  deletedJobIds: Set<number>
+  domains: Set<PatchDomain>
+  jobDetailIds?: Set<number>
+}
+
+function domainsForChanges(changes: SyncChangeRow[]): DomainSelection | null {
   const domains = new Set<PatchDomain>()
-  for (const entityType of entityTypes) {
+  const jobDetailIds = new Set<number>()
+  const deletedJobIds = new Set<number>()
+  let requiresCompleteJobDetails = false
+  for (const change of changes) {
+    const entityType = change.entity_type
     if (
       entityType === "organisations" ||
       entityType === "memberships" ||
       entityType === "employee_profiles"
     ) {
-      return new Set<PatchDomain>([
-        "dashboard",
-        "employeeJobs",
-        "jobDetails",
-        "jobs",
-        "membership",
-        "people",
-        "profile",
-        "roster",
-        "templates",
-      ])
+      return {
+        deletedJobIds,
+        domains: new Set<PatchDomain>([
+          "dashboard",
+          "employeeJobs",
+          "jobDetails",
+          "jobs",
+          "membership",
+          "people",
+          "profile",
+          "roster",
+          "templates",
+        ]),
+      }
     }
     if (entityType === "roster_shifts") {
       addDomains(domains, ["dashboard", "jobs", "people", "roster"])
@@ -428,6 +437,17 @@ function domainsForChanges(entityTypes: string[]) {
         "people",
         "roster",
       ])
+      const relatedJobId =
+        change.related_job_id ??
+        (entityType === "jobs" ? change.entity_id : null)
+      if (relatedJobId) {
+        jobDetailIds.add(relatedJobId)
+        if (entityType === "jobs" && change.operation === "delete") {
+          deletedJobIds.add(relatedJobId)
+        }
+      } else {
+        requiresCompleteJobDetails = true
+      }
       continue
     }
     if (
@@ -444,26 +464,31 @@ function domainsForChanges(entityTypes: string[]) {
     }
     return null
   }
-  return domains
+  return {
+    deletedJobIds,
+    domains,
+    ...(requiresCompleteJobDetails ? {} : { jobDetailIds }),
+  }
 }
 
-function addDomains(
-  target: Set<PatchDomain>,
-  domains: readonly PatchDomain[]
-) {
+function addDomains(target: Set<PatchDomain>, domains: readonly PatchDomain[]) {
   for (const domain of domains) target.add(domain)
 }
 
 function buildDomainPatch({
   baseRevision,
+  deletedJobIds,
   domains,
+  jobDetailIds,
   leaseExpiresAt,
   refreshedAt,
   revision,
   snapshot,
 }: {
   baseRevision: number
+  deletedJobIds: Set<number>
   domains: Set<PatchDomain>
+  jobDetailIds?: Set<number>
   leaseExpiresAt: string
   refreshedAt: string
   revision: number
@@ -481,14 +506,22 @@ function buildDomainPatch({
       ? { employeeJobs: snapshot.employeeJobs }
       : {}),
     ...(snapshot && domains.has("jobDetails")
-      ? { jobDetails: snapshot.jobDetails }
+      ? {
+          jobDetails: {
+            remove: jobDetailIds ? [...deletedJobIds] : [],
+            ...(jobDetailIds ? {} : { reset: true }),
+            upsert: snapshot.jobDetails ?? {},
+          },
+        }
       : {}),
     ...(snapshot && domains.has("jobs") ? { jobs: snapshot.jobs } : {}),
     ...(snapshot && domains.has("membership")
       ? { membership: snapshot.membership }
       : {}),
     ...(snapshot && domains.has("people") ? { people: snapshot.people } : {}),
-    ...(snapshot && domains.has("profile") ? { profile: snapshot.profile } : {}),
+    ...(snapshot && domains.has("profile")
+      ? { profile: snapshot.profile }
+      : {}),
     ...(snapshot && domains.has("roster") ? { roster: snapshot.roster } : {}),
     ...(snapshot && domains.has("templates")
       ? { templates: snapshot.templates }
@@ -684,7 +717,10 @@ async function replayOperation(
     )
   }
 
-  if (operation.entity.source === "server" && operation.kind === "job.comment") {
+  if (
+    operation.entity.source === "server" &&
+    operation.kind === "job.comment"
+  ) {
     return actionResult(
       operation,
       await addJobCommentAction(
@@ -709,16 +745,17 @@ async function replayOperation(
     return actionResult(
       operation,
       await reopenJobAction({
-        assigneeMembershipId: Number(
-          operation.payload.assigneeMembershipId
-        ),
+        assigneeMembershipId: Number(operation.payload.assigneeMembershipId),
         feedback: String(operation.payload.feedback ?? ""),
         jobId: operation.entity.id,
         submissionVersion: Number(operation.payload.submissionVersion),
       })
     )
   }
-  if (operation.entity.source === "server" && operation.kind === "job.archive") {
+  if (
+    operation.entity.source === "server" &&
+    operation.kind === "job.archive"
+  ) {
     return actionResult(
       operation,
       await archiveJobAction(
@@ -730,12 +767,13 @@ async function replayOperation(
   if (operation.kind === "job.notification.retry") {
     return actionResult(
       operation,
-      await retryJobNotificationAction(
-        Number(operation.payload.deliveryId)
-      )
+      await retryJobNotificationAction(Number(operation.payload.deliveryId))
     )
   }
-  if (operation.kind === "job.reassign" && operation.entity.source === "server") {
+  if (
+    operation.kind === "job.reassign" &&
+    operation.entity.source === "server"
+  ) {
     return actionResult(
       operation,
       await reassignJobAction(
@@ -794,9 +832,7 @@ async function replayOperation(
     return actionResult(
       operation,
       await updateCalendarRosterShiftAction({
-        employeeMembershipId: Number(
-          operation.payload.employeeMembershipId
-        ),
+        employeeMembershipId: Number(operation.payload.employeeMembershipId),
         endsAt: String(operation.payload.endsAt ?? ""),
         shiftId: operation.entity.id,
         startsAt: String(operation.payload.startsAt ?? ""),
@@ -811,9 +847,7 @@ async function replayOperation(
     return actionResult(
       operation,
       await setCalendarRosterShiftLockAction({
-        employeeMembershipId: Number(
-          operation.payload.employeeMembershipId
-        ),
+        employeeMembershipId: Number(operation.payload.employeeMembershipId),
         locked: Boolean(operation.payload.locked),
         shiftId: operation.entity.id,
         updatedAt: String(operation.payload.updatedAt ?? ""),
@@ -958,7 +992,11 @@ async function findVersionConflict(
   const id = operation.entity.id
   const result =
     operation.entityType === "job"
-      ? await supabase.from("jobs").select("id, version").eq("id", id).maybeSingle()
+      ? await supabase
+          .from("jobs")
+          .select("id, version")
+          .eq("id", id)
+          .maybeSingle()
       : operation.entityType === "roster_shift"
         ? await supabase
             .from("roster_shifts")

@@ -17,10 +17,7 @@ import {
   listEmployeeJobSummaries,
 } from "@/lib/jobs/data"
 import { requireActiveMembership } from "@/lib/auth/membership"
-import {
-  listEmployeeShiftSummaries,
-  toRosterShift,
-} from "@/lib/roster/data"
+import { listEmployeeShiftSummaries, toRosterShift } from "@/lib/roster/data"
 import type { RosterAssignableJob } from "@/lib/roster/types"
 import { createClient } from "@/lib/supabase/server"
 import type { Tables } from "@/lib/supabase/database.types"
@@ -126,9 +123,7 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
   ])
 
   const allJobs = jobBoard?.jobs ?? employeeJobs
-  const details = await Promise.all(
-    allJobs.map((job) => getJobDetail(job.id))
-  )
+  const details = await Promise.all(allJobs.map((job) => getJobDetail(job.id)))
   const jobDetails = Object.fromEntries(
     details.flatMap((detail) => (detail ? [[detail.id, detail]] : []))
   )
@@ -183,7 +178,8 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
 }
 
 export async function buildOfflineV2Domains(
-  domains: ReadonlySet<OfflineV2DomainName>
+  domains: ReadonlySet<OfflineV2DomainName>,
+  jobDetailIds?: ReadonlySet<number>
 ): Promise<OfflineV2DomainData> {
   if (!domains.size) return {}
   const membership = await requireActiveMembership()
@@ -191,18 +187,20 @@ export async function buildOfflineV2Domains(
     membership.role === "owner" || membership.role === "manager"
   const isWorker =
     membership.role === "employee" || membership.role === "manager"
-  const needsJobs =
+  const needsJobBoard =
     domains.has("jobs") ||
-    domains.has("jobDetails") ||
-    domains.has("roster")
+    domains.has("roster") ||
+    (domains.has("jobDetails") && !jobDetailIds)
   const profilePromise =
     domains.has("profile") || domains.has("roster")
       ? getCurrentProfile()
       : Promise.resolve(null)
   const jobBoardPromise =
-    needsJobs && isOperations ? getOwnerJobBoardData() : Promise.resolve(null)
+    needsJobBoard && isOperations
+      ? getOwnerJobBoardData()
+      : Promise.resolve(null)
   const employeeJobsPromise =
-    (domains.has("employeeJobs") || needsJobs) && isWorker
+    (domains.has("employeeJobs") || needsJobBoard) && isWorker
       ? getEmployeeAssignedJobs()
       : Promise.resolve([])
   const dashboardPromise = domains.has("dashboard")
@@ -249,7 +247,9 @@ export async function buildOfflineV2Domains(
   }
   if (domains.has("jobDetails")) {
     const details = await Promise.all(
-      allJobs.map((job) => getJobDetail(job.id))
+      (jobDetailIds ? [...jobDetailIds] : allJobs.map((job) => job.id)).map(
+        (jobId) => getJobDetail(jobId)
+      )
     )
     result.jobDetails = Object.fromEntries(
       details.flatMap((detail) => (detail ? [[detail.id, detail]] : []))
@@ -281,9 +281,7 @@ export async function buildOfflineV2Domains(
           scheduledAt: job.scheduledAt,
           title: job.title,
         })),
-      shifts: (shifts ?? []).map((row) =>
-        toRosterShift(row as RosterShiftRow)
-      ),
+      shifts: (shifts ?? []).map((row) => toRosterShift(row as RosterShiftRow)),
       timezone: membership.timezone,
     }
   }

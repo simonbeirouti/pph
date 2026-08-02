@@ -175,10 +175,13 @@ describe("EmployeeJobsList review actions", () => {
       <EmployeeJobsList jobs={[readyJob]} timezone="Australia/Melbourne" />
     )
 
-    expect(screen.getByRole("button", { name: "Open job" })).toHaveAttribute(
+    const openJob = screen.getByRole("button", { name: "Open job" })
+    expect(openJob).toHaveAttribute(
       "href",
       "/dashboard/jobs?mode=my-work&job=1401"
     )
+    expect(openJob).toHaveAttribute("data-slot", "button")
+    expect(openJob).toHaveClass("bg-primary")
     fireEvent.click(screen.getByRole("button", { name: "Submit for review" }))
 
     await waitFor(() =>

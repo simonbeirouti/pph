@@ -3,7 +3,7 @@
 import Link from "next/link"
 
 import { EmployeeJobsList } from "@/components/employee-jobs-list"
-import { EmployeeJobDetail, OwnerJobDetail } from "@/components/job-detail"
+import { JobDetailController } from "@/components/job-detail-controller"
 import { JobWorkspace } from "@/components/job-workspace"
 import { Button } from "@/components/ui/button"
 import type {
@@ -42,29 +42,37 @@ export function JobsScreen({
 }) {
   if (role === "employee" || mode === "my-work") {
     return (
-      <div className="grid gap-4">
-        {role === "manager" ? (
-          <div className="flex gap-2">
-            <Button
-              nativeButton={false}
-              render={<Link href="/dashboard/jobs" prefetch={false} />}
-              variant="outline"
-            >
-              Team workflow
-            </Button>
-            <Button
-              nativeButton={false}
-              render={
-                <Link href="/dashboard/jobs?mode=my-work" prefetch={false} />
-              }
-            >
-              My work
-            </Button>
-          </div>
-        ) : null}
-        <EmployeeJobsList jobs={jobs} timezone={timezone} />
-        <EmployeeJobDetail detail={detail} timezone={timezone} />
-      </div>
+      <JobDetailController
+        employees={[]}
+        initialDetail={detail}
+        isOwner={false}
+        jobs={jobs}
+        role="employee"
+        timezone={timezone}
+      >
+        <div className="grid gap-4">
+          {role === "manager" ? (
+            <div className="flex gap-2">
+              <Button
+                nativeButton={false}
+                render={<Link href="/dashboard/jobs" prefetch={false} />}
+                variant="outline"
+              >
+                Team workflow
+              </Button>
+              <Button
+                nativeButton={false}
+                render={
+                  <Link href="/dashboard/jobs?mode=my-work" prefetch={false} />
+                }
+              >
+                My work
+              </Button>
+            </div>
+          ) : null}
+          <EmployeeJobsList jobs={jobs} timezone={timezone} />
+        </div>
+      </JobDetailController>
     )
   }
 
@@ -89,24 +97,25 @@ export function JobsScreen({
           </Button>
         </div>
       ) : null}
-      <JobWorkspace
-        archivePagination={archivePagination}
+      <JobDetailController
         employees={employees}
-        filterActive={filterActive}
-        initialJobs={[...jobs]}
-        initialView={view}
-        rosterShifts={rosterShifts}
-        templates={templates}
+        initialDetail={detail}
+        isOwner={role === "owner"}
+        jobs={jobs}
+        role="owner"
         timezone={timezone}
-      />
-      <OwnerJobDetail
-        canReview={
-          role === "owner" || detail?.requiredReviewerRole === "manager"
-        }
-        detail={detail}
-        employees={employees}
-        timezone={timezone}
-      />
+      >
+        <JobWorkspace
+          archivePagination={archivePagination}
+          employees={employees}
+          filterActive={filterActive}
+          initialJobs={[...jobs]}
+          initialView={view}
+          rosterShifts={rosterShifts}
+          templates={templates}
+          timezone={timezone}
+        />
+      </JobDetailController>
     </div>
   )
 }

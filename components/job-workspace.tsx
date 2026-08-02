@@ -27,6 +27,7 @@ import {
   reassignJobAction,
 } from "@/app/dashboard/jobs/actions"
 import { EmployeeAvatar } from "@/components/employee-avatar"
+import { OpenJobLink } from "@/components/job-detail-controller"
 import {
   updateJobEverywhere,
   useOfflineV2Actions,
@@ -1095,7 +1096,7 @@ function JobCardView({
         <Button
           nativeButton={false}
           render={
-            <Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />
+            <OpenJobLink href={`/dashboard/jobs?job=${job.id}`} job={job} />
           }
           size="sm"
           variant="outline"

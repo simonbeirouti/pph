@@ -64,6 +64,43 @@ describe("offline v2 patches", () => {
     ).toThrow("revision")
   })
 
+  it("merges one changed job detail without discarding unrelated details", () => {
+    const first = { id: 1401 } as OfflineV2Snapshot["jobDetails"][number]
+    const second = { id: 1402 } as OfflineV2Snapshot["jobDetails"][number]
+    const next = applyOfflineV2Patch(
+      { ...snapshot, jobDetails: { 1401: first, 1402: second } },
+      {
+        baseRevision: 1,
+        jobDetails: {
+          remove: [1402],
+          upsert: { 1401: { ...first, title: "Fresh job" } },
+        },
+        leaseExpiresAt: "2026-08-06T00:00:00.000Z",
+        refreshedAt: "2026-07-30T00:00:00.000Z",
+        revision: 2,
+      }
+    )
+
+    expect(next.jobDetails).toEqual({
+      1401: expect.objectContaining({ title: "Fresh job" }),
+    })
+  })
+
+  it("replaces all job details for a legacy full refresh", () => {
+    const next = applyOfflineV2Patch(
+      { ...snapshot, jobDetails: { 1401: { id: 1401 } as never } },
+      {
+        baseRevision: 1,
+        jobDetails: { remove: [], reset: true, upsert: {} },
+        leaseExpiresAt: "2026-08-06T00:00:00.000Z",
+        refreshedAt: "2026-07-30T00:00:00.000Z",
+        revision: 2,
+      }
+    )
+
+    expect(next.jobDetails).toEqual({})
+  })
+
   it("preserves pending projections without retaining stale access state", () => {
     const local = {
       ...snapshot,

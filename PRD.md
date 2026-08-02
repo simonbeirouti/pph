@@ -2052,6 +2052,44 @@ Automated implementation evidence (2026-07-29):
   TypeScript, and the focused component suite pass; local database migration and
   pgTAP verification are deferred because the local Postgres service is not
   running. S12 remains `in_progress`.
+- Instant PWA job opening (2026-08-02): added the authenticated dynamic
+  `GET /api/jobs/[jobId]` route with private no-store responses and existing
+  membership/RLS job access, and changed Jobs-screen Open Job links to retain
+  their accessible deep-link `href` while opening prepared IndexedDB detail in
+  place. Online opens show the cached detail immediately, make one background
+  detail request without a Jobs RSC navigation, suppress stale responses, retain
+  cached content with a retry affordance on refresh failure, and write a fresh
+  authorised response back without replacing pending optimistic job work.
+  Offline clicks remain on the established local-repository history path and
+  use the prepared snapshot only. Evidence previews now lazy-load and decode
+  asynchronously. The additive
+  `20260802135303_offline_job_detail_sync_targets.sql` migration adds parent
+  job targeting to the private sync feed/RPC for jobs, updates, assets, and
+  notification deliveries; delta sync now fetches, patches, and prepares media
+  for only affected job details, with legacy feed rows retaining the full-detail
+  fallback. Initial media preparation now uses a three-request bounded pool.
+  Added focused route, controller, patch, database, and delayed-endpoint PWA
+  coverage (the new PWA journey runs in both desktop and mobile Chromium
+  projects). Focused Vitest (38 tests), changed-file ESLint, TypeScript,
+  `git diff --check`, and production build pass. On 2026-08-03, deployed this
+  migration together with the already-merged
+  `20260731000325_allow_owner_self_job_assignment` migration to the linked
+  remote database. `./supa migration list --linked` confirms both remote
+  history entries, and a read-only remote query confirms both
+  `organisation_sync_changes.related_job_id` and the matching
+  `get_offline_sync_changes` RPC return field. `pnpm exec supabase test db`
+  and the Chromium Playwright journey remain blocked because the local Docker
+  daemon (and therefore the local Postgres service) is unavailable; the new
+  pgTAP and production-PWA checks plus the existing native iOS/Android staging
+  validation remain deferred. No environment variables changed; S12 remains
+  `in_progress`.
+- Open Job presentation correction (2026-08-03): the instant-open custom Link
+  now forwards the Base UI Button's injected class, data, accessibility, and
+  ref props to its anchor. This restores the original styled button appearance
+  and button semantics while retaining the instant cached-open controller.
+  Changed-file ESLint, TypeScript, two focused component suites (15 tests), and
+  `git diff --check` pass; no database, permission, route, or environment
+  change was required.
 
 ## 13. Prototype and production readiness
 

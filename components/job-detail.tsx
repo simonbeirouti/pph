@@ -91,17 +91,22 @@ type Role = "employee" | "owner"
 
 export function EmployeeJobDetail({
   detail,
+  onClose,
+  open: controlledOpen,
   timezone,
 }: {
   detail: JobDetail | null
+  onClose?: () => void
+  open?: boolean
   timezone: string
 }) {
   const mobile = useIsMobile()
-  const close = useCloseJob()
+  const fallbackClose = useCloseJob()
+  const close = onClose ?? fallbackClose
   const selectedJobId = useSearchParams().get("job")
   if (!detail) return null
 
-  const open = selectedJobId === String(detail.id)
+  const open = controlledOpen ?? selectedJobId === String(detail.id)
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) close()
   }
@@ -148,18 +153,23 @@ export function OwnerJobDetail({
   canReview = true,
   detail,
   employees,
+  onClose,
+  open: controlledOpen,
   timezone,
 }: {
   canReview?: boolean
   detail: JobDetail | null
   employees: readonly JobBoardEmployee[]
+  onClose?: () => void
+  open?: boolean
   timezone: string
 }) {
-  const close = useCloseJob()
+  const fallbackClose = useCloseJob()
+  const close = onClose ?? fallbackClose
   const selectedJobId = useSearchParams().get("job")
   if (!detail) return null
 
-  const open = selectedJobId === String(detail.id)
+  const open = controlledOpen ?? selectedJobId === String(detail.id)
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) close()
   }
@@ -190,6 +200,72 @@ export function OwnerJobDetail({
             </p>
           </SheetFooter>
         ) : null}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+export function JobDetailLoading({
+  onClose,
+  open,
+  role,
+  title,
+}: {
+  onClose: () => void
+  open: boolean
+  role: Role
+  title: string
+}) {
+  const mobile = useIsMobile()
+  const content = (
+    <div className="grid gap-3 p-4" role="status">
+      <p className="font-medium">Loading job details</p>
+      <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-full animate-pulse rounded bg-muted" />
+      <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
+    </div>
+  )
+
+  if (role === "employee" && mobile) {
+    return (
+      <Drawer open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerDescription>
+              Loading the latest job details.
+            </DrawerDescription>
+          </DrawerHeader>
+          {content}
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
+  if (role === "employee") {
+    return (
+      <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>
+              Loading the latest job details.
+            </DialogDescription>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:w-[40vw] data-[side=right]:sm:max-w-[40vw]">
+        <SheetHeader className="border-b pr-12">
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>Loading the latest job details.</SheetDescription>
+        </SheetHeader>
+        {content}
       </SheetContent>
     </Sheet>
   )
@@ -1059,6 +1135,8 @@ function EvidenceGallery({
                   <img
                     alt={`Completion evidence added ${addedDate}`}
                     className="size-full object-contain"
+                    decoding="async"
+                    loading="lazy"
                     src={asset.signedUrl}
                   />
                 </button>

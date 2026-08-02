@@ -401,6 +401,36 @@ describe("job detail surfaces", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("defers evidence image decoding until the preview is needed", () => {
+    render(
+      <OwnerJobDetail
+        detail={{
+          ...detail,
+          evidence: [
+            {
+              createdAt: "2026-07-27T00:00:00.000Z",
+              id: 1601,
+              mimeType: "image/jpeg",
+              removable: false,
+              signedUrl: "https://example.test/evidence.jpg",
+              sizeBytes: 1024,
+              uploadedByMembershipId: 1103,
+            },
+          ],
+        }}
+        employees={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("img", { name: /Completion evidence added/ })
+    ).toHaveAttribute("loading", "lazy")
+    expect(
+      screen.getByRole("img", { name: /Completion evidence added/ })
+    ).toHaveAttribute("decoding", "async")
+  })
+
   it("opens employee detail from the live URL for the same and another job", () => {
     const { rerender } = render(
       <EmployeeJobDetail

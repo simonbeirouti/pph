@@ -111,9 +111,7 @@ test("mobile touch activates shared buttons, tabs, and selects", async ({
   await drawerContent.evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
-  await expect(
-    dialog.getByRole("button", { name: "Create job" })
-  ).toBeVisible()
+  await expect(dialog.getByRole("button", { name: "Create job" })).toBeVisible()
   await ownerPage.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
 
@@ -134,18 +132,14 @@ test("mobile touch activates shared buttons, tabs, and selects", async ({
   })
   await expect(employeeStatus).toContainText("All statuses")
   await employeeStatus.tap()
-  await ownerPage
-    .getByRole("option", { name: "Active", exact: true })
-    .tap()
+  await ownerPage.getByRole("option", { name: "Active", exact: true }).tap()
   await expect(employeeStatus).toContainText("Active")
   await ownerPage.getByRole("button", { name: "Add employee" }).tap()
   const employeeDialog = ownerPage.getByRole("dialog", {
     name: "Add employee",
   })
   await expect(employeeDialog).toBeVisible()
-  const employeeDrawer = ownerPage.locator(
-    '[data-slot="drawer-popup"]:visible'
-  )
+  const employeeDrawer = ownerPage.locator('[data-slot="drawer-popup"]:visible')
   await expect
     .poll(async () => {
       const box = await employeeDrawer.boundingBox()

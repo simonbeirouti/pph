@@ -1,4 +1,7 @@
-import type { OwnerDashboardData, EmployeeDashboardData } from "@/lib/dashboard/data"
+import type {
+  OwnerDashboardData,
+  EmployeeDashboardData,
+} from "@/lib/dashboard/data"
 import type {
   ActiveEmployeeOption,
   EmployeeSummary,
@@ -21,7 +24,7 @@ import type {
   TemplateEmployee,
 } from "@/lib/templates/types"
 
-export const OFFLINE_V2_SCHEMA_VERSION = 2
+export const OFFLINE_V2_SCHEMA_VERSION = 3
 export const OFFLINE_V2_LEASE_MS = 7 * 24 * 60 * 60 * 1000
 
 export type OfflineRole = "owner" | "manager" | "employee"
@@ -129,14 +132,10 @@ export type OfflineOperationKind =
   | "profile.update"
 
 export type OfflineEntityReference =
-  | { id: number; source: "server" }
-  | { id: string; source: "local" }
+  { id: number; source: "server" } | { id: string; source: "local" }
 
 export type OfflineV2OperationState =
-  | "pending"
-  | "syncing"
-  | "failed"
-  | "needs_attention"
+  "pending" | "syncing" | "failed" | "needs_attention"
 
 export type OfflineV2Operation = {
   clientOperationId: string
@@ -166,6 +165,7 @@ export type OfflineSyncChange = {
   entityId: number
   entityType: string
   operation: "upsert" | "delete"
+  relatedJobId: number | null
   revision: number
 }
 
@@ -186,23 +186,16 @@ export type OfflineSyncResult = {
 }
 
 export type OfflineRepositoryState =
-  | "preparing"
-  | "ready"
-  | "locked"
-  | "unavailable"
+  "preparing" | "ready" | "locked" | "unavailable"
 
 export type OfflineRepositorySyncState =
-  | "idle"
-  | "syncing"
-  | "pending"
-  | "needs_attention"
-  | "storage_warning"
+  "idle" | "syncing" | "pending" | "needs_attention" | "storage_warning"
 
 export type OfflineV2Patch = {
   baseRevision: number
   dashboard?: OfflineV2Snapshot["dashboard"]
   employeeJobs?: OfflineV2Snapshot["employeeJobs"]
-  jobDetails?: OfflineV2Snapshot["jobDetails"]
+  jobDetails?: OfflineJobDetailPatch
   jobs?: OfflineV2Snapshot["jobs"]
   leaseExpiresAt: string
   membership?: OfflineV2Snapshot["membership"]
@@ -212,6 +205,12 @@ export type OfflineV2Patch = {
   revision: number
   roster?: OfflineV2Snapshot["roster"]
   templates?: OfflineV2Snapshot["templates"]
+}
+
+export type OfflineJobDetailPatch = {
+  remove: number[]
+  reset?: boolean
+  upsert: Record<number, JobDetail>
 }
 
 export type OfflineSyncStatus =
@@ -225,10 +224,7 @@ export type OfflineSyncStatus =
   | "lease_expired"
   | "cold"
 
-export function isOfflineLeaseValid(
-  leaseExpiresAt: string,
-  now = Date.now()
-) {
+export function isOfflineLeaseValid(leaseExpiresAt: string, now = Date.now()) {
   const expiry = Date.parse(leaseExpiresAt)
   return Number.isFinite(expiry) && expiry > now
 }
