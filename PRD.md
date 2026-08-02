@@ -1842,6 +1842,23 @@ Automated implementation evidence (2026-07-29):
   employee filter to span mobile width while retaining its compact desktop
   width. Changed-file ESLint and all 19 focused roster-calendar component tests
   pass.
+- UI refinement checkpoint — roster date and time (2026-08-02): anchored the
+  date calendar beneath the complete date field rather than its calendar icon,
+  so clicking anywhere in the field opens an aligned calendar. Replaced the
+  browser-native time chooser in roster create/edit forms with the themed
+  hour/minute picker while retaining precise typed `HH:MM` entry. Changed-file
+  ESLint, TypeScript, and all 21 focused roster-calendar component tests pass.
+  No schema, migration, RLS, permission, environment-variable, public-route,
+  or reference-file change was required. Used the Vercel React/Next.js project
+  skill; S12 remains `in_progress` for existing staging and real-device gates.
+- UI refinement checkpoint — job and roster pickers (2026-08-02): constrained
+  roster-picker choices to full-width hourly and quarter-hour controls, while
+  retaining precise typed `HH:MM` entry. Scheduled and Due date-time popovers
+  now open above their Jobs form controls. Changed-file ESLint, TypeScript,
+  Prettier, and 33 focused roster/job component tests pass. No schema,
+  migration, RLS, permission, environment-variable, public-route, or
+  reference-file change was required. Used the Vercel React/Next.js project
+  skill; S12 remains `in_progress` for existing staging and real-device gates.
 - UI refinement checkpoint — profile (2026-07-30): capped the profile form
   section at `max-w-7xl` and made its identity/logout header stack on narrow
   screens so the logout action remains visible for every active role. Changed-

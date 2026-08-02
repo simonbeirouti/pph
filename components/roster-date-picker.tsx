@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { CalendarIcon } from "lucide-react"
 
 import { Calendar } from "@/components/ui/calendar"
@@ -44,11 +44,12 @@ export function RosterDatePicker({
   value: string
 }) {
   const [open, setOpen] = useState(false)
+  const anchorRef = useRef<HTMLDivElement>(null)
   const selected = parseDatePart(value)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <div className="relative">
+      <div className="relative" ref={anchorRef}>
         <Input
           aria-invalid={ariaInvalid}
           aria-label="Date"
@@ -80,6 +81,7 @@ export function RosterDatePicker({
       </div>
       <PopoverContent
         align="start"
+        anchor={anchorRef}
         className="w-auto"
         collisionAvoidance={{
           align: "shift",

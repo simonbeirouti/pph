@@ -101,7 +101,9 @@ describe("JobWorkspace", () => {
     )
 
     await user.click(
-      screen.getByRole("button", { name: "Job actions for Inspect loading bay" })
+      screen.getByRole("button", {
+        name: "Job actions for Inspect loading bay",
+      })
     )
     expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
     await user.click(screen.getByRole("menuitem", { name: "Delete" }))
@@ -113,7 +115,9 @@ describe("JobWorkspace", () => {
     await waitFor(() => {
       expect(deleteJobAction).toHaveBeenCalledWith(1401)
     })
-    expect(screen.queryByLabelText("Job Inspect loading bay")).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText("Job Inspect loading bay")
+    ).not.toBeInTheDocument()
   })
 
   it("prefills template defaults while keeping every job field editable", async () => {
@@ -310,6 +314,26 @@ describe("JobWorkspace", () => {
     expect(
       within(dialog).getByRole("button", { name: "Due" })
     ).toHaveTextContent("28 July 2026 at 17:00")
+  })
+
+  it("opens scheduled date and time choices above their control", async () => {
+    const user = userEvent.setup()
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Create job" }))
+    const dialog = screen.getByRole("dialog", { name: "Create job" })
+    await user.click(within(dialog).getByRole("button", { name: "Scheduled" }))
+
+    const content = document.querySelector(
+      '[data-slot="popover-content"][data-open]'
+    )
+    expect(content?.parentElement).toHaveAttribute("data-side", "top")
   })
 
   it("shows the fixed workflow, assignee identity, and archived view", async () => {

@@ -485,9 +485,9 @@ describe("RosterCalendar", () => {
     )
     expect(document.querySelector('[data-slot="calendar"]')).toBeVisible()
     expect(calendarPopup).toHaveAttribute("data-side", "bottom")
-    const saveFooter = within(dialog)
-      .getByRole("button", { name: "Save shift" })
-      .parentElement
+    const saveFooter = within(dialog).getByRole("button", {
+      name: "Save shift",
+    }).parentElement
     expect(saveFooter).not.toHaveClass("border-t", "bg-muted/50")
   })
 
@@ -795,6 +795,69 @@ describe("RosterCalendar", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Employee" })
     ).toHaveTextContent("Choose employee")
+  })
+
+  it("uses the themed picker for exact roster times", async () => {
+    const user = userEvent.setup()
+    render(
+      <RosterCalendar
+        dates={dates}
+        employees={employees}
+        jobs={jobs}
+        mode="team"
+        now="2026-07-27T02:00:00.000Z"
+        selectedDate="2026-07-27"
+        selectedEmployeeId={null}
+        shifts={shifts}
+        timezone="Australia/Melbourne"
+        today="2026-07-27"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Add shift" }))
+
+    const dialog = screen.getByRole("dialog", { name: "Add roster shift" })
+    const start = within(dialog).getByLabelText("Start")
+    expect(start).not.toHaveAttribute("type", "time")
+    await user.click(
+      within(dialog).getByRole("button", { name: "Choose start time" })
+    )
+    await user.click(screen.getByRole("button", { name: "Set hour to 10" }))
+    const minuteOption = screen.getByRole("button", {
+      name: "Set minute to 15",
+    })
+    expect(minuteOption).toHaveClass("w-full")
+    expect(
+      screen.queryByRole("button", { name: "Set minute to 13" })
+    ).not.toBeInTheDocument()
+    await user.click(minuteOption)
+
+    expect(start).toHaveValue("10:15")
+  })
+
+  it("opens the date calendar from anywhere in the roster date field", async () => {
+    const user = userEvent.setup()
+    render(
+      <RosterCalendar
+        dates={dates}
+        employees={employees}
+        jobs={jobs}
+        mode="team"
+        now="2026-07-27T02:00:00.000Z"
+        selectedDate="2026-07-27"
+        selectedEmployeeId={null}
+        shifts={shifts}
+        timezone="Australia/Melbourne"
+        today="2026-07-27"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Add shift" }))
+
+    const dialog = screen.getByRole("dialog", { name: "Add roster shift" })
+    await user.click(within(dialog).getByLabelText("Date"))
+
+    expect(document.querySelector('[data-slot="calendar"]')).toBeVisible()
   })
 
   it("uses a bottom drawer for roster forms on mobile", async () => {

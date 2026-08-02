@@ -730,7 +730,7 @@ function DateTimePicker({
           <CalendarIcon className="size-4" />
           {value ? formatLocalDateTime(value) : "Choose date and time"}
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto">
+        <PopoverContent align="start" className="w-auto" side="top">
           <Calendar
             mode="single"
             onSelect={(date) => {

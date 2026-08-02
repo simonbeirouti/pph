@@ -7,6 +7,7 @@ import { editCalendarRosterShiftAction } from "@/app/dashboard/roster/actions"
 import { FieldErrors } from "@/components/employee-form"
 import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { RosterDatePicker } from "@/components/roster-date-picker"
+import { RosterTimePicker } from "@/components/roster-time-picker"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +24,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
-import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -77,11 +77,7 @@ export function RosterShiftEditDialog({
 
   if (mobile) {
     return (
-      <Drawer
-        open={Boolean(shift)}
-        onOpenChange={onOpenChange}
-        showSwipeHandle
-      >
+      <Drawer open={Boolean(shift)} onOpenChange={onOpenChange} showSwipeHandle>
         <DrawerContent className="[--drawer-content-max-height:calc(100dvh-1rem)]">
           {form}
         </DrawerContent>
@@ -91,9 +87,7 @@ export function RosterShiftEditDialog({
 
   return (
     <Dialog open={Boolean(shift)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        {form}
-      </DialogContent>
+      <DialogContent className="sm:max-w-xl">{form}</DialogContent>
     </Dialog>
   )
 }
@@ -273,9 +267,7 @@ function RosterShiftEditForm({
               value={employeeMembershipId}
             />
             <Select
-              onValueChange={(value) =>
-                value && setEmployeeMembershipId(value)
-              }
+              onValueChange={(value) => value && setEmployeeMembershipId(value)}
               value={employeeMembershipId}
             >
               <SelectTrigger className="w-full" id="edit-shift-employee">
@@ -316,20 +308,17 @@ function RosterShiftEditForm({
             <label className="text-sm font-medium" htmlFor="edit-shift-start">
               Start
             </label>
-            <Input
+            <RosterTimePicker
               id="edit-shift-start"
+              label="Start"
               name="startTime"
-              onChange={(event) => {
-                const nextStart = event.target.value
+              onChange={(nextStart) => {
                 const duration = clockTimeDurationMinutes(startTime, endTime)
                 setStartTime(nextStart)
                 if (duration !== null) {
                   setEndTime(addMinutesToClockTime(nextStart, duration))
                 }
               }}
-              required
-              step={60}
-              type="time"
               value={startTime}
             />
             <FieldErrors errors={state.errors?.startTime} />
@@ -338,13 +327,11 @@ function RosterShiftEditForm({
             <label className="text-sm font-medium" htmlFor="edit-shift-end">
               End
             </label>
-            <Input
+            <RosterTimePicker
               id="edit-shift-end"
+              label="End"
               name="endTime"
-              onChange={(event) => setEndTime(event.target.value)}
-              required
-              step={60}
-              type="time"
+              onChange={setEndTime}
               value={endTime}
             />
             <FieldErrors errors={state.errors?.endTime} />

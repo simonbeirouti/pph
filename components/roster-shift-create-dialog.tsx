@@ -8,6 +8,7 @@ import { createCalendarRosterShiftAction } from "@/app/dashboard/roster/actions"
 import { FieldErrors } from "@/components/employee-form"
 import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import { RosterDatePicker } from "@/components/roster-date-picker"
+import { RosterTimePicker } from "@/components/roster-time-picker"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -25,7 +26,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
-import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -44,10 +44,7 @@ import {
   zonedLocalDateTimeToUtc,
 } from "@/lib/roster/time"
 import { useIsMobile } from "@/hooks/use-mobile"
-import type {
-  RosterAssignableJob,
-  RosterShiftDraft,
-} from "@/lib/roster/types"
+import type { RosterAssignableJob, RosterShiftDraft } from "@/lib/roster/types"
 import type { ActiveEmployeeOption } from "@/lib/employees/data"
 
 export function RosterShiftCreateDialog({
@@ -78,11 +75,7 @@ export function RosterShiftCreateDialog({
 
   if (mobile) {
     return (
-      <Drawer
-        open={Boolean(draft)}
-        onOpenChange={onOpenChange}
-        showSwipeHandle
-      >
+      <Drawer open={Boolean(draft)} onOpenChange={onOpenChange} showSwipeHandle>
         <DrawerContent className="[--drawer-content-max-height:calc(100dvh-1rem)]">
           {form}
         </DrawerContent>
@@ -129,10 +122,7 @@ function RosterShiftCreateForm({
       `${date}T${startTime}`,
       formTimezone
     )
-    const endsAt = zonedLocalDateTimeToUtc(
-      `${date}T${endTime}`,
-      formTimezone
-    )
+    const endsAt = zonedLocalDateTimeToUtc(`${date}T${endTime}`, formTimezone)
     const localId = crypto.randomUUID()
     const temporaryId = -Date.now()
     const now = new Date().toISOString()
@@ -186,9 +176,7 @@ function RosterShiftCreateForm({
   )
   const [startTime, setStartTime] = useState(draft.startTime)
   const [endTime, setEndTime] = useState(draft.endTime)
-  const [selectedJobs, setSelectedJobs] = useState<Set<number>>(
-    () => new Set()
-  )
+  const [selectedJobs, setSelectedJobs] = useState<Set<number>>(() => new Set())
   const employeeNames = useMemo(
     () =>
       new Map(
@@ -262,9 +250,7 @@ function RosterShiftCreateForm({
               value={employeeMembershipId}
             />
             <Select
-              onValueChange={(value) =>
-                value && setEmployeeMembershipId(value)
-              }
+              onValueChange={(value) => value && setEmployeeMembershipId(value)}
               value={employeeMembershipId || null}
             >
               <SelectTrigger
@@ -291,7 +277,10 @@ function RosterShiftCreateForm({
             <FieldErrors errors={state.errors?.employeeMembershipId} />
           </div>
           <div className="grid gap-1.5">
-            <label className="text-sm font-medium" htmlFor="calendar-shift-date">
+            <label
+              className="text-sm font-medium"
+              htmlFor="calendar-shift-date"
+            >
               Date
             </label>
             <RosterDatePicker
@@ -312,33 +301,26 @@ function RosterShiftCreateForm({
             >
               Start
             </label>
-            <Input
+            <RosterTimePicker
               aria-invalid={Boolean(state.errors?.startTime)}
               id="calendar-shift-start"
+              label="Start"
               name="startTime"
-              onChange={(event) => changeStartTime(event.target.value)}
-              required
-              step={60}
-              type="time"
+              onChange={changeStartTime}
               value={startTime}
             />
             <FieldErrors errors={state.errors?.startTime} />
           </div>
           <div className="grid gap-1.5">
-            <label
-              className="text-sm font-medium"
-              htmlFor="calendar-shift-end"
-            >
+            <label className="text-sm font-medium" htmlFor="calendar-shift-end">
               End
             </label>
-            <Input
+            <RosterTimePicker
               aria-invalid={Boolean(state.errors?.endTime)}
               id="calendar-shift-end"
+              label="End"
               name="endTime"
-              onChange={(event) => setEndTime(event.target.value)}
-              required
-              step={60}
-              type="time"
+              onChange={setEndTime}
               value={endTime}
             />
             <FieldErrors errors={state.errors?.endTime} />
