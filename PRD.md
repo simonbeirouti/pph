@@ -1924,6 +1924,13 @@ Automated implementation evidence (2026-07-29):
   tests pass; no schema, permission, environment-variable, or route contract
   changed. S12 remains `in_progress` for the existing native iOS/Android
   staging gates.
+- PWA install-name refinement (2026-08-02): the manifest `short_name` and
+  Apple web-app title are now `PPH`, while the full product name remains Pure
+  Peninsula Honey. The focused manifest Vitest check passes; the configured
+  browser check remains blocked because the local Supabase Docker container is
+  unavailable. No schema, permission, environment-variable, or route contract
+  changed. S12 remains `in_progress` for the existing native iOS/Android
+  staging gates.
 - Hosted seed maintenance (2026-07-30): added `hello@simonbeirouti.com` as the
   sole seeded user and active owner of the Pure Peninsula Honey organisation.
 - Sidebar identity refinement (2026-07-30): replaced the generated building

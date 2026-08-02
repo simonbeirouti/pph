@@ -6,7 +6,7 @@ describe("PWA manifest", () => {
   it("publishes the install metadata and icon contract", () => {
     expect(manifest()).toEqual({
       name: "Pure Peninsula Honey",
-      short_name: "Pure Peninsula Honey",
+      short_name: "PPH",
       description:
         "Roster employees, assign operational jobs, and review completed work.",
       start_url: "/dashboard",

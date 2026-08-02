@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next"
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Pure Peninsula Honey",
-    short_name: "Pure Peninsula Honey",
+    short_name: "PPH",
     description:
       "Roster employees, assign operational jobs, and review completed work.",
     start_url: "/dashboard",

@@ -50,7 +50,7 @@ test("publishes signed-out install metadata and valid PNG icons", async ({
     ],
     name: "Pure Peninsula Honey",
     orientation: "portrait-primary",
-    short_name: "Pure Peninsula Honey",
+    short_name: "PPH",
     start_url: "/dashboard",
     theme_color: "#facc15",
   })

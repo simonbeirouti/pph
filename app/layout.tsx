@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Pure Peninsula Honey",
+    title: "PPH",
   },
 }
 
