@@ -83,11 +83,10 @@ export function mapMembershipContext(
 export const getMembershipContext = cache(
   async (): Promise<MembershipContext | null> => {
     const supabase = await createClient()
-    const { data: claimsData, error: claimsError } =
-      await supabase.auth.getClaims()
-    const userId = claimsData?.claims.sub
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    const userId = userData.user?.id
 
-    if (claimsError || !userId) return null
+    if (userError || !userId) return null
 
     const { data, error } = await supabase
       .from("memberships")

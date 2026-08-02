@@ -87,7 +87,7 @@
                       style="border-radius: 8px"
                     >
                       <a
-                        href="{{ .ConfirmationURL }}"
+                        href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery"
                         style="
                           display: inline-block;
                           padding: 12px 20px;

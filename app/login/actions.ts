@@ -4,6 +4,8 @@ import { redirect } from "next/navigation"
 
 import type { ActionState } from "@/lib/forms/action-state"
 import { loginSchema } from "@/lib/auth/validation"
+import { recoveryEmailSchema } from "@/lib/auth/validation"
+import { getRequestOrigin } from "@/lib/http/origin"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -58,4 +60,28 @@ export async function loginAction(
   }
 
   redirect("/dashboard")
+}
+
+export async function requestPasswordRecoveryAction(
+  formData: FormData
+): Promise<ActionState> {
+  const parsed = recoveryEmailSchema.safeParse({ email: formData.get("email") })
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Enter a valid email address.",
+      ok: false,
+    }
+  }
+
+  const supabase = await createClient()
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${await getRequestOrigin()}/auth/confirm`,
+  })
+
+  return {
+    message:
+      "If an account uses that email, a password reset link is on its way.",
+    ok: true,
+  }
 }

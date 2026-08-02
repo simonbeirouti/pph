@@ -5,10 +5,9 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function getInvitedMembershipForCurrentUser() {
   const supabase = await createClient()
-  const { data: claimsData, error: claimsError } =
-    await supabase.auth.getClaims()
-  const userId = claimsData?.claims.sub
-  if (claimsError || !userId) return null
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (userError || !userId) return null
 
   const admin = createAdminClient()
   const { data, error } = await admin

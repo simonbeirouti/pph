@@ -50,10 +50,7 @@ async function sendInvitation(input: {
     .eq("id", input.membershipId)
     .eq("organisation_id", owner.organisationId)
     .maybeSingle()
-  if (
-    !target ||
-    (owner.role === "manager" && target.role !== "employee")
-  ) {
+  if (!target || (owner.role === "manager" && target.role !== "employee")) {
     return "failed"
   }
   await setInvitationDelivery(
@@ -315,6 +312,31 @@ export async function setEmployeeActiveAction(
   }
 }
 
+export async function requestEmployeePasswordRecoveryAction(
+  membershipId: number
+): Promise<ActionState> {
+  const actor = await requirePeopleManager()
+  const employee = await getEmployee(membershipId)
+  if (
+    !employee ||
+    employee.status !== "active" ||
+    (actor.role === "manager" && employee.role !== "employee")
+  ) {
+    return {
+      message: "Password reset is unavailable for this employee.",
+      ok: false,
+    }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(employee.email, {
+    redirectTo: `${await getRequestOrigin()}/auth/confirm`,
+  })
+  return error
+    ? { message: "Unable to send the password reset email.", ok: false }
+    : { message: "Password reset email sent.", ok: true }
+}
+
 export async function changeMembershipRoleAction(
   membershipId: number,
   role: "owner" | "manager" | "employee"
@@ -368,8 +390,8 @@ export async function deleteInvitedEmployeeAction(
   }
 
   if (employee.avatarPath) {
-    await createAdminClient().storage
-      .from("avatars")
+    await createAdminClient()
+      .storage.from("avatars")
       .remove([employee.avatarPath])
   }
 

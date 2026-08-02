@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
   deleteInvitedEmployeeAction,
   employeeAccessAction,
+  requestEmployeePasswordRecoveryAction,
 } from "@/app/dashboard/employees/actions"
 import { useOfflineV2Actions } from "@/components/offline-v2-actions"
 import {
@@ -19,6 +21,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { INITIAL_ACTION_STATE } from "@/lib/forms/action-state"
 
 export function EmployeeAccessActions({
@@ -35,12 +43,13 @@ export function EmployeeAccessActions({
   const offline = useOfflineV2Actions()
   const [currentStatus, setCurrentStatus] = useState(status)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const [accessPending, startAccessTransition] = useTransition()
+  const [resetPending, startResetTransition] = useTransition()
   const destructiveAction =
     currentStatus === "invited" ? "delete" : "deactivate"
 
   const changeAccess = (active: boolean) => {
-    startTransition(async () => {
+    startAccessTransition(async () => {
       const formData = new FormData()
       formData.set("active", String(active))
       const queued = await offline.queue({
@@ -91,7 +100,7 @@ export function EmployeeAccessActions({
   }
 
   const confirmDestructiveAction = () => {
-    startTransition(async () => {
+    startAccessTransition(async () => {
       let result
       if (destructiveAction === "delete") {
         const queued = await offline.queue({
@@ -162,28 +171,64 @@ export function EmployeeAccessActions({
     })
   }
 
+  const resetPassword = () => {
+    startResetTransition(async () => {
+      const result = await requestEmployeePasswordRecoveryAction(membershipId)
+      if (result.ok) toast.success(result.message)
+      else toast.error(result.message)
+    })
+  }
+
   return (
     <>
       {currentStatus === "inactive" ? (
         <Button
           className="w-full"
-          disabled={pending}
+          disabled={accessPending}
           onClick={() => changeAccess(true)}
           type="button"
         >
-          {pending ? "Reactivating…" : "Reactivate access"}
+          {accessPending ? "Reactivating…" : "Reactivate access"}
         </Button>
+      ) : currentStatus === "active" ? (
+        <div className="grid grid-cols-5 gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    aria-label={`Reset password for ${displayName}`}
+                    disabled={resetPending}
+                    onClick={resetPassword}
+                    type="button"
+                    variant="outline"
+                  >
+                    <RotateCcwIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent>Reset password</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button
+            className="col-span-4"
+            disabled={accessPending}
+            onClick={() => setConfirmOpen(true)}
+            type="button"
+            variant="destructive"
+          >
+            Deactivate access
+          </Button>
+        </div>
       ) : (
         <Button
           className="w-full"
-          disabled={pending}
+          disabled={accessPending}
           onClick={() => setConfirmOpen(true)}
           type="button"
           variant="destructive"
         >
-          {currentStatus === "invited"
-            ? "Delete employee"
-            : "Deactivate access"}
+          Delete employee
         </Button>
       )}
 
@@ -202,14 +247,16 @@ export function EmployeeAccessActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={accessPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
-              disabled={pending}
+              disabled={accessPending}
               onClick={confirmDestructiveAction}
               type="button"
               variant="destructive"
             >
-              {pending
+              {accessPending
                 ? destructiveAction === "delete"
                   ? "Deleting…"
                   : "Deactivating…"

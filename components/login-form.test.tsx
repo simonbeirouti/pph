@@ -2,20 +2,23 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { loginAction } from "@/app/login/actions"
+import { loginAction, requestPasswordRecoveryAction } from "@/app/login/actions"
 import { LoginForm } from "@/components/login-form"
 
-const { toastError } = vi.hoisted(() => ({
+const { toastError, toastSuccess } = vi.hoisted(() => ({
   toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }))
 
 vi.mock("@/app/login/actions", () => ({
   loginAction: vi.fn(),
+  requestPasswordRecoveryAction: vi.fn(),
 }))
 
 vi.mock("sonner", () => ({
   toast: {
     error: toastError,
+    success: toastSuccess,
   },
 }))
 
@@ -28,13 +31,51 @@ afterEach(() => {
 })
 
 describe("LoginForm", () => {
-  it("renders only the V1 credential fields", () => {
+  it("renders credentials and password recovery without card styling", () => {
     render(<LoginForm />)
 
     expect(screen.getByRole("textbox", { name: "Email" })).toBeVisible()
     expect(screen.getByLabelText("Password")).toBeVisible()
     expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled()
-    expect(screen.queryByText(/Google|Sign up|Forgot/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Forgot password?" })
+    ).toBeVisible()
+    expect(screen.queryByText(/Google|Sign up/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Sign in" }).parentElement
+    ).toHaveClass("text-center", "text-white")
+  })
+
+  it("sends recovery for the entered email and keeps the response generic", async () => {
+    vi.mocked(requestPasswordRecoveryAction).mockResolvedValue({
+      message:
+        "If an account uses that email, a password reset link is on its way.",
+      ok: true,
+    })
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Email" }),
+      "USER@Example.com"
+    )
+    await user.click(screen.getByRole("button", { name: "Forgot password?" }))
+
+    await waitFor(() =>
+      expect(requestPasswordRecoveryAction).toHaveBeenCalledOnce()
+    )
+    const form = vi.mocked(requestPasswordRecoveryAction).mock.calls[0][0]
+    expect(form.get("email")).toBe("USER@Example.com")
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "If an account uses that email, a password reset link is on its way."
+    )
+  })
+
+  it("announces a completed password reset", () => {
+    render(<LoginForm passwordReset />)
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "Password reset. You can now sign in."
+    )
   })
 
   it("associates credential fields with submitted names", () => {

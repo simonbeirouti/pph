@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   loginSchema,
   passwordSchema,
+  recoveryEmailSchema,
   setPasswordSchema,
 } from "@/lib/auth/validation"
 
@@ -17,6 +18,14 @@ describe("authentication validation", () => {
       email: "owner@example.test",
       password: "Password123!",
     })
+  })
+
+  it("normalises password recovery email", () => {
+    expect(recoveryEmailSchema.parse({ email: "  USER@Example.COM " })).toEqual(
+      {
+        email: "user@example.com",
+      }
+    )
   })
 
   it("enforces the S02 password policy", () => {

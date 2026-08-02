@@ -61,10 +61,10 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  const { data, error } = await supabase.auth.getClaims()
+  const { data, error } = await supabase.auth.getUser()
   const redirectUrl = resolveOptimisticRedirect(
     request,
-    !error && Boolean(data?.claims.sub)
+    !error && Boolean(data.user)
   )
 
   if (!redirectUrl) return response

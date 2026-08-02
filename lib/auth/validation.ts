@@ -9,6 +9,8 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Enter your password."),
 })
 
+export const recoveryEmailSchema = loginSchema.pick({ email: true })
+
 export const passwordSchema = z
   .string()
   .min(8, "Use at least 8 characters.")

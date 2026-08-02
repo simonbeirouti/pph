@@ -6,9 +6,13 @@ import { createServerClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
 import type { Database } from "@/lib/supabase/database.types"
+import {
+  PASSWORD_RECOVERY_COOKIE,
+  PASSWORD_RECOVERY_COOKIE_VALUE,
+} from "@/lib/auth/recovery"
 import { getSupabasePublicConfig } from "@/lib/supabase/public-env"
 
-const ACCEPTED_TYPES = new Set<EmailOtpType>(["invite"])
+const ACCEPTED_TYPES = new Set<EmailOtpType>(["invite", "recovery"])
 
 export async function GET(request: NextRequest) {
   const tokenHash = request.nextUrl.searchParams.get("token_hash")
@@ -25,7 +29,8 @@ export async function GET(request: NextRequest) {
   }
 
   const { publishableKey, url } = getSupabasePublicConfig()
-  let response = NextResponse.redirect(new URL("/set-password", requestOrigin))
+  const destination = type === "recovery" ? "/reset-password" : "/set-password"
+  let response = NextResponse.redirect(new URL(destination, requestOrigin))
   const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
@@ -44,6 +49,21 @@ export async function GET(request: NextRequest) {
   if (verificationError || !verification.session) {
     errorUrl.searchParams.set("reason", "verification")
     return NextResponse.redirect(errorUrl)
+  }
+
+  if (type === "recovery") {
+    response.cookies.set(
+      PASSWORD_RECOVERY_COOKIE,
+      PASSWORD_RECOVERY_COOKIE_VALUE,
+      {
+        httpOnly: true,
+        maxAge: 60 * 60,
+        path: "/",
+        sameSite: "lax",
+        secure: protocol === "https",
+      }
+    )
+    return response
   }
 
   const verifiedClient = createSupabaseClient<Database>(url, publishableKey, {

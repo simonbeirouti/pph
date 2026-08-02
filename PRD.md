@@ -241,6 +241,26 @@ Acceptance criteria:
 - Existing shifts, jobs, notes, comments, and evidence remain available to owners.
 - Jobs currently assigned to an inactive employee remain visible and can be reassigned.
 
+#### AUTH-05: Password recovery
+
+As a user, I want to request a password reset so that I can recover access
+without an administrator changing my account.
+
+Acceptance criteria:
+
+- The login form sends a recovery link to the entered email and does not reveal
+  whether the account exists.
+- An authorised people manager can send a recovery link for an active account
+  from the employee sheet; invited and inactive memberships do not offer it.
+- Recovery verification redirects to a dedicated password-reset form and never
+  activates or changes a membership.
+- A successful reset signs the recovery session out and returns the user to
+  login.
+- A successful reset globally revokes the user's Supabase sessions. Connected
+  application requests validate live Auth state so other browsers are rejected
+  on their next online request; an offline browser is rejected when it
+  reconnects.
+
 ### 3.2 Owner dashboard
 
 #### DASH-01: Operational statistics
@@ -821,14 +841,15 @@ Acceptance criteria:
 
 ### `/login`
 
-- Public route containing email/password login.
+- Public route containing email/password login and password-recovery dispatch.
 - No public signup or social login controls.
 - Authenticated users are redirected to `/dashboard`.
 
 ### `/auth/confirm`
 
-- Public callback route for Supabase invitation verification.
-- Exchanges verification data, links the pending membership, and redirects to password setup.
+- Public callback route for Supabase invitation and password-recovery verification.
+- Invitation verification links the pending membership and redirects to password setup.
+- Recovery verification redirects to password reset without changing membership state.
 - Displays a safe recovery state for invalid or expired verification data.
 
 ### `/set-password`
@@ -836,6 +857,12 @@ Acceptance criteria:
 - Requires a valid invited-user session.
 - Requires password and confirmation.
 - Activates the employee membership and redirects to `/dashboard`.
+
+### `/reset-password`
+
+- Requires a valid password-recovery session.
+- Requires password and confirmation using the application password policy.
+- Updates the password, signs out the recovery session, and redirects to login.
 
 ### `/dashboard`
 
@@ -1904,7 +1931,7 @@ Automated implementation evidence (2026-07-29):
   summary, and prominent review action. The recipient, direct review link,
   idempotent delivery ledger, and private-evidence exclusion are unchanged.
   The focused Vitest template checks, changed-file ESLint, and `git diff
-  --check` pass; no schema, permission, environment-variable, public-route, or
+--check` pass; no schema, permission, environment-variable, public-route, or
   reference-file change was required. S12 remains `in_progress` for the
   existing native iOS/Android staging gates.
 - Password-recovery email refinement (2026-08-02): added and configured the
@@ -1916,6 +1943,36 @@ Automated implementation evidence (2026-07-29):
   pass; no schema, permission, environment-variable, public-route, or
   reference-file change was required. S12 remains `in_progress` for the
   existing native iOS/Android staging gates.
+- Password-recovery application flow (2026-08-02): added non-enumerating
+  recovery dispatch from the cardless login form, active-account recovery from
+  the employee sheet, explicit recovery-token verification, an HTTP-only
+  recovery marker, and the dedicated `/reset-password` flow without changing
+  invitation activation or membership state. Changed-file ESLint, TypeScript,
+  4 focused Vitest files / 17 tests, the production build, template checks, and
+  `git diff --check` pass. The targeted Chromium authentication check remains
+  blocked before browser launch because the local Supabase container is not
+  running. A broader Vitest invocation produced 235 passing tests and the
+  previously documented transient employee-status select interaction failure;
+  the exact affected password-recovery suite passes. No schema, migration,
+  environment-variable, or offline-queue contract changed. S12 remains
+  `in_progress` for the existing native iOS/Android staging gates.
+- Password-reset form styling refinement (2026-08-02): removed the recovery
+  form card and matched the login screen's centred white heading treatment
+  without changing recovery-session, validation, or password-update behaviour.
+- Employee reset-control refinement (2026-08-02): reduced the active-account
+  reset action to a one-fifth icon control with an accessible password-reset
+  label and hover/focus tooltip; delivery and access behaviour are unchanged.
+- Employee action independence correction (2026-08-02): separated reset-email
+  and access-management transition state so each control disables only while
+  its own operation is pending and adjacent actions remain clickable.
+- Password-reset session invalidation hardening (2026-08-02): made recovery
+  sign-out explicitly global and replaced locally verified claims with live
+  Supabase Auth user validation at the root proxy and server membership
+  boundaries. Revoked browsers are redirected on their next connected request;
+  offline clients retain the established reconnect-time validation contract.
+  Three focused Vitest files / eight tests, changed-file ESLint, TypeScript, the
+  production build, and `git diff --check` pass; no schema, migration, or
+  environment-variable change was required.
 - Brand refinement (2026-08-02): changed the user-facing product name to Pure
   Peninsula Hone across root metadata, Apple web-app metadata, PWA manifest and
   install guidance, service-worker notification copy, Auth email subjects and
