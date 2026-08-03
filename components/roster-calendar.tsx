@@ -1616,7 +1616,7 @@ export function RosterCalendar({
             <p className="text-muted-foreground">
               {readOnly
                 ? "Your read-only weekly roster and allocated jobs."
-              : "Plan shifts and keep your team organised."}
+                : "Plan shifts and keep your team organised."}
             </p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">

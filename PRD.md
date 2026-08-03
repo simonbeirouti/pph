@@ -2188,10 +2188,12 @@ Automated implementation evidence (2026-07-29):
 - Page-header consistency follow-up (2026-08-04): Jobs, Templates & schedules,
   Employees, and Roster now use the Employees 2xl semibold tracked title and
   matching description treatment. Existing approved Jobs, Templates, and
-  Employees actions are unchanged. Roster retains the Jobs header relationship:
-  Add shift sits opposite the title and description from the small breakpoint
-  and moves below them at full width on mobile. Focused Vitest (2 files / 24
-  tests), changed-file ESLint, TypeScript, and `git diff --check` pass. No
+  Employees actions are unchanged. Roster now consolidates Add shift and its
+  employee/date controls into one right-side header stack like Jobs, recovering
+  vertical space for the calendar; the complete stack moves below the title at
+  full width on mobile. Focused Vitest (2 files / 24 tests, followed by the
+  updated Roster file / 21 tests), changed-file ESLint, TypeScript, and
+  `git diff --check` pass. No
   permission, database, environment-variable, public-route, or reference-file
   change was required; S12 remains `in_progress` for the existing release gates.
 - Mobile sidebar polish follow-up (2026-08-04): removed the redundant close
