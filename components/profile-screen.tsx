@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { CameraIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 import { EmployeeAvatar } from "@/components/employee-avatar"
 import { EmployeeForm } from "@/components/employee-form"
@@ -22,9 +24,10 @@ const PROFILE_FORM_ID = "own-profile-form"
 
 export function ProfileScreen({ profile }: { profile: EmployeeSummary }) {
   const action = useOwnProfileFormAction(profile)
+  const router = useRouter()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  const [avatarDirty, setAvatarDirty] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
   useEffect(
     () => () => {
@@ -40,6 +43,7 @@ export function ProfileScreen({ profile }: { profile: EmployeeSummary }) {
           <button
             aria-label="Change profile photo"
             className="group relative shrink-0 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            disabled={avatarUploading}
             onClick={() => avatarInputRef.current?.click()}
             type="button"
           >
@@ -56,15 +60,43 @@ export function ProfileScreen({ profile }: { profile: EmployeeSummary }) {
             accept="image/jpeg,image/png,image/webp"
             aria-label="Profile photo"
             className="sr-only"
+            disabled={avatarUploading}
             form={PROFILE_FORM_ID}
             name="avatar"
-            onChange={(event) => {
+            onChange={async (event) => {
               const file = event.target.files?.[0]
-              setAvatarDirty(Boolean(file))
+              if (!file) return
               setAvatarPreview((current) => {
                 if (current) URL.revokeObjectURL(current)
-                return file ? URL.createObjectURL(file) : null
+                return URL.createObjectURL(file)
               })
+              const form = document.getElementById(PROFILE_FORM_ID)
+              if (!(form instanceof HTMLFormElement)) return
+              const formData = new FormData(form)
+              formData.set("avatar", file)
+              setAvatarUploading(true)
+              try {
+                const result = await action({ ok: false }, formData)
+                if (result.ok) {
+                  toast.success("Profile photo updated.")
+                  setAvatarPreview((current) => {
+                    if (current) URL.revokeObjectURL(current)
+                    return null
+                  })
+                  router.refresh()
+                } else {
+                  toast.error(
+                    result.errors?.avatar?.[0] ??
+                      result.message ??
+                      "Unable to update the profile photo."
+                  )
+                }
+              } catch {
+                toast.error("Unable to update the profile photo.")
+              } finally {
+                setAvatarUploading(false)
+                if (avatarInputRef.current) avatarInputRef.current.value = ""
+              }
             }}
             ref={avatarInputRef}
             tabIndex={-1}
@@ -73,6 +105,11 @@ export function ProfileScreen({ profile }: { profile: EmployeeSummary }) {
           <h1 className="truncate text-2xl font-semibold">
             {profile.displayName}
           </h1>
+          {avatarUploading ? (
+            <span className="text-sm text-muted-foreground" role="status">
+              Uploading profile photo…
+            </span>
+          ) : null}
         </div>
         <OfflineAwareLogoutButton />
       </div>
@@ -87,13 +124,8 @@ export function ProfileScreen({ profile }: { profile: EmployeeSummary }) {
           <EmployeeForm
             action={action}
             employee={profile}
-            externalDirty={avatarDirty}
             formId={PROFILE_FORM_ID}
             includeAvatar={false}
-            onSuccess={() => {
-              setAvatarDirty(false)
-              if (avatarInputRef.current) avatarInputRef.current.value = ""
-            }}
             showExternalAvatarErrors
             showReturn={false}
             showSubmitWhenDirty

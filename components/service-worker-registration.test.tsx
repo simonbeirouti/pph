@@ -2,6 +2,10 @@ import { cleanup, render, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
+  clearOfflineRepositoryPrepared,
+  isOfflineRepositoryPrepared,
+  markOfflineRepositoryPrepared,
+  OFFLINE_SHELL_VERSION,
   registerServiceWorker,
   resetDevelopmentServiceWorker,
   ServiceWorkerRegistration,
@@ -10,6 +14,7 @@ import {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe("service-worker registration", () => {
@@ -71,5 +76,52 @@ describe("service-worker registration", () => {
         undefined
       )
     ).resolves.toBeUndefined()
+  })
+
+  it("marks a prepared repository through the controlled shell", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER", "1")
+    const postMessage = vi.fn(
+      (_message: unknown, ports: readonly MessagePort[]) =>
+        ports[0]?.postMessage({ ok: true })
+    )
+    const serviceWorker = {
+      controller: { postMessage },
+    } as unknown as ServiceWorkerContainer
+    postMessage.mockImplementationOnce(
+      (_message: unknown, ports: readonly MessagePort[]) =>
+        ports[0]?.postMessage({ version: OFFLINE_SHELL_VERSION })
+    )
+
+    await expect(
+      markOfflineRepositoryPrepared(serviceWorker, {} as CacheStorage)
+    ).resolves.toBe(true)
+    expect(postMessage).toHaveBeenLastCalledWith(
+      { type: "PPH_OFFLINE_REPOSITORY_READY" },
+      expect.any(Array)
+    )
+  })
+
+  it("clears the readiness marker even without a controlling worker", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER", "1")
+    const deleteMarker = vi.fn().mockResolvedValue(true)
+    const cacheStorage = {
+      open: vi.fn().mockResolvedValue({ delete: deleteMarker }),
+    } as unknown as CacheStorage
+
+    await expect(
+      clearOfflineRepositoryPrepared(undefined, cacheStorage)
+    ).resolves.toBe(true)
+    expect(deleteMarker).toHaveBeenCalledWith("/offline-repository-ready")
+  })
+
+  it("inspects the readiness marker without reading private data", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PPH_PLAYWRIGHT_SERVER", "1")
+    const match = vi.fn().mockResolvedValue(new Response("ready"))
+    const cacheStorage = {
+      open: vi.fn().mockResolvedValue({ match }),
+    } as unknown as CacheStorage
+
+    await expect(isOfflineRepositoryPrepared(cacheStorage)).resolves.toBe(true)
+    expect(match).toHaveBeenCalledWith("/offline-repository-ready")
   })
 })

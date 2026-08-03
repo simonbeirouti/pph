@@ -10,9 +10,14 @@ import type { RealtimeInvalidation } from "@/lib/realtime/events"
 
 const refresh = vi.fn()
 const router = { refresh }
+let viewSource: "cache" | "server" = "cache"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
+}))
+
+vi.mock("@/components/offline-v2-provider", () => ({
+  useOfflineV2: () => ({ viewSource }),
 }))
 
 vi.mock("@/lib/supabase/browser", () => ({
@@ -84,6 +89,7 @@ function renderProvider(listener = vi.fn()) {
 
 beforeEach(() => {
   vi.useFakeTimers()
+  viewSource = "cache"
   vi.mocked(createClient).mockReturnValue(
     supabase as unknown as ReturnType<typeof createClient>
   )
@@ -129,7 +135,7 @@ describe("DashboardRealtimeProvider", () => {
     expect(refresh).not.toHaveBeenCalled()
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
-    expect(refresh).toHaveBeenCalledOnce()
+    expect(refresh).not.toHaveBeenCalled()
     window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
@@ -161,11 +167,11 @@ describe("DashboardRealtimeProvider", () => {
     act(() => updateStatus?.("SUBSCRIBED"))
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
-    expect(refresh).toHaveBeenCalledOnce()
+    expect(refresh).not.toHaveBeenCalled()
     window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
-  it("refreshes server and offline views after a stale tab becomes visible", async () => {
+  it("invalidates the repository without refreshing cached routes after a stale tab", async () => {
     const invalidate = vi.fn()
     window.addEventListener("pph:offline-invalidate", invalidate)
     renderProvider()
@@ -188,8 +194,18 @@ describe("DashboardRealtimeProvider", () => {
     expect(refresh).not.toHaveBeenCalled()
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
-    expect(refresh).toHaveBeenCalledOnce()
+    expect(refresh).not.toHaveBeenCalled()
     window.removeEventListener("pph:offline-invalidate", invalidate)
+  })
+
+  it("refreshes the authenticated SSR fallback before preparation completes", async () => {
+    viewSource = "server"
+    renderProvider()
+    await act(async () => {})
+    act(() => updateStatus?.("SUBSCRIBED"))
+    act(() => broadcast?.({ payload: event }))
+    act(() => vi.advanceTimersByTime(150))
+    expect(refresh).toHaveBeenCalledOnce()
   })
 
   it("removes its channel during cleanup", async () => {

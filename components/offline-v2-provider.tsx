@@ -32,7 +32,12 @@ import {
   prepareOfflineEvidenceUploadAction,
   verifyOfflineEvidenceUploadAction,
 } from "@/app/dashboard/jobs/offline-actions"
-import { ensureOfflineShellReady } from "@/components/service-worker-registration"
+import {
+  clearOfflineRepositoryPrepared,
+  ensureOfflineShellReady,
+  isOfflineRepositoryPrepared,
+  markOfflineRepositoryPrepared,
+} from "@/components/service-worker-registration"
 import { restoreOfflineEvidenceFile } from "@/lib/offline-v2/evidence-upload"
 import {
   preservePendingOptimisticDomains,
@@ -50,7 +55,10 @@ import type {
   OfflineV2Snapshot,
   OfflineSyncResult,
 } from "@/lib/offline-v2/types"
-import { isOfflineLeaseValid } from "@/lib/offline-v2/types"
+import {
+  isOfflineLeaseValid,
+  OFFLINE_V2_SCHEMA_VERSION,
+} from "@/lib/offline-v2/types"
 import { selectDashboardViewSource } from "@/lib/offline-v2/view-mode"
 
 type OfflineV2ContextValue = {
@@ -84,6 +92,7 @@ type OfflineV2ContextValue = {
 
 const OfflineV2Context = createContext<OfflineV2ContextValue | null>(null)
 const FOREGROUND_STALE_MS = 30_000
+const REPOSITORY_PREPARATION_WAIT_MS = 10_000
 
 export function OfflineV2Provider({
   cachedShell = false,
@@ -110,25 +119,99 @@ export function OfflineV2Provider({
   const snapshotRevisionRef = useRef(0)
   const refreshInFlightRef = useRef<Promise<void> | null>(null)
   const lastRefreshAtRef = useRef(0)
+  const repositoryStateRef = useRef<OfflineRepositoryState>("preparing")
+  const repositoryWaitersRef = useRef(new Set<(ready: boolean) => void>())
+
+  useEffect(() => {
+    repositoryStateRef.current = repositoryState
+    const current = snapshotStateRef.current
+    const writable =
+      repositoryState === "ready" &&
+      Boolean(current && isOfflineLeaseValid(current.leaseExpiresAt))
+    const terminal =
+      repositoryState === "locked" ||
+      (repositoryState === "unavailable" && !navigator.onLine)
+    if (!writable && !terminal) return
+    for (const resolve of repositoryWaitersRef.current) resolve(writable)
+    repositoryWaitersRef.current.clear()
+  }, [repositoryState, snapshot])
+
+  useEffect(
+    () => () => {
+      for (const resolve of repositoryWaitersRef.current) resolve(false)
+      repositoryWaitersRef.current.clear()
+    },
+    []
+  )
+
+  const waitForWritableRepository = useCallback(() => {
+    const current = snapshotStateRef.current
+    if (
+      repositoryStateRef.current === "ready" &&
+      current &&
+      isOfflineLeaseValid(current.leaseExpiresAt)
+    ) {
+      return Promise.resolve(true)
+    }
+    if (
+      repositoryStateRef.current === "locked" ||
+      (repositoryStateRef.current === "unavailable" && !navigator.onLine)
+    ) {
+      return Promise.resolve(false)
+    }
+    return new Promise<boolean>((resolve) => {
+      let settled = false
+      const finish = (ready: boolean) => {
+        if (settled) return
+        settled = true
+        window.clearTimeout(timeout)
+        repositoryWaitersRef.current.delete(finish)
+        resolve(ready)
+      }
+      const timeout = window.setTimeout(
+        () => finish(false),
+        REPOSITORY_PREPARATION_WAIT_MS
+      )
+      repositoryWaitersRef.current.add(finish)
+      const latest = snapshotStateRef.current
+      if (
+        repositoryStateRef.current === "ready" &&
+        latest &&
+        isOfflineLeaseValid(latest.leaseExpiresAt)
+      ) {
+        finish(true)
+      }
+    })
+  }, [])
 
   const reloadLocalState = useCallback(async () => {
-    const [storedSnapshot, storedOperations, storedConflicts] =
+    const [storedSnapshot, storedOperations, storedConflicts, prepared] =
       await Promise.all([
         getOfflineV2Snapshot(),
         getOfflineV2Operations(),
         getOfflineConflicts(),
+        isOfflineRepositoryPrepared(window.caches),
       ])
-    const identityMatches =
-      !serverMembership ||
+    const schemaMatches =
       !storedSnapshot ||
-      (storedSnapshot.membership.membershipId ===
-        serverMembership.membershipId &&
-        storedSnapshot.membership.organisationId ===
-          serverMembership.organisationId)
-    if (!identityMatches) await purgeOfflineV2Data()
+      storedSnapshot.schemaVersion === OFFLINE_V2_SCHEMA_VERSION
+    const identityMatches =
+      schemaMatches &&
+      (!serverMembership ||
+        !storedSnapshot ||
+        (storedSnapshot.membership.membershipId ===
+          serverMembership.membershipId &&
+          storedSnapshot.membership.organisationId ===
+            serverMembership.organisationId))
+    if (!identityMatches) {
+      await Promise.all([
+        purgeOfflineV2Data(),
+        clearOfflineRepositoryPrepared(navigator.serviceWorker, window.caches),
+      ])
+    }
     const storedOperationsForIdentity = identityMatches ? storedOperations : []
     const hydratedSnapshot =
-      identityMatches && storedSnapshot
+      identityMatches && prepared && storedSnapshot
         ? await hydrateOfflineSnapshotMedia(storedSnapshot)
         : null
     const usableSnapshot = hydratedSnapshot
@@ -146,6 +229,10 @@ export function OfflineV2Provider({
     setOperations(storedOperationsForIdentity)
     setConflicts(identityMatches ? storedConflicts : [])
     if (!usableSnapshot) {
+      await clearOfflineRepositoryPrepared(
+        navigator.serviceWorker,
+        window.caches
+      )
       setRepositoryState("unavailable")
       setStatus("cold")
     } else if (!isOfflineLeaseValid(usableSnapshot.leaseExpiresAt)) {
@@ -214,7 +301,13 @@ export function OfflineV2Provider({
         }
       )
       if (response.status === 401 || response.status === 403) {
-        await purgeOfflineV2Data()
+        await Promise.all([
+          purgeOfflineV2Data(),
+          clearOfflineRepositoryPrepared(
+            navigator.serviceWorker,
+            window.caches
+          ),
+        ])
         snapshotStateRef.current = null
         setSnapshot(null)
         setOperations([])
@@ -222,6 +315,7 @@ export function OfflineV2Provider({
         setRepositoryState("unavailable")
         setSyncState("idle")
         setStatus("cold")
+        await logoutAction()
         return
       }
       if (!response.ok) throw new Error(`Bootstrap failed: ${response.status}`)
@@ -322,6 +416,12 @@ export function OfflineV2Provider({
         navigator.serviceWorker,
         window.caches
       )
+      if (mediaComplete && shellReady) {
+        await markOfflineRepositoryPrepared(
+          navigator.serviceWorker,
+          window.caches
+        )
+      }
       const hydratedSnapshot =
         await hydrateOfflineSnapshotMedia(committedSnapshot)
       snapshotStateRef.current = hydratedSnapshot
@@ -471,6 +571,12 @@ export function OfflineV2Provider({
     return () => window.clearTimeout(retry)
   }, [networkReachability, refresh])
 
+  const viewSource = selectDashboardViewSource({
+    cachedShell,
+    repositoryState,
+    snapshotAvailable: Boolean(snapshot),
+  })
+
   const navigate = useCallback(
     (href: string, options?: { replace?: boolean }) => {
       const url = new URL(href, window.location.origin)
@@ -487,14 +593,18 @@ export function OfflineV2Provider({
   )
 
   useEffect(() => {
-    const hasLocalWork =
-      operations.length > 0 ||
-      conflicts.length > 0 ||
-      syncState === "needs_attention"
-    if (networkReachability === "online" && !cachedShell && !hasLocalWork) {
+    if (
+      repositoryState !== "ready" ||
+      !navigator.onLine ||
+      Date.now() - lastRefreshAtRef.current < FOREGROUND_STALE_MS
+    ) {
       return
     }
-    if (repositoryState !== "ready" && repositoryState !== "locked") return
+    void refresh()
+  }, [currentPath, refresh, repositoryState])
+
+  useEffect(() => {
+    if (viewSource !== "cache") return
     const interceptDashboardLink = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -523,15 +633,7 @@ export function OfflineV2Provider({
     document.addEventListener("click", interceptDashboardLink, true)
     return () =>
       document.removeEventListener("click", interceptDashboardLink, true)
-  }, [
-    cachedShell,
-    conflicts.length,
-    navigate,
-    networkReachability,
-    operations.length,
-    repositoryState,
-    syncState,
-  ])
+  }, [navigate, viewSource])
 
   const queueOperation = useCallback(
     async (
@@ -541,9 +643,10 @@ export function OfflineV2Provider({
         optimistic?: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
       }
     ) => {
+      if (!(await waitForWritableRepository())) return false
       const current = snapshotStateRef.current
       if (
-        repositoryState !== "ready" ||
+        repositoryStateRef.current !== "ready" ||
         !current ||
         !isOfflineLeaseValid(current.leaseExpiresAt)
       ) {
@@ -572,7 +675,7 @@ export function OfflineV2Provider({
       if (navigator.onLine) window.setTimeout(() => void refresh(), 0)
       return true
     },
-    [refresh, repositoryState]
+    [refresh, waitForWritableRepository]
   )
 
   const updateSnapshot = useCallback(
@@ -587,13 +690,6 @@ export function OfflineV2Provider({
     []
   )
 
-  const viewSource = selectDashboardViewSource({
-    cachedShell,
-    conflictCount: conflicts.length,
-    networkReachability,
-    operationCount: operations.length,
-    syncState,
-  })
   const canQueueOfflineMutation =
     viewSource === "cache" &&
     repositoryState === "ready" &&

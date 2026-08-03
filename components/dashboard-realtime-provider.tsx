@@ -13,6 +13,7 @@ import {
 } from "react"
 import { useRouter } from "next/navigation"
 
+import { useOfflineV2 } from "@/components/offline-v2-provider"
 import { createClient } from "@/lib/supabase/browser"
 import {
   parseRealtimeInvalidation,
@@ -50,6 +51,7 @@ export function DashboardRealtimeProvider({
   }
 }) {
   const router = useRouter()
+  const offline = useOfflineV2()
   const { membershipId, organisationId, role } = membership
   const [supabase] = useState(createClient)
   const [browserOnline, setBrowserOnline] = useState(() =>
@@ -69,9 +71,11 @@ export function DashboardRealtimeProvider({
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null
       window.dispatchEvent(new Event("pph:offline-invalidate"))
-      startTransition(() => router.refresh())
+      if (offline.viewSource === "server") {
+        startTransition(() => router.refresh())
+      }
     }, REFRESH_DEBOUNCE_MS)
-  }, [router])
+  }, [offline.viewSource, router])
 
   const markDisconnected = useCallback(() => {
     setStatus("connecting")

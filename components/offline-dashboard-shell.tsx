@@ -1,6 +1,4 @@
 "use client"
-
-import { useEffect } from "react"
 import { DashboardChrome } from "@/components/dashboard-chrome"
 import { CachedDashboardRoutes } from "@/components/offline-dashboard-router"
 import {
@@ -23,36 +21,7 @@ export function OfflineDashboardShell() {
 }
 
 function OfflineShellContent() {
-  const {
-    conflicts,
-    currentPath,
-    networkReachability,
-    operations,
-    snapshot,
-    syncState,
-  } = useOfflineV2()
-  useEffect(() => {
-    if (
-      networkReachability !== "online" ||
-      operations.length ||
-      conflicts.length ||
-      syncState === "needs_attention" ||
-      !snapshot
-    ) {
-      return
-    }
-    const target = currentPath.startsWith("/dashboard")
-      ? currentPath
-      : "/dashboard"
-    window.location.replace(target)
-  }, [
-    conflicts.length,
-    currentPath,
-    networkReachability,
-    operations.length,
-    snapshot,
-    syncState,
-  ])
+  const { snapshot } = useOfflineV2()
   if (!snapshot) {
     return (
       <>

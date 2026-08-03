@@ -6,6 +6,7 @@ import { LogOutIcon } from "lucide-react"
 import { logoutAction } from "@/app/dashboard/actions"
 import { Button } from "@/components/ui/button"
 import { useOptionalOfflineV2 } from "@/components/offline-v2-provider"
+import { clearOfflineRepositoryPrepared } from "@/components/service-worker-registration"
 import { purgeOfflineData } from "@/lib/offline/storage"
 import {
   purgeOfflineV2Data,
@@ -30,14 +31,23 @@ export function OfflineAwareLogoutButton() {
             await Promise.all([
               purgeOfflineData(),
               purgeOfflineV2Data({ preserveLogoutMarker: true }),
+              clearOfflineRepositoryPrepared(
+                navigator.serviceWorker,
+                window.caches
+              ),
             ])
             window.location.replace("/offline?logged-out=1")
           })()
           return
         }
-        void Promise.all([purgeOfflineData(), purgeOfflineV2Data()]).finally(
-          () => logoutAction()
-        )
+        void Promise.all([
+          purgeOfflineData(),
+          purgeOfflineV2Data(),
+          clearOfflineRepositoryPrepared(
+            navigator.serviceWorker,
+            window.caches
+          ),
+        ]).finally(() => logoutAction())
       }}
       type="button"
       variant="outline"

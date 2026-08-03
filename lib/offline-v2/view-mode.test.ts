@@ -6,72 +6,70 @@ import {
 } from "@/lib/offline-v2/view-mode"
 
 describe("dashboard view mode", () => {
-  it("keeps the server screen mounted during an online cache refresh", () => {
+  it("keeps SSR mounted until the repository has a usable snapshot", () => {
     expect(
       selectDashboardViewSource({
         cachedShell: false,
-        conflictCount: 0,
-        networkReachability: "online",
-        operationCount: 0,
-        syncState: "syncing",
+        repositoryState: "preparing",
+        snapshotAvailable: false,
       })
     ).toBe("server")
   })
 
-  it.each(["offline", "unreachable"] as const)(
-    "uses cached view-models when the origin is %s",
-    (networkReachability) => {
+  it.each(["ready", "locked"] as const)(
+    "uses the local snapshot while the repository is %s",
+    (repositoryState) => {
       expect(
         selectDashboardViewSource({
           cachedShell: false,
-          conflictCount: 0,
-          networkReachability,
-          operationCount: 0,
-          syncState: "idle",
+          repositoryState,
+          snapshotAvailable: true,
         })
       ).toBe("cache")
     }
   )
 
-  it("keeps cached screens mounted until replay and conflicts are cleared", () => {
+  it("always uses cached routes inside the public shell", () => {
     expect(
       selectDashboardViewSource({
-        cachedShell: false,
-        conflictCount: 0,
-        networkReachability: "online",
-        operationCount: 1,
-        syncState: "pending",
-      })
-    ).toBe("cache")
-    expect(
-      selectDashboardViewSource({
-        cachedShell: false,
-        conflictCount: 1,
-        networkReachability: "online",
-        operationCount: 0,
-        syncState: "needs_attention",
+        cachedShell: true,
+        repositoryState: "unavailable",
+        snapshotAvailable: false,
       })
     ).toBe("cache")
   })
 
-  it("uses server actions online and the outbox only for a writable cache", () => {
+  it("uses the outbox for every repository-managed mutation", () => {
     expect(
       selectMutationTransport({
         canQueueOfflineMutation: false,
-        viewSource: "server",
+        repositoryManaged: false,
+        repositoryState: "unavailable",
       })
     ).toBe("server")
     expect(
       selectMutationTransport({
         canQueueOfflineMutation: true,
-        viewSource: "cache",
+        repositoryManaged: true,
+        repositoryState: "ready",
       })
     ).toBe("outbox")
     expect(
       selectMutationTransport({
         canQueueOfflineMutation: false,
-        viewSource: "cache",
+        repositoryManaged: true,
+        repositoryState: "locked",
       })
     ).toBe("unavailable")
+  })
+
+  it("holds a mutation for the outbox while the repository prepares", () => {
+    expect(
+      selectMutationTransport({
+        canQueueOfflineMutation: false,
+        repositoryManaged: true,
+        repositoryState: "preparing",
+      })
+    ).toBe("outbox")
   })
 })

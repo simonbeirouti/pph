@@ -2,7 +2,8 @@
 
 import { useEffect } from "react"
 
-const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v8"
+export const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v10"
+const OFFLINE_REPOSITORY_READY_URL = "/offline-repository-ready"
 
 export function offlineShellIsEnabled() {
   return (
@@ -28,6 +29,67 @@ async function getControlledShellVersion(
       [channel.port2]
     )
   })
+}
+
+async function postShellMessage(
+  serviceWorker: ServiceWorkerContainer | undefined,
+  type: "PPH_OFFLINE_REPOSITORY_CLEAR" | "PPH_OFFLINE_REPOSITORY_READY"
+) {
+  if (!serviceWorker?.controller) return false
+  return new Promise<boolean>((resolve) => {
+    const channel = new MessageChannel()
+    const timeout = window.setTimeout(() => resolve(false), 2_000)
+    channel.port1.onmessage = (event: MessageEvent<{ ok?: boolean }>) => {
+      window.clearTimeout(timeout)
+      resolve(event.data.ok === true)
+    }
+    serviceWorker.controller?.postMessage({ type }, [channel.port2])
+  })
+}
+
+export async function markOfflineRepositoryPrepared(
+  serviceWorker: ServiceWorkerContainer | undefined,
+  cacheStorage: CacheStorage | undefined
+) {
+  if (!offlineShellIsEnabled()) return true
+  if (!serviceWorker || !cacheStorage) return false
+  if (
+    (await getControlledShellVersion(serviceWorker)) !== OFFLINE_SHELL_VERSION
+  ) {
+    return false
+  }
+  return postShellMessage(serviceWorker, "PPH_OFFLINE_REPOSITORY_READY")
+}
+
+export async function isOfflineRepositoryPrepared(
+  cacheStorage: CacheStorage | undefined
+) {
+  if (!offlineShellIsEnabled()) return true
+  if (!cacheStorage) return false
+  try {
+    const cache = await cacheStorage.open(OFFLINE_SHELL_VERSION)
+    return Boolean(await cache.match(OFFLINE_REPOSITORY_READY_URL))
+  } catch {
+    return false
+  }
+}
+
+export async function clearOfflineRepositoryPrepared(
+  serviceWorker: ServiceWorkerContainer | undefined,
+  cacheStorage: CacheStorage | undefined
+) {
+  if (!offlineShellIsEnabled()) return true
+  const acknowledged = await postShellMessage(
+    serviceWorker,
+    "PPH_OFFLINE_REPOSITORY_CLEAR"
+  )
+  try {
+    const cache = await cacheStorage?.open(OFFLINE_SHELL_VERSION)
+    const deleted = await cache?.delete(OFFLINE_REPOSITORY_READY_URL)
+    return acknowledged || Boolean(deleted) || !cache
+  } catch {
+    return acknowledged
+  }
 }
 
 export async function registerServiceWorker(

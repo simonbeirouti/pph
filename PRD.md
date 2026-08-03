@@ -2134,6 +2134,57 @@ Automated implementation evidence (2026-07-29):
   cleaned up and the browser was signed out. The job-detail mutation fix has
   focused component coverage but still needs a fresh mutable browser job to
   close its staging regression. S12 remains `in_progress` and **NO-GO**.
+- Pushed staging regression (2026-08-03): the in-app browser exercised
+  `https://pph-sage.vercel.app` against the remote project. Owner and manager
+  roster selectors exposed only Axel and Bill; manager zero-job shift
+  create/delete passed. A disposable manager-assigned job then proved both
+  stale-detail corrections: Start immediately changed the still-open detail to
+  `in_progress` and removed Start, while owner approval immediately changed the
+  still-open detail to `archived` and removed approval. The temporary shift was
+  deleted and the browser signed out. The lifecycle job remains archived
+  because archived jobs intentionally have no permanent-delete UI. Both fixed
+  browser regressions are now closed; S12 remains `in_progress` and **NO-GO**
+  for the outstanding push, security/operations, and named manual gates.
+- JOB-03 and profile-media follow-up (2026-08-03): pushed staging manager
+  create/assign-to-Bill/reassign-to-manager/unassign/delete passed and the
+  temporary job was removed. Together with the completed manager personal-work
+  lifecycle and owner-only review, JOB-03 is accepted. Profile photo selection
+  now invokes the existing server/offline-aware profile mutation immediately,
+  shows an accessible upload state, refreshes the signed avatar after success,
+  and no longer makes the profile form dirty or requires Save for the image.
+  Focused profile component coverage, changed-file ESLint, TypeScript, and
+  `git diff --check` pass. Fresh private-media signed URLs on page load remain
+  intentional; expiry and cross-role/cross-organisation storage denial evidence
+  is still required. OPS-01 is accepted from reliable Resend delivery without
+  fabricating a production failure. S12 remains `in_progress` and **NO-GO**.
+- Local-first dashboard restoration (2026-08-04): this checkpoint explicitly
+  supersedes the 2026-07-30 “Unified dashboard/offline correction.” A prepared,
+  lease-valid IndexedDB repository is again the normal mounted dashboard read
+  and mutation substrate online and offline. Authenticated SSR remains the cold
+  bootstrap and recovery fallback; preparation preserves usable SSR content,
+  does not make the page inert, and a mutation initiated during that handoff
+  waits for the writable repository before entering the same durable outbox.
+  Realtime, reconnect, foreground, mutation, launch, and stale-navigation
+  triggers coalesce through repository sync without `router.refresh()` replacing
+  valid cached content.
+- The public shell cache is version 10. A non-private readiness marker is written
+  only after the snapshot, outbox, media working set, schema, lease, and shell
+  are durable. Prepared `/dashboard/**` documents are shell-first while keeping
+  their requested URL; unprepared documents remain network-first. Logout,
+  identity/schema purge, and online authorization failure clear the marker and
+  organisational repository. The opening IndexedDB frame is visually neutral
+  and no longer shows the false “Connect once” state; that message appears only
+  after preparation is genuinely unavailable.
+- Focused verification passes changed-file ESLint, TypeScript, eight Vitest
+  files / 37 tests, the production build, and `git diff --check`. Localhost
+  against the configured remote project confirmed manager prepared reload into
+  `ready/cache/idle` with no cold message or skeleton, warm local Jobs navigation,
+  enabled controls, and logout purge/redirect. The updated role Playwright spec
+  is discoverable in remote-data mode; execution against the isolated seeded
+  stack remains blocked locally because Docker/Supabase is not running. No
+  database migration or environment-variable change was required. S12 and
+  TODO-015 remain `in_progress`, and the release remains **NO-GO** for the
+  existing push, native staging, security/storage, and release gates.
 
 ## 13. Prototype and production readiness
 

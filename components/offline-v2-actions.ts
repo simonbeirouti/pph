@@ -25,16 +25,21 @@ type QueueInput = {
 
 export function useOfflineV2Actions() {
   const offline = useOptionalOfflineV2()
-  const viewSource = offline?.viewSource ?? "server"
   const canQueueOfflineMutation = Boolean(offline?.canQueueOfflineMutation)
+  const repositoryManaged = Boolean(
+    offline &&
+    (offline.repositoryState !== "unavailable" ||
+      offline.viewSource === "cache")
+  )
   const mutationTransport = selectMutationTransport({
     canQueueOfflineMutation,
-    viewSource,
+    repositoryManaged,
+    repositoryState: offline?.repositoryState ?? "unavailable",
   })
 
   const queue = useCallback(
     async (input: QueueInput) => {
-      if (!offline?.canMutate) return false
+      if (!offline) return false
       const clientOperationId = crypto.randomUUID()
       const dependency = (await getOfflineV2Operations())
         .filter(
@@ -70,13 +75,13 @@ export function useOfflineV2Actions() {
   return {
     canMutate: Boolean(offline?.canMutate),
     canQueueOfflineMutation,
-    isOffline: offline ? !offline.isOnline : false,
+    isOffline: offline?.networkReachability === "offline",
     navigate: offline?.navigate,
     navigationMode: offline?.navigationMode ?? "next",
     networkReachability: offline?.networkReachability ?? "online",
     mutationTransport,
     queue,
     repositoryState: offline?.repositoryState ?? "preparing",
-    usesLocalRepository: Boolean(offline?.usesLocalRepository),
+    usesLocalRepository: repositoryManaged,
   }
 }

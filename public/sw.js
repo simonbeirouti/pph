@@ -1,5 +1,6 @@
-const SHELL_CACHE = "pph-dashboard-shell-v8"
+const SHELL_CACHE = "pph-dashboard-shell-v10"
 const DASHBOARD_SHELL_URL = "/offline"
+const REPOSITORY_READY_URL = "/offline-repository-ready"
 const PUBLIC_ASSETS = [
   DASHBOARD_SHELL_URL,
   "/icons/icon-192.png",
@@ -10,6 +11,31 @@ const PUBLIC_ASSETS = [
 self.addEventListener("message", (event) => {
   if (event.data?.type === "PPH_OFFLINE_SHELL_VERSION") {
     event.ports[0]?.postMessage({ version: SHELL_CACHE })
+    return
+  }
+  if (event.data?.type === "PPH_OFFLINE_REPOSITORY_READY") {
+    event.waitUntil(
+      caches
+        .open(SHELL_CACHE)
+        .then((cache) =>
+          cache.put(
+            REPOSITORY_READY_URL,
+            new Response("ready", {
+              headers: { "Content-Type": "text/plain" },
+            })
+          )
+        )
+        .then(() => event.ports[0]?.postMessage({ ok: true }))
+    )
+    return
+  }
+  if (event.data?.type === "PPH_OFFLINE_REPOSITORY_CLEAR") {
+    event.waitUntil(
+      caches
+        .open(SHELL_CACHE)
+        .then((cache) => cache.delete(REPOSITORY_READY_URL))
+        .then(() => event.ports[0]?.postMessage({ ok: true }))
+    )
   }
 })
 
@@ -72,13 +98,16 @@ self.addEventListener("fetch", (event) => {
             const cache = await caches.open(SHELL_CACHE)
             return cache.match(DASHBOARD_SHELL_URL, { ignoreSearch: true })
           })
-        : fetch(request, { cache: "no-store" }).catch(async () => {
-            const cache = await caches.open(SHELL_CACHE)
-            return (
-              (await cache.match(DASHBOARD_SHELL_URL, {
-                ignoreSearch: true,
-              })) ||
-              Response.error()
+        : caches.open(SHELL_CACHE).then(async (cache) => {
+            const prepared = await cache.match(REPOSITORY_READY_URL, {
+              ignoreSearch: true,
+            })
+            const shell = await cache.match(DASHBOARD_SHELL_URL, {
+              ignoreSearch: true,
+            })
+            if (prepared && shell) return shell
+            return fetch(request, { cache: "no-store" }).catch(
+              () => shell || Response.error()
             )
           })
     )

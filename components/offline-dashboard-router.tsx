@@ -42,19 +42,34 @@ export function OfflineDashboardBoundary({
   const router = useRouter()
   const previousSource = useRef(offline.viewSource)
   useEffect(() => {
-    if (
-      previousSource.current === "cache" &&
-      offline.viewSource === "server"
-    ) {
+    if (previousSource.current === "cache" && offline.viewSource === "server") {
       router.refresh()
     }
     previousSource.current = offline.viewSource
   }, [offline.viewSource, router])
-  return offline.viewSource === "server" ? children : <CachedDashboardRoutes />
+  return (
+    <>
+      {offline.repositoryState === "preparing" ? (
+        <p className="sr-only" role="status">
+          Preparing workspace…
+        </p>
+      ) : null}
+      <div>
+        {offline.viewSource === "server" ? children : <CachedDashboardRoutes />}
+      </div>
+    </>
+  )
 }
 
 export function CachedDashboardRoutes() {
   const { currentPath, navigate, snapshot, status } = useOfflineV2()
+  if (!snapshot && status === "preparing") {
+    return (
+      <p className="sr-only" role="status">
+        Opening workspace…
+      </p>
+    )
+  }
   if (!snapshot) {
     return (
       <OfflineUnavailable
@@ -94,7 +109,7 @@ export function CachedDashboardRoutes() {
   if (route === "/dashboard/jobs") {
     const selectedJobId = positiveInteger(url.searchParams.get("job"))
     const detail = selectedJobId
-      ? snapshot.jobDetails[selectedJobId] ?? null
+      ? (snapshot.jobDetails[selectedJobId] ?? null)
       : null
     const mode =
       membership.role === "manager" &&
@@ -147,9 +162,7 @@ export function CachedDashboardRoutes() {
         templates={snapshot.jobs.templates}
         timezone={snapshot.jobs.timezone}
         view={
-          url.searchParams.get("view") === "archived"
-            ? "archived"
-            : "workflow"
+          url.searchParams.get("view") === "archived" ? "archived" : "workflow"
         }
       />
     )
@@ -159,13 +172,8 @@ export function CachedDashboardRoutes() {
     const now = new Date()
     const timezone = membership.timezone
     const today = localDateForInstant(now, timezone)
-    const selectedDate =
-      validLocalDate(url.searchParams.get("date")) ?? today
-    const range = localDateRange(
-      mondayForLocalDate(selectedDate),
-      7,
-      timezone
-    )
+    const selectedDate = validLocalDate(url.searchParams.get("date")) ?? today
+    const range = localDateRange(mondayForLocalDate(selectedDate), 7, timezone)
     const shifts = snapshot.roster.shifts.filter(
       (shift) =>
         shift.archivedAt === null &&
@@ -233,9 +241,7 @@ export function CachedDashboardRoutes() {
         />
       )
     }
-    const query = (url.searchParams.get("q") ?? "")
-      .trim()
-      .toLocaleLowerCase()
+    const query = (url.searchParams.get("q") ?? "").trim().toLocaleLowerCase()
     const rawStatus = url.searchParams.get("status")
     const employeeStatus =
       rawStatus && EMPLOYEE_STATUSES.has(rawStatus as EmployeeStatusFilterValue)

@@ -71,7 +71,7 @@ test("owner bootstraps once, then navigates across the dashboard offline", async
   ).toHaveAttribute("data-offline-provider", "changes_pending")
 })
 
-test("a warm online owner keeps App Router navigation and server screens", async ({
+test("a warm online owner navigates locally without dashboard RSC requests", async ({
   ownerPage,
 }) => {
   await prepare(ownerPage)
@@ -90,15 +90,14 @@ test("a warm online owner keeps App Router navigation and server screens", async
   ).toHaveCount(0)
   await clickDashboardNavigation(ownerPage, "Employees")
   await expect(ownerPage).toHaveURL(/\/dashboard\/employees$/)
-  await expect
-    .poll(() => dashboardRscRequests.length, { timeout: 10_000 })
-    .toBeGreaterThan(0)
+  await ownerPage.waitForTimeout(500)
+  expect(dashboardRscRequests).toEqual([])
   await expect(
     ownerPage.locator("[data-offline-provider]").first()
-  ).toHaveAttribute("data-view-source", "server")
+  ).toHaveAttribute("data-view-source", "cache")
 })
 
-test("a prepared job opens from IndexedDB before one delayed detail refresh", async ({
+test("a prepared job opens from IndexedDB without a detail route fetch", async ({
   employeePage,
 }) => {
   await prepare(employeePage)
@@ -115,7 +114,6 @@ test("a prepared job opens from IndexedDB before one delayed detail refresh", as
   const cachedDetail = await cachedJobDetail(employeePage, jobId)
   expect(cachedDetail).not.toBeNull()
 
-  const refreshedTitle = `${cachedDetail!.title} (fresh)`
   let detailRequests = 0
   const dashboardRscRequests: string[] = []
   employeePage.on("request", (request) => {
@@ -126,13 +124,7 @@ test("a prepared job opens from IndexedDB before one delayed detail refresh", as
   })
   await employeePage.route(`**/api/jobs/${jobId}`, async (route) => {
     detailRequests += 1
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    await route.fulfill({
-      body: JSON.stringify({ ...cachedDetail, title: refreshedTitle }),
-      contentType: "application/json",
-      headers: { "Cache-Control": "private, no-store" },
-      status: 200,
-    })
+    await route.continue()
   })
 
   const openedAt = Date.now()
@@ -141,14 +133,12 @@ test("a prepared job opens from IndexedDB before one delayed detail refresh", as
     employeePage.getByRole("heading", { name: cachedDetail!.title })
   ).toBeVisible()
   expect(Date.now() - openedAt).toBeLessThan(200)
-  await expect.poll(() => detailRequests).toBe(1)
+  await employeePage.waitForTimeout(500)
+  expect(detailRequests).toBe(0)
   expect(dashboardRscRequests).toEqual([])
-  await expect(
-    employeePage.getByRole("heading", { name: refreshedTitle })
-  ).toBeVisible()
 })
 
-test("an online owner mutation uses the server action and leaves the outbox empty", async ({
+test("an online owner mutation uses one durable operation and one receipt", async ({
   ownerPage,
 }) => {
   const admin = createClient(
@@ -156,8 +146,9 @@ test("an online owner mutation uses the server action and leaves the outbox empt
     process.env.SUPABASE_SECRET_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const title = `Server-first online ${Date.now()}`
+  const title = `Local-first online ${Date.now()}`
   let offlineJobCreateRequests = 0
+  let clientOperationId: string | null = null
   ownerPage.on("request", (request) => {
     if (
       request.url().endsWith("/api/offline/sync") &&
@@ -169,7 +160,10 @@ test("an online owner mutation uses the server action and leaves the outbox empt
       const create = body.operations?.find(
         (operation) => operation.kind === "job.create"
       )
-      if (create) offlineJobCreateRequests += 1
+      if (create) {
+        offlineJobCreateRequests += 1
+        clientOperationId = create.clientOperationId
+      }
     }
   })
 
@@ -195,13 +189,23 @@ test("an online owner mutation uses the server action and leaves the outbox empt
         return count
       })
       .toBe(1)
-    expect(offlineJobCreateRequests).toBe(0)
+    expect(offlineJobCreateRequests).toBe(1)
+    expect(clientOperationId).not.toBeNull()
+    await expect
+      .poll(async () => {
+        const { count } = await admin
+          .from("offline_operation_receipts")
+          .select("*", { count: "exact", head: true })
+          .eq("client_operation_id", clientOperationId!)
+        return count
+      })
+      .toBe(1)
   } finally {
     await admin.from("jobs").delete().eq("title", title)
   }
 })
 
-test("cache bootstrap does not replace or reset the online profile form", async ({
+test("cold SSR remains visible and usable until the repository is prepared", async ({
   ownerPage,
 }) => {
   let releaseBootstrap!: () => void
@@ -215,7 +219,8 @@ test("cache bootstrap does not replace or reset the online profile form", async 
 
   await ownerPage.goto("/dashboard/profile")
   const phone = ownerPage.getByLabel("Phone")
-  await expect(phone).toBeEnabled()
+  await expect(phone).toBeVisible()
+  await expect(phone).toBeEditable()
   const originalBounds = await phone.boundingBox()
   expect(originalBounds).not.toBeNull()
   await phone.fill("+61 400 123 987")
@@ -225,7 +230,8 @@ test("cache bootstrap does not replace or reset the online profile form", async 
   ).toHaveAttribute("data-repository-state", "ready", { timeout: 30_000 })
   await expect(
     ownerPage.locator("[data-offline-provider]").first()
-  ).toHaveAttribute("data-view-source", "server")
+  ).toHaveAttribute("data-view-source", "cache")
+  await expect(phone).toBeEditable()
   await expect(phone).toHaveValue("+61 400 123 987")
   await expect(
     ownerPage.getByText("Profile information", { exact: true })
@@ -236,6 +242,32 @@ test("cache bootstrap does not replace or reset the online profile form", async 
     Math.round(originalBounds!.width)
   )
   expect(Math.round(hydratedBounds!.x)).toBe(Math.round(originalBounds!.x))
+})
+
+test("a prepared online hard reload is served by the public shell", async ({
+  ownerPage,
+}) => {
+  await prepare(ownerPage)
+  await clickDashboardNavigation(ownerPage, "Jobs")
+  const title = await ownerPage.getByRole("heading").first().textContent()
+  expect(title).toBeTruthy()
+
+  const documentResponse = ownerPage.waitForResponse(
+    (response) =>
+      response.request().resourceType() === "document" &&
+      new URL(response.url()).pathname === "/dashboard/jobs"
+  )
+  await ownerPage.reload()
+  const response = await documentResponse
+  expect(response.fromServiceWorker()).toBe(true)
+  await expect(ownerPage).toHaveURL(/\/dashboard\/jobs$/)
+  await expect(ownerPage.getByRole("heading").first()).toContainText(title!)
+  await expect(
+    ownerPage.locator("[data-offline-provider]").first()
+  ).toHaveAttribute("data-view-source", "cache")
+  await expect(ownerPage.getByRole("status", { name: /Loading/i })).toHaveCount(
+    0
+  )
 })
 
 test("manager receives both operations routes and personal assigned work offline", async ({

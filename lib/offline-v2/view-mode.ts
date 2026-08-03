@@ -1,4 +1,4 @@
-import type { OfflineRepositorySyncState } from "@/lib/offline-v2/types"
+import type { OfflineRepositoryState } from "@/lib/offline-v2/types"
 
 export type DashboardViewSource = "cache" | "server"
 export type NetworkReachability = "offline" | "online" | "unreachable"
@@ -6,33 +6,30 @@ export type MutationTransport = "outbox" | "server" | "unavailable"
 
 export function selectDashboardViewSource({
   cachedShell,
-  conflictCount,
-  networkReachability,
-  operationCount,
-  syncState,
+  repositoryState,
+  snapshotAvailable,
 }: {
   cachedShell: boolean
-  conflictCount: number
-  networkReachability: NetworkReachability
-  operationCount: number
-  syncState: OfflineRepositorySyncState
+  repositoryState: OfflineRepositoryState
+  snapshotAvailable: boolean
 }): DashboardViewSource {
-  const hasLocalWork =
-    operationCount > 0 ||
-    conflictCount > 0 ||
-    syncState === "needs_attention"
-  return cachedShell || networkReachability !== "online" || hasLocalWork
+  return cachedShell ||
+    (snapshotAvailable &&
+      (repositoryState === "ready" || repositoryState === "locked"))
     ? "cache"
     : "server"
 }
 
 export function selectMutationTransport({
   canQueueOfflineMutation,
-  viewSource,
+  repositoryManaged,
+  repositoryState,
 }: {
   canQueueOfflineMutation: boolean
-  viewSource: DashboardViewSource
+  repositoryManaged: boolean
+  repositoryState: OfflineRepositoryState
 }): MutationTransport {
-  if (viewSource === "server") return "server"
+  if (!repositoryManaged) return "server"
+  if (repositoryState === "preparing") return "outbox"
   return canQueueOfflineMutation ? "outbox" : "unavailable"
 }
