@@ -63,6 +63,14 @@ describe("TemplateScheduleWorkspace", () => {
 
     expect(screen.queryByText("Reusable work")).not.toBeInTheDocument()
     expect(
+      screen.getByRole("heading", { name: "Templates & schedules" })
+    ).toHaveClass("text-2xl", "font-semibold", "tracking-tight")
+    expect(
+      screen.getByText(
+        "Standardise jobs and generate recurring work in Australia/Melbourne."
+      )
+    ).toHaveClass("text-muted-foreground")
+    expect(
       screen.getByRole("tablist", { name: "Template workspace" })
     ).toBeVisible()
     expect(screen.getByRole("tab", { name: "Templates" })).toHaveAttribute(

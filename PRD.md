@@ -2185,6 +2185,23 @@ Automated implementation evidence (2026-07-29):
   database migration or environment-variable change was required. S12 and
   TODO-015 remain `in_progress`, and the release remains **NO-GO** for the
   existing push, native staging, security/storage, and release gates.
+- Page-header consistency follow-up (2026-08-04): Jobs, Templates & schedules,
+  Employees, and Roster now use the Employees 2xl semibold tracked title and
+  matching description treatment. Existing approved Jobs, Templates, and
+  Employees actions are unchanged. Roster retains the Jobs header relationship:
+  Add shift sits opposite the title and description from the small breakpoint
+  and moves below them at full width on mobile. Focused Vitest (2 files / 24
+  tests), changed-file ESLint, TypeScript, and `git diff --check` pass. No
+  permission, database, environment-variable, public-route, or reference-file
+  change was required; S12 remains `in_progress` for the existing release gates.
+- Mobile sidebar polish follow-up (2026-08-04): removed the redundant close
+  icon from the open navigation drawer; the existing backdrop and Escape-key
+  dismissal remain available. Changed-file ESLint, TypeScript, and `git diff
+  --check` pass. The focused mobile navigation Playwright check is updated to
+  confirm the icon is absent but could not start locally because Docker and the
+  Supabase stack are unavailable. No permission, database, environment,
+  public-route, or reference-file change was required; S12 remains
+  `in_progress` for the existing release gates.
 
 ## 13. Prototype and production readiness
 

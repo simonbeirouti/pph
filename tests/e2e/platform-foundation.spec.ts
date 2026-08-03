@@ -37,7 +37,10 @@ test("sidebar toggles and links to the current profile", async ({
       ownerPage.locator('[data-sidebar="sidebar"][data-mobile="true"]')
     ).toBeVisible()
     await expect(dashboardLink).toBeVisible()
-    await ownerPage.getByRole("button", { name: "Close navigation" }).click()
+    await expect(
+      ownerPage.getByRole("button", { name: "Close navigation" })
+    ).toHaveCount(0)
+    await ownerPage.keyboard.press("Escape")
     await expect(dashboardLink).toBeHidden()
     await toggle.click()
     await sidebar.getByRole("link", { name: "Jobs" }).click()
@@ -237,7 +240,7 @@ test("sidebar and breadcrumb reflect the current page", async ({
   await expect(dashboardLink).not.toHaveAttribute("aria-current", "page")
 
   if (testInfo.project.name.includes("mobile")) {
-    await ownerPage.getByRole("button", { name: "Close navigation" }).click()
+    await ownerPage.keyboard.press("Escape")
   }
 
   const breadcrumb = ownerPage.getByRole("navigation", {

@@ -24,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import type { OfflineMembership } from "@/lib/offline-v2/types"
@@ -52,11 +51,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>
-      <SidebarHeader className="relative">
-        <SidebarTrigger
-          aria-label="Close navigation"
-          className="absolute top-2 right-2 z-10 md:hidden"
-        />
+      <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

@@ -1606,7 +1606,7 @@ export function RosterCalendar({
 
   return (
     <div className="flex h-[calc(100svh-7rem)] max-h-[calc(100svh-7rem)] min-h-0 w-full max-w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden md:h-[calc(100svh-8rem)] md:max-h-[calc(100svh-8rem)]">
-      <div className="grid min-w-0 shrink-0 gap-3">
+      <div className="min-w-0 shrink-0">
         <div
           className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-center"
           data-roster-primary-actions
@@ -1616,118 +1616,122 @@ export function RosterCalendar({
             <p className="text-muted-foreground">
               {readOnly
                 ? "Your read-only weekly roster and allocated jobs."
-                : "Plan shifts and keep your team organised."}
+              : "Plan shifts and keep your team organised."}
             </p>
           </div>
-          {!readOnly ? (
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!employees.length}
-              onClick={openDefaultDraft}
-              type="button"
-            >
-              Add shift
-            </Button>
-          ) : null}
-        </div>
-        <div
-          className="flex min-w-0 flex-col items-center justify-end gap-2 sm:flex-row"
-          data-roster-secondary-actions
-        >
-          <div className="w-full min-w-0 sm:w-auto">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
             {!readOnly ? (
-              <Select
-                onValueChange={(value) => {
-                  const employeeMembershipId =
-                    value === "all" ? undefined : Number(value)
-                  navigateRosterRoute(
-                    rosterHref({
-                      date: selectedDate,
-                      employeeMembershipId,
-                      mode,
-                    })
-                  )
-                }}
-                value={selectedEmployeeId ? String(selectedEmployeeId) : "all"}
+              <Button
+                className="w-full sm:w-auto"
+                disabled={!employees.length}
+                onClick={openDefaultDraft}
+                type="button"
               >
-                <SelectTrigger
-                  aria-label="Filter employee"
-                  className="w-full min-w-0 sm:w-56"
-                >
-                  <SelectValue>
-                    {selectedEmployee?.displayName ?? "All team"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All team</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem
-                      key={employee.employeeMembershipId}
-                      value={String(employee.employeeMembershipId)}
-                    >
-                      {employee.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Add shift
+              </Button>
             ) : null}
-          </div>
-          <div className="grid w-full grid-cols-4 items-center gap-2 sm:flex sm:w-auto sm:shrink-0">
-            <Button
-              aria-label="Previous week"
-              className="w-full sm:w-8"
-              nativeButton={false}
-              render={
-                <Link
-                  href={rosterHref({
-                    date: previousDate,
-                    employeeMembershipId: navigationEmployeeId,
-                    mode,
-                  })}
-                  prefetch={false}
-                />
-              }
-              size="icon"
-              variant="outline"
+            <div
+              className="flex min-w-0 flex-col items-center justify-end gap-2 sm:flex-row"
+              data-roster-secondary-actions
             >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
-              className="col-span-2 w-full sm:col-span-1 sm:w-auto"
-              nativeButton={false}
-              render={
-                <Link
-                  href={rosterHref({
-                    date: today,
-                    employeeMembershipId: navigationEmployeeId,
-                    mode,
-                  })}
-                  prefetch={false}
-                />
-              }
-              variant="outline"
-            >
-              Today
-            </Button>
-            <Button
-              aria-label="Next week"
-              className="w-full sm:w-8"
-              nativeButton={false}
-              render={
-                <Link
-                  href={rosterHref({
-                    date: nextDate,
-                    employeeMembershipId: navigationEmployeeId,
-                    mode,
-                  })}
-                  prefetch={false}
-                />
-              }
-              size="icon"
-              variant="outline"
-            >
-              <ChevronRightIcon />
-            </Button>
+              <div className="w-full min-w-0 sm:w-auto">
+                {!readOnly ? (
+                  <Select
+                    onValueChange={(value) => {
+                      const employeeMembershipId =
+                        value === "all" ? undefined : Number(value)
+                      navigateRosterRoute(
+                        rosterHref({
+                          date: selectedDate,
+                          employeeMembershipId,
+                          mode,
+                        })
+                      )
+                    }}
+                    value={
+                      selectedEmployeeId ? String(selectedEmployeeId) : "all"
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label="Filter employee"
+                      className="w-full min-w-0 sm:w-56"
+                    >
+                      <SelectValue>
+                        {selectedEmployee?.displayName ?? "All team"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All team</SelectItem>
+                      {employees.map((employee) => (
+                        <SelectItem
+                          key={employee.employeeMembershipId}
+                          value={String(employee.employeeMembershipId)}
+                        >
+                          {employee.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+              </div>
+              <div className="grid w-full grid-cols-4 items-center gap-2 sm:flex sm:w-auto sm:shrink-0">
+                <Button
+                  aria-label="Previous week"
+                  className="w-full sm:w-8"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={rosterHref({
+                        date: previousDate,
+                        employeeMembershipId: navigationEmployeeId,
+                        mode,
+                      })}
+                      prefetch={false}
+                    />
+                  }
+                  size="icon"
+                  variant="outline"
+                >
+                  <ChevronLeftIcon />
+                </Button>
+                <Button
+                  className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={rosterHref({
+                        date: today,
+                        employeeMembershipId: navigationEmployeeId,
+                        mode,
+                      })}
+                      prefetch={false}
+                    />
+                  }
+                  variant="outline"
+                >
+                  Today
+                </Button>
+                <Button
+                  aria-label="Next week"
+                  className="w-full sm:w-8"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={rosterHref({
+                        date: nextDate,
+                        employeeMembershipId: navigationEmployeeId,
+                        mode,
+                      })}
+                      prefetch={false}
+                    />
+                  }
+                  size="icon"
+                  variant="outline"
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -125,10 +125,10 @@ describe("RosterCalendar", () => {
     expect(employeeFilter).toHaveClass("w-full", "sm:w-56")
     expect(employeeFilter).not.toHaveClass("max-w-56")
     expect(screen.queryByText("Employee week")).not.toBeInTheDocument()
-    const primaryActions = document.querySelector(
+    const primaryActions = document.querySelector<HTMLElement>(
       "[data-roster-primary-actions]"
     )
-    const secondaryActions = document.querySelector(
+    const secondaryActions = document.querySelector<HTMLElement>(
       "[data-roster-secondary-actions]"
     )
     expect(primaryActions).toContainElement(
@@ -136,6 +136,16 @@ describe("RosterCalendar", () => {
     )
     expect(primaryActions).toContainElement(
       screen.getByRole("button", { name: "Add shift" })
+    )
+    expect(primaryActions).toContainElement(secondaryActions)
+    expect(primaryActions).toHaveClass(
+      "flex-col",
+      "sm:flex-row",
+      "sm:items-center"
+    )
+    expect(screen.getByRole("button", { name: "Add shift" })).toHaveClass(
+      "w-full",
+      "sm:w-auto"
     )
     expect(secondaryActions).toContainElement(
       screen.getByRole("combobox", { name: "Filter employee" })
