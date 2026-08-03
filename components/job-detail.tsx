@@ -92,11 +92,13 @@ type Role = "employee" | "owner"
 export function EmployeeJobDetail({
   detail,
   onClose,
+  onMutationSuccess,
   open: controlledOpen,
   timezone,
 }: {
   detail: JobDetail | null
   onClose?: () => void
+  onMutationSuccess?: () => Promise<void> | void
   open?: boolean
   timezone: string
 }) {
@@ -125,7 +127,12 @@ export function EmployeeJobDetail({
               <DrawerDescription>{detail.description}</DrawerDescription>
             ) : null}
           </DrawerHeader>
-          <JobDetailBody detail={detail} role="employee" timezone={timezone} />
+          <JobDetailBody
+            detail={detail}
+            onMutationSuccess={onMutationSuccess}
+            role="employee"
+            timezone={timezone}
+          />
         </DrawerContent>
       </Drawer>
     )
@@ -142,7 +149,12 @@ export function EmployeeJobDetail({
           ) : null}
         </DialogHeader>
         <ScrollArea className="-mx-1 min-h-0 flex-1 px-1">
-          <JobDetailBody detail={detail} role="employee" timezone={timezone} />
+          <JobDetailBody
+            detail={detail}
+            onMutationSuccess={onMutationSuccess}
+            role="employee"
+            timezone={timezone}
+          />
         </ScrollArea>
       </DialogContent>
     </Dialog>
@@ -154,6 +166,7 @@ export function OwnerJobDetail({
   detail,
   employees,
   onClose,
+  onMutationSuccess,
   open: controlledOpen,
   timezone,
 }: {
@@ -161,6 +174,7 @@ export function OwnerJobDetail({
   detail: JobDetail | null
   employees: readonly JobBoardEmployee[]
   onClose?: () => void
+  onMutationSuccess?: () => Promise<void> | void
   open?: boolean
   timezone: string
 }) {
@@ -185,13 +199,19 @@ export function OwnerJobDetail({
           ) : null}
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1">
-          <JobDetailBody detail={detail} role="owner" timezone={timezone} />
+          <JobDetailBody
+            detail={detail}
+            onMutationSuccess={onMutationSuccess}
+            role="owner"
+            timezone={timezone}
+          />
         </ScrollArea>
         {canReview ? (
           <OwnerJobActions
             key={detail.id}
             detail={detail}
             employees={employees}
+            onMutationSuccess={onMutationSuccess}
           />
         ) : detail.status === "in_review" ? (
           <SheetFooter className="border-t">
@@ -300,10 +320,12 @@ function JobBadges({
 
 function JobDetailBody({
   detail,
+  onMutationSuccess,
   role,
   timezone,
 }: {
   detail: JobDetail
+  onMutationSuccess?: () => Promise<void> | void
   role: Role
   timezone: string
 }) {
@@ -323,7 +345,10 @@ function JobDetailBody({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        if (!offline.usesLocalRepository) router.refresh()
+        if (!offline.usesLocalRepository) {
+          router.refresh()
+          await onMutationSuccess?.()
+        }
       } else {
         toast.error(result.message)
       }
@@ -417,11 +442,19 @@ function JobDetailBody({
       ) : null}
 
       {canComplete ? (
-        <JobChangesEditor detail={detail} timezone={timezone} />
+        <JobChangesEditor
+          detail={detail}
+          onMutationSuccess={onMutationSuccess}
+          timezone={timezone}
+        />
       ) : null}
 
       {showProgress && !canComplete ? (
-        <EvidenceGallery detail={detail} timezone={timezone} />
+        <EvidenceGallery
+          detail={detail}
+          onMutationSuccess={onMutationSuccess}
+          timezone={timezone}
+        />
       ) : null}
 
       <Accordion key={`${detail.id}-${detail.status}-${role}`} multiple>
@@ -455,9 +488,11 @@ function JobDetailBody({
 function OwnerJobActions({
   detail,
   employees,
+  onMutationSuccess,
 }: {
   detail: JobDetail
   employees: readonly JobBoardEmployee[]
+  onMutationSuccess?: () => Promise<void> | void
 }) {
   const router = useRouter()
   const offline = useOfflineV2Actions()
@@ -481,7 +516,10 @@ function OwnerJobActions({
       if (result.ok) {
         toast.success(result.message)
         onSuccess?.()
-        if (!offline.usesLocalRepository) router.refresh()
+        if (!offline.usesLocalRepository) {
+          router.refresh()
+          await onMutationSuccess?.()
+        }
       } else {
         toast.error(result.message)
       }
@@ -699,9 +737,11 @@ type DraftEvidence = {
 
 function JobChangesEditor({
   detail,
+  onMutationSuccess,
   timezone,
 }: {
   detail: JobDetail
+  onMutationSuccess?: () => Promise<void> | void
   timezone: string
 }) {
   const router = useRouter()
@@ -973,7 +1013,10 @@ function JobChangesEditor({
       setUploadState(null)
       if (savedAnything) {
         toast.success("Changes saved.")
-        if (!offline.usesLocalRepository) router.refresh()
+        if (!offline.usesLocalRepository) {
+          router.refresh()
+          await onMutationSuccess?.()
+        }
       }
     })
   }
@@ -995,7 +1038,11 @@ function JobChangesEditor({
         />
       </div>
 
-      <EvidenceGallery detail={detail} timezone={timezone} />
+      <EvidenceGallery
+        detail={detail}
+        onMutationSuccess={onMutationSuccess}
+        timezone={timezone}
+      />
 
       {drafts.length ? (
         <div className="grid grid-cols-2 gap-2" aria-label="Selected photos">
@@ -1100,9 +1147,11 @@ function JobChangesEditor({
 
 function EvidenceGallery({
   detail,
+  onMutationSuccess,
   timezone,
 }: {
   detail: JobDetail
+  onMutationSuccess?: () => Promise<void> | void
   timezone: string
 }) {
   const router = useRouter()
@@ -1181,7 +1230,10 @@ function EvidenceGallery({
                       if (result.ok) toast.success(result.message)
                       else toast.error(result.message)
                       setPendingId(null)
-                      if (!queued) router.refresh()
+                      if (!queued) {
+                        router.refresh()
+                        await onMutationSuccess?.()
+                      }
                     }}
                     size="icon-sm"
                     type="button"

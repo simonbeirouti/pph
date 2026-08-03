@@ -14,7 +14,7 @@ import {
 import type { JobCard, JobDetail } from "@/lib/jobs/types"
 
 const mocks = vi.hoisted(() => ({
-  offline: null as any,
+  offline: null as unknown,
   toastError: vi.fn(),
 }))
 
@@ -22,14 +22,19 @@ vi.mock("@/components/job-detail", () => ({
   EmployeeJobDetail: ({
     detail,
     onClose,
+    onMutationSuccess,
   }: {
     detail: JobDetail
     onClose?: () => void
+    onMutationSuccess?: () => Promise<void> | void
   }) => (
     <>
       <p data-detail-source="employee">{detail.title}</p>
       <button onClick={onClose} type="button">
         Close job
+      </button>
+      <button onClick={() => void onMutationSuccess?.()} type="button">
+        Refresh mutated job
       </button>
     </>
   ),
@@ -149,6 +154,41 @@ describe("JobDetailController", () => {
       })
     )
     await waitFor(() => expect(screen.getByText("Fresh job")).toBeVisible())
+  })
+
+  it("revalidates the open detail after a successful server mutation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ ...cachedDetail, status: "in_progress" }),
+            { status: 200 }
+          )
+      )
+    )
+
+    render(
+      <JobDetailController
+        employees={[]}
+        initialDetail={cachedDetail}
+        isOwner={false}
+        jobs={[card]}
+        role="employee"
+        timezone="Australia/Melbourne"
+      >
+        <span />
+      </JobDetailController>
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh mutated job" }))
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/jobs/1401",
+        expect.objectContaining({ cache: "no-store" })
+      )
+    )
   })
 
   it("shows a drawer skeleton when the local detail has not prepared yet", () => {

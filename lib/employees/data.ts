@@ -222,3 +222,18 @@ export async function listActiveEmployeeOptions(): Promise<
     .filter((employee) => employee.role !== "owner")
     .map(toActiveEmployeeOption)
 }
+
+export function isRosterAssignableEmployee(
+  employee: Pick<EmployeeSummary, "role">
+) {
+  return employee.role === "employee"
+}
+
+export async function listActiveRosterEmployeeOptions(): Promise<
+  ActiveEmployeeOption[]
+> {
+  const employees = await listEmployees({ status: "active" })
+  return employees
+    .filter(isRosterAssignableEmployee)
+    .map(toActiveEmployeeOption)
+}

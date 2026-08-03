@@ -8,7 +8,7 @@ import {
   requireOperations,
 } from "@/lib/auth/membership"
 import {
-  listActiveEmployeeOptions,
+  listActiveRosterEmployeeOptions,
   type ActiveEmployeeOption,
 } from "@/lib/employees/data"
 import type { Tables } from "@/lib/supabase/database.types"
@@ -45,7 +45,7 @@ export function toRosterShift(row: RosterShiftRow): RosterShift {
 
 export const getOwnerRosterContext = cache(async () => {
   const owner = await requireOperations()
-  const employees = await listActiveEmployeeOptions()
+  const employees = await listActiveRosterEmployeeOptions()
   return { employees, timezone: owner.timezone }
 })
 
@@ -151,7 +151,7 @@ export async function getEmployeeShiftSummary(
   if (!targetId) return { current: null, upcoming: [] }
 
   if (membership.role === "owner") {
-    const employees = await listActiveEmployeeOptions()
+    const employees = await listActiveRosterEmployeeOptions()
     if (
       !employees.some((employee) => employee.employeeMembershipId === targetId)
     ) {

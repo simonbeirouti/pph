@@ -1,37 +1,27 @@
 import Link from "next/link"
 
+import { AuthScreen } from "@/components/auth-screen"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 
 export default function Page() {
   return (
-    <main className="flex min-h-svh items-center justify-center p-6 md:p-10">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
-            <h1>Account link unavailable</h1>
-          </CardTitle>
-          <CardDescription>
+    <AuthScreen>
+      <div className="grid gap-6 text-center text-white">
+        <div>
+          <h1 className="text-2xl font-semibold">Account link unavailable</h1>
+          <p className="mt-2 text-sm text-white/80">
             This invitation or password-reset link is invalid, expired, or has
             already been used.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <p className="text-sm text-muted-foreground">
-            Return to sign in to request another password reset, or contact your
-            organisation owner for help with an invitation.
           </p>
-          <Button nativeButton={false} render={<Link href="/login" />}>
-            Return to sign in
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+        <p className="text-sm text-white/80">
+          Return to sign in to request another password reset, or contact your
+          organisation owner for help with an invitation.
+        </p>
+        <Button nativeButton={false} render={<Link href="/login" />}>
+          Return to sign in
+        </Button>
+      </div>
+    </AuthScreen>
   )
 }

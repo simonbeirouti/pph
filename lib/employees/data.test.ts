@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { toActiveEmployeeOption } from "@/lib/employees/data"
+import {
+  isRosterAssignableEmployee,
+  toActiveEmployeeOption,
+} from "@/lib/employees/data"
 
 describe("active employee options", () => {
   it("publishes only the stable server-side option contract", () => {
@@ -17,5 +20,11 @@ describe("active employee options", () => {
       employeeMembershipId: 1103,
       jobTitle: "Operator",
     })
+  })
+
+  it("only exposes employee-role members to roster assignment", () => {
+    expect(isRosterAssignableEmployee({ role: "employee" })).toBe(true)
+    expect(isRosterAssignableEmployee({ role: "manager" })).toBe(false)
+    expect(isRosterAssignableEmployee({ role: "owner" })).toBe(false)
   })
 })

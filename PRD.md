@@ -1976,6 +1976,14 @@ Automated implementation evidence (2026-07-29):
 - Password-reset form styling refinement (2026-08-02): removed the recovery
   form card and matched the login screen's centred white heading treatment
   without changing recovery-session, validation, or password-update behaviour.
+- Authentication layout consistency refinement (2026-08-03): moved login,
+  invitation password setup, password reset, and invalid-or-expired-link states
+  into one shared centred `max-w-sm` shell. The remaining setup and link-error
+  cards are removed, leaving text, inputs, alerts, and actions only; no Auth
+  session, validation, recovery, invitation, permission, environment-variable,
+  or route behaviour changed. Changed-file ESLint, TypeScript, four focused
+  component test files / nine tests, and `git diff --check` pass. S12 remains
+  `in_progress` for the existing native iOS/Android staging gates.
 - Employee reset-control refinement (2026-08-02): reduced the active-account
   reset action to a one-fifth icon control with an accessible password-reset
   label and hover/focus tooltip; delivery and access behaviour are unchanged.
@@ -2090,6 +2098,42 @@ Automated implementation evidence (2026-07-29):
   Changed-file ESLint, TypeScript, two focused component suites (15 tests), and
   `git diff --check` pass; no database, permission, route, or environment
   change was required.
+- Remote-data localhost browser checkpoint (2026-08-03): exercised the owner,
+  manager, and employee accounts through `http://localhost:4000` against the
+  linked Supabase project. Sixteen browser-verifiable checks pass, including
+  role navigation and denial, remote job create/reload/delete, roster
+  create/edit/delete, employee start/note/submit, owner approve/archive,
+  profile/logout, mobile-width layout, and clean browser-console collection.
+  The run intentionally archived `Basic Job`; its temporary job and shift were
+  cleaned up. Two product defects remain: the roster creation UI offers a
+  manager whom the authoritative RPC rejects, and an open job detail retains
+  stale status/actions after successful start or approve/archive until it is
+  reopened. `STAGING-GO-LIVE-CHECKLIST.md` records the evidence, partial checks,
+  remote-data ledger, and manual physical-device/infrastructure gates. S12
+  remains `in_progress` and the release remains **NO-GO**.
+- Staging checkpoint follow-up (2026-08-03): user-confirmed INVITE-01/02,
+  PWA-01/02, and OFFLINE-01 pass; real-device push delivery remains failed.
+  The roster mismatch is corrected by exposing only active employee-role
+  members in owner/manager roster projections while preserving manager job
+  assignment and zero-job shifts. Online job mutations now revalidate the open
+  detail as well as the board, and global toast visibility is reduced to 2.5
+  seconds. Focused Vitest (23 tests), changed-file ESLint, and `git diff
+--check` pass. A public hosted-origin header audit confirms HTTP-to-HTTPS,
+  HSTS, nosniff, frame denial, referrer policy, and permissions policy; a
+  general HTML CSP and the authenticated cookie/origin/secret-store review
+  remain outstanding. `STAGING-GO-LIVE-CHECKLIST.md` now defines the exact
+  JOB-03, CACHE-01, storage, recovery, accessibility, and release evidence
+  required. TODO-015 remains `in_progress`; S12 and release remain **NO-GO**
+  pending push, fixed-flow regression, security/operations completion, and the
+  remaining named manual gates.
+- Roster fix browser regression (2026-08-03): localhost against the linked
+  remote project confirmed both owner and manager Add shift selectors now show
+  only the two active employee-role members. The manager created a zero-job
+  shift for Axel, verified it on the following week, and deleted it; the toast
+  was no longer present after its shortened duration. Temporary remote data was
+  cleaned up and the browser was signed out. The job-detail mutation fix has
+  focused component coverage but still needs a fresh mutable browser job to
+  close its staging regression. S12 remains `in_progress` and **NO-GO**.
 
 ## 13. Prototype and production readiness
 

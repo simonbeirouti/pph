@@ -6,7 +6,7 @@ import {
 } from "@/lib/dashboard/data"
 import {
   getCurrentProfile,
-  listActiveEmployeeOptions,
+  listActiveRosterEmployeeOptions,
   listEmployees,
   toActiveEmployeeOption,
 } from "@/lib/employees/data"
@@ -85,8 +85,8 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
   const templatesPromise = isOperations
     ? getTemplateScheduleData()
     : Promise.resolve(null)
-  const activeEmployeesPromise = isOperations
-    ? listActiveEmployeeOptions()
+  const rosterEmployeesPromise = isOperations
+    ? listActiveRosterEmployeeOptions()
     : profilePromise.then((profile) => [toActiveEmployeeOption(profile)])
 
   const supabase = await supabasePromise
@@ -110,7 +110,7 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
     jobBoard,
     people,
     templates,
-    activeEmployees,
+    rosterEmployees,
   ] = await Promise.all([
     profilePromise,
     operationsDashboardPromise,
@@ -119,7 +119,7 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
     jobBoardPromise,
     peoplePromise,
     templatesPromise,
-    activeEmployeesPromise,
+    rosterEmployeesPromise,
   ])
 
   const allJobs = jobBoard?.jobs ?? employeeJobs
@@ -165,7 +165,7 @@ export async function buildOfflineV2Snapshot(): Promise<OfflineV2Snapshot> {
     refreshedAt: refreshedAt.toISOString(),
     revision: revisionResult.data ?? 0,
     roster: {
-      employees: activeEmployees,
+      employees: rosterEmployees,
       jobs: rosterJobs,
       shifts: (shiftsResult.data ?? []).map((row) =>
         toRosterShift(row as RosterShiftRow)
@@ -262,7 +262,7 @@ export async function buildOfflineV2Domains(
   if (domains.has("roster")) {
     const supabase = await createClient()
     const activeEmployees = isOperations
-      ? await listActiveEmployeeOptions()
+      ? await listActiveRosterEmployeeOptions()
       : [toActiveEmployeeOption(profile ?? (await getCurrentProfile()))]
     const { data: shifts, error } = await supabase
       .from("roster_shifts")

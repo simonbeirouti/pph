@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 
+import { AuthScreen } from "@/components/auth-screen"
 import { ResetPasswordForm } from "@/components/reset-password-form"
 import {
   PASSWORD_RECOVERY_COOKIE,
@@ -20,10 +21,8 @@ export default async function Page() {
   const { data } = await supabase.auth.getUser()
   if (!data.user) redirect("/auth/confirm/error?reason=verification")
   return (
-    <main className="flex min-h-svh items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-md">
-        <ResetPasswordForm />
-      </div>
-    </main>
+    <AuthScreen>
+      <ResetPasswordForm />
+    </AuthScreen>
   )
 }

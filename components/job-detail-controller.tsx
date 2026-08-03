@@ -187,6 +187,12 @@ export function JobDetailController({
     [selectJob]
   )
 
+  const refreshSelectedDetail = useCallback(async () => {
+    const jobId = selectedIdRef.current
+    if (!jobId || !navigator.onLine || offline?.usesLocalRepository) return
+    await refresh(jobId)
+  }, [offline?.usesLocalRepository, refresh])
+
   const close = useCallback(() => {
     requestRef.current?.abort()
     requestRef.current = null
@@ -239,6 +245,7 @@ export function JobDetailController({
           <EmployeeJobDetail
             detail={detail}
             onClose={close}
+            onMutationSuccess={refreshSelectedDetail}
             open={open}
             timezone={timezone}
           />
@@ -248,6 +255,7 @@ export function JobDetailController({
             detail={detail}
             employees={employees}
             onClose={close}
+            onMutationSuccess={refreshSelectedDetail}
             open={open}
             timezone={timezone}
           />
