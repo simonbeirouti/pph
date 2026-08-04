@@ -109,6 +109,13 @@ and background synchronisation.
 ## Delivery register
 
 - S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 owner dashboard roster grid: today’s roster now lays employee
+  shift cards into an auto-fitting responsive grid. It remains a single column
+  when space is constrained, adds columns dynamically as the dashboard widens,
+  and collapses unused tracks so small teams still fill the available width.
+  The focused dashboard component test passes (1 file / 4 tests), as do
+  changed-file Prettier/ESLint, TypeScript, and `git diff --check`. No
+  environment-variable or database change is required.
 - 2026-08-04 employee jobs status filter: the employee and manager “My work”
   jobs list now defaults to open/assigned and in-progress work, with a
   keyboard-accessible two-tab control for switching to submitted/in-review

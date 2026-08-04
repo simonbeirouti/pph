@@ -183,11 +183,26 @@ describe("owner operational dashboard", () => {
   })
 
   it("uses borderless scrollable panels and keeps roster in the action grid", () => {
+    const firstShift = shift(
+      21,
+      "2030-01-01T01:00:00Z",
+      "2030-01-01T09:00:00Z",
+      ""
+    )
+    const secondShift = shift(
+      22,
+      "2030-01-01T02:00:00Z",
+      "2030-01-01T08:00:00Z",
+      ""
+    )
     const data: OwnerDashboardData = {
       awaitingReview: 0,
       outstanding: 0,
       recentlySubmitted: [{ ...baseJob, submittedAt: "2030-01-01T12:00:00Z" }],
-      todayRoster: [],
+      todayRoster: [
+        { ...firstShift, employeeName: "Bill Burr", workingNow: false },
+        { ...secondShift, employeeName: "Axel Rod", workingNow: true },
+      ],
       urgent: [{ ...baseJob, priority: "urgent" }],
       urgentCount: 1,
       workingNow: 0,
@@ -214,8 +229,15 @@ describe("owner operational dashboard", () => {
       .closest("section")
     expect(roster).toHaveClass("xl:col-span-2")
     expect(roster?.closest('[data-slot="card"]')).toBeNull()
+    const rosterGrid = roster?.querySelector("[data-roster-grid]")
+    expect(rosterGrid).toHaveClass(
+      "grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))]"
+    )
+    expect(rosterGrid?.children).toHaveLength(2)
+    expect(screen.getByText("Bill Burr")).toBeVisible()
+    expect(screen.getByText("Axel Rod")).toBeVisible()
     expect(
-      screen.getByText("Working now").closest("a")?.querySelector("svg")
+      container.querySelector('a[href="/dashboard/roster"] svg')
     ).toHaveClass("size-10")
     expect(container.firstElementChild).toHaveClass("gap-8")
   })

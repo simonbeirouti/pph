@@ -124,10 +124,13 @@ export function OwnerOperationalDashboard({
             </Button>
           </div>
           {data.todayRoster.length ? (
-            <div className="grid gap-2">
+            <div
+              className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))] gap-3"
+              data-roster-grid
+            >
               {data.todayRoster.map((shift) => (
                 <Link
-                  className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex h-full flex-col gap-3 rounded-lg border p-4 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                   href={`/dashboard/employees/${shift.employeeMembershipId}`}
                   key={shift.id}
                   prefetch={false}
