@@ -88,6 +88,143 @@ export function submitJobEverywhere(
   }
 }
 
+export function removeJobEverywhere(
+  snapshot: OfflineV2Snapshot,
+  jobId: number
+): OfflineV2Snapshot {
+  const withoutJob = <T extends { id: number }>(items: T[]) =>
+    items.filter((item) => item.id !== jobId)
+  const jobDetails = { ...snapshot.jobDetails }
+  delete jobDetails[jobId]
+
+  return {
+    ...snapshot,
+    dashboard: {
+      employee: snapshot.dashboard.employee
+        ? {
+            ...snapshot.dashboard.employee,
+            jobs: withoutJob(snapshot.dashboard.employee.jobs),
+            nextActionable:
+              snapshot.dashboard.employee.nextActionable?.id === jobId
+                ? null
+                : snapshot.dashboard.employee.nextActionable,
+          }
+        : null,
+      operations: snapshot.dashboard.operations
+        ? {
+            ...snapshot.dashboard.operations,
+            recentlySubmitted: withoutJob(
+              snapshot.dashboard.operations.recentlySubmitted
+            ),
+            urgent: withoutJob(snapshot.dashboard.operations.urgent),
+          }
+        : null,
+    },
+    employeeJobs: withoutJob(snapshot.employeeJobs),
+    jobDetails,
+    jobs: snapshot.jobs
+      ? { ...snapshot.jobs, jobs: withoutJob(snapshot.jobs.jobs) }
+      : null,
+    roster: {
+      ...snapshot.roster,
+      jobs: withoutJob(snapshot.roster.jobs),
+    },
+  }
+}
+
+export function restoreAuthoritativeSubmitConflicts(
+  optimistic: OfflineV2Snapshot,
+  authoritative: OfflineV2Snapshot,
+  operations: readonly OfflineV2Operation[]
+) {
+  const conflictedJobIds = new Set(
+    operations.flatMap((operation) =>
+      operation.kind === "job.submit" &&
+      operation.state === "needs_attention" &&
+      operation.entity.source === "server"
+        ? [operation.entity.id]
+        : []
+    )
+  )
+  if (!conflictedJobIds.size) return optimistic
+
+  const restoreList = <T extends { id: number }>(local: T[], remote: T[]) => {
+    const localById = new Map(local.map((item) => [item.id, item]))
+    const restored = remote.map((item) =>
+      conflictedJobIds.has(item.id) ? item : (localById.get(item.id) ?? item)
+    )
+    const remoteIds = new Set(remote.map((item) => item.id))
+    for (const item of local) {
+      if (!remoteIds.has(item.id) && !conflictedJobIds.has(item.id)) {
+        restored.push(item)
+      }
+    }
+    return restored
+  }
+
+  const employeeDashboard =
+    optimistic.dashboard.employee && authoritative.dashboard.employee
+      ? {
+          ...optimistic.dashboard.employee,
+          jobs: restoreList(
+            optimistic.dashboard.employee.jobs,
+            authoritative.dashboard.employee.jobs
+          ),
+          nextActionable:
+            (optimistic.dashboard.employee.nextActionable &&
+              conflictedJobIds.has(
+                optimistic.dashboard.employee.nextActionable.id
+              )) ||
+            (authoritative.dashboard.employee.nextActionable &&
+              conflictedJobIds.has(
+                authoritative.dashboard.employee.nextActionable.id
+              ))
+              ? authoritative.dashboard.employee.nextActionable
+              : optimistic.dashboard.employee.nextActionable,
+        }
+      : authoritative.dashboard.employee
+  const operationsDashboard =
+    optimistic.dashboard.operations && authoritative.dashboard.operations
+      ? {
+          ...optimistic.dashboard.operations,
+          recentlySubmitted: restoreList(
+            optimistic.dashboard.operations.recentlySubmitted,
+            authoritative.dashboard.operations.recentlySubmitted
+          ),
+          urgent: restoreList(
+            optimistic.dashboard.operations.urgent,
+            authoritative.dashboard.operations.urgent
+          ),
+        }
+      : authoritative.dashboard.operations
+  const jobDetails = { ...optimistic.jobDetails }
+  for (const jobId of conflictedJobIds) {
+    const remote = authoritative.jobDetails[jobId]
+    if (remote) jobDetails[jobId] = remote
+    else delete jobDetails[jobId]
+  }
+
+  return {
+    ...optimistic,
+    dashboard: {
+      employee: employeeDashboard,
+      operations: operationsDashboard,
+    },
+    employeeJobs: restoreList(
+      optimistic.employeeJobs,
+      authoritative.employeeJobs
+    ),
+    jobDetails,
+    jobs:
+      optimistic.jobs && authoritative.jobs
+        ? {
+            ...optimistic.jobs,
+            jobs: restoreList(optimistic.jobs.jobs, authoritative.jobs.jobs),
+          }
+        : authoritative.jobs,
+  }
+}
+
 export function preservePendingOptimisticDomains(
   incoming: OfflineV2Snapshot,
   local: OfflineV2Snapshot,
@@ -110,6 +247,7 @@ export function preservePendingOptimisticDomains(
   const preserveProfile = entityTypes.has("profile")
 
   const pendingJobIds = new Set<number>()
+  const pendingDeletedJobIds = new Set<number>()
   for (const operation of operations) {
     if (
       operation.entityType !== "job" &&
@@ -119,6 +257,9 @@ export function preservePendingOptimisticDomains(
     }
     if (operation.entity.source === "server") {
       pendingJobIds.add(operation.entity.id)
+      if (operation.kind === "job.delete") {
+        pendingDeletedJobIds.add(operation.entity.id)
+      }
       continue
     }
     const temporaryId = operation.payload.temporaryId
@@ -129,14 +270,20 @@ export function preservePendingOptimisticDomains(
     fresh: T[],
     optimistic: T[]
   ) => {
-    if (!pendingJobIds.size) return fresh
+    const visibleFresh = fresh.filter(
+      (job) => !pendingDeletedJobIds.has(job.id)
+    )
+    if (!pendingJobIds.size) return visibleFresh
     const optimisticById = new Map(
       optimistic
-        .filter((job) => pendingJobIds.has(job.id))
+        .filter(
+          (job) =>
+            pendingJobIds.has(job.id) && !pendingDeletedJobIds.has(job.id)
+        )
         .map((job) => [job.id, job])
     )
-    const merged = fresh.map((job) => optimisticById.get(job.id) ?? job)
-    const freshIds = new Set(fresh.map((job) => job.id))
+    const merged = visibleFresh.map((job) => optimisticById.get(job.id) ?? job)
+    const freshIds = new Set(visibleFresh.map((job) => job.id))
     for (const job of optimisticById.values()) {
       if (!freshIds.has(job.id)) merged.push(job)
     }
@@ -187,12 +334,18 @@ export function preservePendingOptimisticDomains(
             local.employeeJobs
           ),
           jobDetails: Object.fromEntries(
-            Object.entries(incoming.jobDetails).map(([id, detail]) => [
-              id,
-              pendingJobIds.has(Number(id))
-                ? (local.jobDetails[Number(id)] ?? detail)
-                : detail,
-            ])
+            Object.entries(incoming.jobDetails).flatMap(([id, detail]) =>
+              pendingDeletedJobIds.has(Number(id))
+                ? []
+                : [
+                    [
+                      id,
+                      pendingJobIds.has(Number(id))
+                        ? (local.jobDetails[Number(id)] ?? detail)
+                        : detail,
+                    ],
+                  ]
+            )
           ),
           jobs:
             incoming.jobs && local.jobs
@@ -207,7 +360,16 @@ export function preservePendingOptimisticDomains(
         }
       : {}),
     ...(preservePeople ? { people: local.people } : {}),
-    ...(preserveRoster ? { roster: local.roster } : {}),
+    ...(preserveJobs
+      ? {
+          roster: {
+            ...incoming.roster,
+            jobs: preservePendingJobs(incoming.roster.jobs, local.roster.jobs),
+          },
+        }
+      : preserveRoster
+        ? { roster: local.roster }
+        : {}),
     ...(preserveTemplates ? { templates: local.templates } : {}),
     ...(preserveProfile
       ? {

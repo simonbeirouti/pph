@@ -112,6 +112,7 @@ export type OfflineOperationKind =
   | "job.submit"
   | "job.reopen"
   | "job.archive"
+  | "job.delete"
   | "job.notification.retry"
   | "roster.create"
   | "roster.update"

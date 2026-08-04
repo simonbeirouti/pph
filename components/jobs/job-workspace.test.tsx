@@ -14,7 +14,11 @@ import {
   deleteJobAction,
   reassignJobAction,
 } from "@/app/dashboard/jobs/actions"
-import { AssignmentDialog, JobWorkspace } from "@/components/jobs/job-workspace"
+import {
+  AssignmentDialog,
+  JobWorkspace,
+  reconcileJobWorkspaceJobs,
+} from "@/components/jobs/job-workspace"
 import type { JobBoardEmployee, JobCard } from "@/lib/jobs/types"
 
 const viewportMocks = vi.hoisted(() => ({
@@ -22,6 +26,7 @@ const viewportMocks = vi.hoisted(() => ({
 }))
 const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
+  success: vi.fn(),
 }))
 
 vi.mock("@/app/dashboard/jobs/actions", () => ({
@@ -85,6 +90,30 @@ afterEach(() => {
 })
 
 describe("JobWorkspace", () => {
+  it("replaces a temporary create with its matching authoritative job", () => {
+    const temporary = { ...job, id: -100, version: undefined }
+    const authoritative = {
+      ...job,
+      id: 1402,
+      updatedAt: "2026-07-27T00:00:01.000Z",
+      version: 1,
+    }
+
+    expect(
+      reconcileJobWorkspaceJobs([authoritative], [temporary], new Set())
+    ).toEqual([authoritative])
+    expect(
+      reconcileJobWorkspaceJobs(
+        [authoritative, temporary],
+        [temporary],
+        new Set()
+      )
+    ).toEqual([authoritative])
+    expect(reconcileJobWorkspaceJobs([], [temporary], new Set())).toEqual([
+      temporary,
+    ])
+  })
+
   it("renders each job once when an incoming refresh repeats its id", () => {
     render(
       <JobWorkspace
@@ -130,7 +159,7 @@ describe("JobWorkspace", () => {
       message: "Job deleted.",
       ok: true,
     })
-    render(
+    const view = render(
       <JobWorkspace
         employees={employees}
         initialJobs={[job]}
@@ -154,6 +183,20 @@ describe("JobWorkspace", () => {
     await waitFor(() => {
       expect(deleteJobAction).toHaveBeenCalledWith(1401)
     })
+    await waitFor(() => {
+      expect(
+        screen.queryByLabelText("Job Inspect loading bay")
+      ).not.toBeInTheDocument()
+    })
+
+    view.rerender(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[job]}
+        rosterShifts={rosterShifts}
+        timezone="Australia/Melbourne"
+      />
+    )
     expect(
       screen.queryByLabelText("Job Inspect loading bay")
     ).not.toBeInTheDocument()

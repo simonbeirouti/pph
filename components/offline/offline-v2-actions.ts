@@ -12,6 +12,7 @@ import type {
 import { selectMutationTransport } from "@/lib/offline-v2/view-mode"
 
 export {
+  removeJobEverywhere,
   submitJobEverywhere,
   updateJobEverywhere,
 } from "@/lib/offline-v2/optimistic"

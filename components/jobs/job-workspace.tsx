@@ -29,6 +29,7 @@ import {
 import { EmployeeAvatar } from "@/components/employees/employee-avatar"
 import { OpenJobLink } from "@/components/jobs/job-detail-controller"
 import {
+  removeJobEverywhere,
   updateJobEverywhere,
   useOfflineV2Actions,
 } from "@/components/offline/offline-v2-actions"
@@ -138,6 +139,52 @@ function deduplicateJobs(jobs: readonly JobCard[]) {
   return [...byId.values()]
 }
 
+export function reconcileJobWorkspaceJobs(
+  incomingJobs: readonly JobCard[],
+  currentJobs: readonly JobCard[],
+  deletedJobIds: ReadonlySet<number>
+) {
+  const incoming = deduplicateJobs(incomingJobs).filter(
+    (job) => !deletedJobIds.has(job.id)
+  )
+  const incomingServerJobs = incoming.filter((job) => job.id > 0)
+  const unmatchedServerJobs = new Set(incomingServerJobs.map((job) => job.id))
+  const retainedTemporaryJobs: JobCard[] = []
+  const temporaryJobs = deduplicateJobs([
+    ...currentJobs.filter((job) => job.id < 0),
+    ...incoming.filter((job) => job.id < 0),
+  ])
+
+  for (const temporary of temporaryJobs) {
+    const match = incomingServerJobs.find(
+      (candidate) =>
+        unmatchedServerJobs.has(candidate.id) &&
+        jobsRepresentSameCreation(temporary, candidate)
+    )
+    if (match) {
+      unmatchedServerJobs.delete(match.id)
+    } else {
+      retainedTemporaryJobs.push(temporary)
+    }
+  }
+
+  return deduplicateJobs([...retainedTemporaryJobs, ...incomingServerJobs])
+}
+
+function jobsRepresentSameCreation(left: JobCard, right: JobCard) {
+  return (
+    left.assigneeMembershipId === right.assigneeMembershipId &&
+    left.description === right.description &&
+    left.dueAt === right.dueAt &&
+    left.location === right.location &&
+    left.minimumCompletionPhotos === right.minimumCompletionPhotos &&
+    left.priority === right.priority &&
+    left.requiresCompletionNote === right.requiresCompletionNote &&
+    left.scheduledAt === right.scheduledAt &&
+    left.title === right.title
+  )
+}
+
 function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
   const board: BoardItems = {
     archived: [],
@@ -193,6 +240,7 @@ export function JobWorkspace({
   const [deleteJob, setDeleteJob] = useState<JobCard | null>(null)
   const [editJob, setEditJob] = useState<JobCard | null>(null)
   const pendingIdsRef = useRef(new Set<number>())
+  const deletedJobIdsRef = useRef(new Set<number>())
   const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
   const serverJobsRef = useRef(
     new Map(deduplicateJobs(initialJobs).map((job) => [job.id, job]))
@@ -238,7 +286,11 @@ export function JobWorkspace({
   }, [jobs])
 
   useEffect(() => {
-    const incoming = deduplicateJobs(initialJobs)
+    const incoming = reconcileJobWorkspaceJobs(
+      initialJobs,
+      jobsRef.current,
+      deletedJobIdsRef.current
+    )
     const reopened = incoming.some(
       (job) =>
         serverJobsRef.current.get(job.id)?.status === "archived" &&
@@ -362,7 +414,11 @@ export function JobWorkspace({
   }
 
   function addCreatedJob(job: JobCard) {
-    const next = deduplicateJobs([job, ...jobsRef.current])
+    const next = reconcileJobWorkspaceJobs(
+      jobsRef.current,
+      [job],
+      deletedJobIdsRef.current
+    )
     jobsRef.current = next
     setJobs(next)
     viewRef.current = "workflow"
@@ -383,19 +439,37 @@ export function JobWorkspace({
 
   async function persistDeletion(job: JobCard) {
     if (pendingIdsRef.current.has(job.id)) return
+    const snapshot = jobsRef.current
+    const optimistic = snapshot.filter((current) => current.id !== job.id)
     pendingIdsRef.current.add(job.id)
     setPendingIds((current) => new Set(current).add(job.id))
+    jobsRef.current = optimistic
+    setJobs(optimistic)
     try {
-      const result = await deleteJobAction(job.id)
+      const queued = await offline.queue({
+        entityId: job.id,
+        entityType: "job",
+        expectedVersion: job.version ?? null,
+        kind: "job.delete",
+        optimistic: (current) => removeJobEverywhere(current, job.id),
+      })
+      const result = queued
+        ? { message: "Job deleted.", ok: true }
+        : await deleteJobAction(job.id)
       if (!result.ok) {
+        jobsRef.current = snapshot
+        setJobs(snapshot)
         toast.error(result.message)
         return
       }
-      const next = jobsRef.current.filter((current) => current.id !== job.id)
-      jobsRef.current = next
-      setJobs(next)
+      deletedJobIdsRef.current.add(job.id)
+      await offline.updateSnapshot?.((current) =>
+        removeJobEverywhere(current, job.id)
+      )
       toast.success(result.message)
     } catch {
+      jobsRef.current = snapshot
+      setJobs(snapshot)
       toast.error("The job could not be deleted. Try again.")
     } finally {
       pendingIdsRef.current.delete(job.id)
@@ -404,6 +478,16 @@ export function JobWorkspace({
         next.delete(job.id)
         return next
       })
+      if (!pendingIdsRef.current.size && deferredJobsRef.current) {
+        const next = reconcileJobWorkspaceJobs(
+          deferredJobsRef.current,
+          jobsRef.current,
+          deletedJobIdsRef.current
+        )
+        deferredJobsRef.current = null
+        jobsRef.current = next
+        setJobs(next)
+      }
     }
   }
 

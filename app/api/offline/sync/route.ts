@@ -1,13 +1,13 @@
 import { Buffer } from "node:buffer"
 
 import { NextResponse } from "next/server"
-import { z } from "zod"
 
 import { replayOfflineJobOperationAction } from "@/app/dashboard/jobs/offline-actions"
 import {
   addJobCommentAction,
   archiveJobAction,
   createJobAction,
+  deleteJobAction,
   reassignJobAction,
   removeJobEvidenceAction,
   reopenJobAction,
@@ -57,43 +57,14 @@ import {
 } from "@/lib/offline-v2/types"
 import { createClient } from "@/lib/supabase/server"
 import type { Json } from "@/lib/supabase/database.types"
+import { parseOfflineSyncRequest } from "@/lib/offline-v2/sync-validation"
 
 export const dynamic = "force-dynamic"
 
-const operationSchema = z.object({
-  clientOperationId: z.string().uuid(),
-  createdAt: z.string().datetime(),
-  dependsOn: z.array(z.string().uuid()),
-  entity: z.discriminatedUnion("source", [
-    z.object({ id: z.number().int().positive(), source: z.literal("server") }),
-    z.object({ id: z.string().min(1), source: z.literal("local") }),
-  ]),
-  entityType: z.enum([
-    "job",
-    "roster_shift",
-    "membership",
-    "employee_profile",
-    "job_template",
-    "job_schedule",
-    "profile",
-    "notification",
-  ]),
-  expectedVersion: z.number().int().positive().nullable(),
-  kind: z.string().min(1),
-  payload: z.record(z.string(), z.unknown()),
-  state: z.enum(["pending", "syncing", "failed", "needs_attention"]),
-})
-
-const requestSchema = z.object({
-  operations: z.array(operationSchema).max(500),
-  revision: z.number().int().nonnegative(),
-  schemaVersion: z.number().int().positive(),
-})
-
 export async function POST(request: Request) {
   try {
-    const parsed = requestSchema.safeParse(await request.json())
-    if (!parsed.success) {
+    const parsed = parseOfflineSyncRequest(await request.json())
+    if (!parsed) {
       return NextResponse.json(
         { message: "The offline operation batch is invalid." },
         { status: 400 }
@@ -106,15 +77,21 @@ export async function POST(request: Request) {
         { status: 401 }
       )
     }
-    const operations = orderByDependencies(
-      parsed.data.operations as OfflineV2Operation[]
-    )
-    const queuedOperationIds = new Set(
-      operations.map((operation) => operation.clientOperationId)
-    )
+    const operations = orderByDependencies(parsed.operations)
+    const queuedOperationIds = new Set([
+      ...operations.map((operation) => operation.clientOperationId),
+      ...parsed.invalidOperations.map(
+        (operation) => operation.clientOperationId
+      ),
+    ])
     const conflicts: OfflineConflict[] = []
     const idMappings: Record<string, number> = {}
-    const operationResults: OfflineSyncResult["operationResults"] = []
+    const operationResults: OfflineSyncResult["operationResults"] =
+      parsed.invalidOperations.map((operation) => ({
+        clientOperationId: operation.clientOperationId,
+        error: operation.error,
+        status: "needs_attention",
+      }))
     const acknowledged = new Set<string>()
     const currentJobVersions = new Map<number, number>()
     const supabase = await createClient()
@@ -291,10 +268,10 @@ export async function POST(request: Request) {
 
     const { changes, complete } = await readSyncChanges(
       supabase,
-      parsed.data.revision
+      parsed.revision
     )
     const selection =
-      parsed.data.schemaVersion === OFFLINE_V2_SCHEMA_VERSION && complete
+      parsed.schemaVersion === OFFLINE_V2_SCHEMA_VERSION && complete
         ? domainsForChanges(changes)
         : null
     const fullSnapshot =
@@ -312,12 +289,12 @@ export async function POST(request: Request) {
       refreshedAt.getTime() + OFFLINE_V2_LEASE_MS
     ).toISOString()
     const revision =
-      fullSnapshot?.revision ?? currentRevision ?? parsed.data.revision
+      fullSnapshot?.revision ?? currentRevision ?? parsed.revision
     const patch =
       fullSnapshot || !selection
         ? undefined
         : buildDomainPatch({
-            baseRevision: parsed.data.revision,
+            baseRevision: parsed.revision,
             deletedJobIds: selection.deletedJobIds,
             domains: selection.domains,
             jobDetailIds: selection.jobDetailIds,
@@ -349,7 +326,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Offline sync failed", error)
     return NextResponse.json(
-      { message: "Offline synchronisation failed." },
+      {
+        ...(process.env.NODE_ENV === "development" && error instanceof Error
+          ? { detail: error.message }
+          : {}),
+        message: "Offline synchronisation failed.",
+      },
       { status: 500 }
     )
   }
@@ -762,6 +744,15 @@ async function replayOperation(
         operation.entity.id,
         Number(operation.payload.submissionVersion)
       )
+    )
+  }
+  if (operation.entity.source === "server" && operation.kind === "job.delete") {
+    const result = await deleteJobAction(operation.entity.id)
+    return actionResult(
+      operation,
+      !result.ok && result.message === "The job is no longer available."
+        ? { message: "Job already deleted.", ok: true }
+        : result
     )
   }
   if (operation.kind === "job.notification.retry") {

@@ -42,10 +42,12 @@ import {
 import { restoreOfflineEvidenceFile } from "@/lib/offline-v2/evidence-upload"
 import {
   preservePendingOptimisticDomains,
+  restoreAuthoritativeSubmitConflicts,
   submitJobEverywhere,
   updateJobEverywhere,
 } from "@/lib/offline-v2/optimistic"
 import { applyOfflineV2Patch } from "@/lib/offline-v2/patch"
+import { reconcileOfflineOperations } from "@/lib/offline-v2/reconcile"
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import type {
   OfflineConflict,
@@ -326,7 +328,20 @@ export function OfflineV2Provider({
         await logoutAction()
         return
       }
-      if (!response.ok) throw new Error(`Bootstrap failed: ${response.status}`)
+      if (!response.ok) {
+        const failure = (await response.json().catch(() => null)) as {
+          detail?: string
+          message?: string
+        } | null
+        throw new Error(
+          [
+            failure?.message ?? `Synchronisation failed (${response.status}).`,
+            failure?.detail,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        )
+      }
       const payload = (await response.json()) as
         OfflineV2Snapshot | OfflineSyncResult
       const syncResult = "operationResults" in payload ? payload : null
@@ -350,36 +365,10 @@ export function OfflineV2Provider({
         return
       }
       const storedOperations = await getOfflineV2Operations()
-      const replayedById = new Map(
-        readyOperations.map((operation) => [
-          operation.clientOperationId,
-          operation,
-        ])
-      )
-      const resultById = new Map(
-        syncResult?.operationResults.map((result) => [
-          result.clientOperationId,
-          result,
-        ]) ?? []
-      )
-      const nextOperations = storedOperations.flatMap((operation) => {
-        const result = resultById.get(operation.clientOperationId)
-        if (!result) return [operation]
-        if (result.status === "acknowledged") return []
-        const replayed =
-          replayedById.get(operation.clientOperationId) ?? operation
-        return [
-          {
-            ...replayed,
-            lastError:
-              result.error ?? "The queued change could not be applied.",
-            state:
-              result.status === "conflict" ||
-              result.status === "needs_attention"
-                ? ("needs_attention" as const)
-                : ("pending" as const),
-          },
-        ]
+      const nextOperations = reconcileOfflineOperations({
+        operationResults: syncResult?.operationResults ?? [],
+        replayedOperations: readyOperations,
+        storedOperations,
       })
       const existingConflicts = await getOfflineConflicts()
       const nextConflicts = Array.from(
@@ -389,16 +378,26 @@ export function OfflineV2Provider({
           )
         ).values()
       )
+      const optimisticOperations = nextOperations.filter(
+        (operation) =>
+          operation.kind !== "job.submit" ||
+          operation.state !== "needs_attention"
+      )
       const reconciledSnapshot = currentSnapshot
         ? preservePendingOptimisticDomains(
             nextSnapshot,
             currentSnapshot,
-            nextOperations
+            optimisticOperations
           )
         : nextSnapshot
-      const optimisticSnapshot = await applyPendingOptimisticState(
+      const authoritativeSnapshot = restoreAuthoritativeSubmitConflicts(
         reconciledSnapshot,
+        nextSnapshot,
         nextOperations
+      )
+      const optimisticSnapshot = await applyPendingOptimisticState(
+        authoritativeSnapshot,
+        optimisticOperations
       )
       const committedSnapshot = syncResult
         ? await commitOfflineV2Sync({

@@ -126,7 +126,7 @@ export function JobCreateDialog({
           : null,
       }),
     })
-    return { job, message: "Job saved on this device.", ok: true }
+    return { job, message: "Job created.", ok: true }
   }
 
   const openForm = (template: JobTemplateOption | null) => {
@@ -278,7 +278,7 @@ export function JobEditDialog({
         optimistic: (snapshot) =>
           updateJobEverywhere(snapshot, job.id, () => updated),
       })
-      return { job: updated, message: "Job saved on this device.", ok: true }
+      return { job: updated, message: "Job updated.", ok: true }
     },
     [job, offline, timezone]
   )

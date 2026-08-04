@@ -209,4 +209,54 @@ describe("offline v2 patches", () => {
       expect.objectContaining({ id: 1402, status: "in_review" }),
     ])
   })
+
+  it("does not resurrect a job while its deletion is pending", () => {
+    const deleted = {
+      id: 1401,
+      status: "assigned",
+    } as NonNullable<OfflineV2Snapshot["jobs"]>["jobs"][number]
+    const local = {
+      ...snapshot,
+      jobs: {
+        archivePagination: {
+          page: 1,
+          pageSize: 15,
+          total: 0,
+          totalPages: 1,
+        },
+        employees: [],
+        jobs: [],
+        rosterShifts: [],
+        templates: [],
+        timezone: "Australia/Melbourne",
+      },
+      roster: { ...snapshot.roster, jobs: [] },
+    }
+    const incoming = {
+      ...local,
+      jobs: { ...local.jobs, jobs: [deleted] },
+      jobDetails: {
+        1401: { id: 1401 },
+      } as unknown as OfflineV2Snapshot["jobDetails"],
+      roster: { ...local.roster, jobs: [deleted] },
+    }
+
+    const next = preservePendingOptimisticDomains(incoming, local, [
+      {
+        clientOperationId: "delete-1",
+        createdAt: snapshot.refreshedAt,
+        dependsOn: [],
+        entity: { id: 1401, source: "server" },
+        entityType: "job",
+        expectedVersion: 1,
+        kind: "job.delete",
+        payload: {},
+        state: "pending",
+      },
+    ])
+
+    expect(next.jobs?.jobs).toEqual([])
+    expect(next.jobDetails).toEqual({})
+    expect(next.roster.jobs).toEqual([])
+  })
 })

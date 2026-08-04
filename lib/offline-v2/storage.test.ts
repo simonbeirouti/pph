@@ -195,15 +195,41 @@ describe("offline v2 IndexedDB", () => {
       snapshot: snapshot(),
     })
 
+    const optimisticJob = {
+      assigneeMembershipId: 1103,
+      description: "Created offline",
+      dueAt: null,
+      id: -10,
+      location: "",
+      minimumCompletionPhotos: 0,
+      priority: "normal" as const,
+      requiresCompletionNote: false,
+      scheduledAt: null,
+      status: "assigned" as const,
+      title: "Mapped job",
+      updatedAt: "2026-07-29T01:00:00.000Z",
+    }
+    const serverJob = { ...optimisticJob, id: 1401, version: 1 }
+    const syncSnapshot = snapshot()
+    syncSnapshot.jobs = {
+      archivePagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      employees: [],
+      jobs: [optimisticJob, serverJob],
+      rosterShifts: [],
+      templates: [],
+      timezone: "Australia/Melbourne",
+    }
+
     await commitOfflineV2Sync({
       conflicts: [],
       idMappings: { "-10": 1401, "local-job": 1401 },
       operations: [],
-      snapshot: { ...snapshot(), revision: 2 },
+      snapshot: { ...syncSnapshot, revision: 2 },
     })
 
     expect(await getOfflineV2Operations()).toEqual([])
     expect(await getOfflineV2Blob(operation.clientOperationId)).toBeNull()
     expect((await getOfflineV2Snapshot())?.revision).toBe(2)
+    expect((await getOfflineV2Snapshot())?.jobs?.jobs).toEqual([serverJob])
   })
 })

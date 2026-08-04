@@ -239,10 +239,9 @@ export async function commitOfflineV2Sync({
   const retainedOperationIds = new Set(
     operations.map((operation) => operation.clientOperationId)
   )
-  const rewrittenSnapshot = rewriteMappedValues(
-    snapshot,
-    idMappings
-  ) as OfflineV2Snapshot
+  const rewrittenSnapshot = deduplicateSnapshotJobs(
+    rewriteMappedValues(snapshot, idMappings) as OfflineV2Snapshot
+  )
   const rewrittenOperations = operations.map(
     (operation) =>
       rewriteMappedValues(operation, idMappings) as OfflineV2Operation
@@ -624,4 +623,55 @@ function rewriteMappedValues(
     )
   }
   return value
+}
+
+function deduplicateSnapshotJobs(snapshot: OfflineV2Snapshot) {
+  const deduplicate = <T extends { id: number; version?: number }>(
+    items: T[]
+  ) => {
+    const positions = new Map<number, number>()
+    const unique: T[] = []
+    for (const item of items) {
+      const position = positions.get(item.id)
+      if (position === undefined) {
+        positions.set(item.id, unique.length)
+        unique.push(item)
+        continue
+      }
+      const retained = unique[position]
+      if (
+        typeof item.version === "number" &&
+        (typeof retained.version !== "number" ||
+          item.version >= retained.version)
+      ) {
+        unique[position] = item
+      }
+    }
+    return unique
+  }
+
+  return {
+    ...snapshot,
+    dashboard: {
+      employee: snapshot.dashboard.employee
+        ? {
+            ...snapshot.dashboard.employee,
+            jobs: deduplicate(snapshot.dashboard.employee.jobs),
+          }
+        : null,
+      operations: snapshot.dashboard.operations
+        ? {
+            ...snapshot.dashboard.operations,
+            recentlySubmitted: deduplicate(
+              snapshot.dashboard.operations.recentlySubmitted
+            ),
+            urgent: deduplicate(snapshot.dashboard.operations.urgent),
+          }
+        : null,
+    },
+    employeeJobs: deduplicate(snapshot.employeeJobs),
+    jobs: snapshot.jobs
+      ? { ...snapshot.jobs, jobs: deduplicate(snapshot.jobs.jobs) }
+      : null,
+  }
 }
