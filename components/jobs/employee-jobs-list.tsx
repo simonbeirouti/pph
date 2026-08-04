@@ -8,7 +8,7 @@ import {
   SendIcon,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { submitJobAction } from "@/app/dashboard/jobs/actions"
@@ -37,6 +37,8 @@ const PRIORITY_LABELS = {
   urgent: "Urgent",
 } as const
 
+type EmployeeJobFilter = "active" | "submitted"
+
 export function EmployeeJobsList({
   jobs,
   timezone,
@@ -45,7 +47,13 @@ export function EmployeeJobsList({
   timezone: string
 }) {
   const searchParams = useSearchParams()
+  const [filter, setFilter] = useState<EmployeeJobFilter>("active")
   const mode = searchParams.get("mode")
+  const activeJobs = jobs.filter(
+    (job) => job.status === "assigned" || job.status === "in_progress"
+  )
+  const submittedJobs = jobs.filter((job) => job.status === "in_review")
+  const visibleJobs = filter === "active" ? activeJobs : submittedJobs
   const jobHref = (jobId: number) =>
     mode === "my-work"
       ? `/dashboard/jobs?mode=my-work&job=${jobId}`
@@ -60,9 +68,34 @@ export function EmployeeJobsList({
         </p>
       </div>
 
-      {jobs.length ? (
+      <div
+        aria-label="Filter jobs"
+        className="grid w-full grid-cols-2 gap-2 md:flex md:w-fit"
+        role="group"
+      >
+        <Button
+          aria-pressed={filter === "active"}
+          className="w-full md:w-auto"
+          onClick={() => setFilter("active")}
+          type="button"
+          variant={filter === "active" ? "default" : "outline"}
+        >
+          Open &amp; in progress ({activeJobs.length})
+        </Button>
+        <Button
+          aria-pressed={filter === "submitted"}
+          className="w-full md:w-auto"
+          onClick={() => setFilter("submitted")}
+          type="button"
+          variant={filter === "submitted" ? "default" : "outline"}
+        >
+          Submitted ({submittedJobs.length})
+        </Button>
+      </div>
+
+      {visibleJobs.length ? (
         <section aria-label="Assigned jobs" className="grid gap-3">
-          {jobs.map((job, index) => (
+          {visibleJobs.map((job, index) => (
             <Card
               aria-label={`Job ${job.title}`}
               className={cn(index === 0 && "ring-primary/30")}
@@ -121,9 +154,13 @@ export function EmployeeJobsList({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>No jobs assigned</CardTitle>
+            <CardTitle>
+              {filter === "active" ? "No open jobs" : "No submitted jobs"}
+            </CardTitle>
             <CardDescription>
-              New work will appear here when your owner assigns it to you.
+              {filter === "active"
+                ? "New work will appear here when your owner assigns it to you."
+                : "Jobs you submit for review will appear here."}
             </CardDescription>
           </CardHeader>
         </Card>

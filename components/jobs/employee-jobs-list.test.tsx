@@ -67,6 +67,46 @@ afterEach(() => {
 })
 
 describe("EmployeeJobsList review actions", () => {
+  it("separates submitted work from open and in-progress jobs", () => {
+    const submittedJob = {
+      ...readyJob,
+      id: 1402,
+      status: "in_review" as const,
+      title: "Submitted loading bay inspection",
+    }
+    render(
+      <EmployeeJobsList
+        jobs={[readyJob, submittedJob]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("button", { name: "Open & in progress (1)" })
+    ).toHaveClass("w-full", "md:w-auto")
+    expect(
+      screen.getByRole("button", { name: "Open & in progress (1)" })
+    ).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByText(readyJob.title)).toBeInTheDocument()
+    expect(screen.queryByText(submittedJob.title)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Submitted (1)" }))
+
+    expect(screen.getByText(submittedJob.title)).toBeInTheDocument()
+    expect(screen.queryByText(readyJob.title)).not.toBeInTheDocument()
+    expect(
+      screen.getByText("Submitted and waiting for owner review.")
+    ).toBeInTheDocument()
+  })
+
+  it("shows filter-specific empty states", () => {
+    render(<EmployeeJobsList jobs={[]} timezone="Australia/Melbourne" />)
+
+    expect(screen.getByText("No open jobs")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Submitted (0)" }))
+    expect(screen.getByText("No submitted jobs")).toBeInTheDocument()
+  })
+
   it.each(["assigned", "in_progress"] as const)(
     "shows submission for a ready %s job",
     (status) => {
