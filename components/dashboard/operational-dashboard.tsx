@@ -149,7 +149,11 @@ export function OwnerOperationalDashboard({
           ) : (
             <p className="text-sm text-muted-foreground">
               No one is rostered today.{" "}
-              <Link className="underline" href="/dashboard/roster" prefetch={false}>
+              <Link
+                className="underline"
+                href="/dashboard/roster"
+                prefetch={false}
+              >
                 Add a shift
               </Link>
               .
@@ -170,6 +174,10 @@ export function EmployeeOperationalDashboard({
   name: string
   timezone: string
 }) {
+  const actionableJobs = data.jobs.filter(
+    (job) => job.status === "assigned" || job.status === "in_progress"
+  )
+
   return (
     <div className="grid gap-6">
       <div>
@@ -196,9 +204,9 @@ export function EmployeeOperationalDashboard({
           </p>
         </div>
         <div className="mt-3">
-          {data.jobs.length ? (
+          {actionableJobs.length ? (
             <div className="grid gap-3">
-              {data.jobs.map((job) => (
+              {actionableJobs.map((job) => (
                 <EmployeeQueueRow
                   featured={job.id === data.nextActionable?.id}
                   job={job}
@@ -296,14 +304,18 @@ function EmployeeQueueRow({
         ) : job.status === "in_progress" ? (
           <Button
             nativeButton={false}
-            render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
+            render={
+              <Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />
+            }
           >
             <ArrowRightIcon /> Resume
           </Button>
         ) : (
           <Button
             nativeButton={false}
-            render={<Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />}
+            render={
+              <Link href={`/dashboard/jobs?job=${job.id}`} prefetch={false} />
+            }
             variant="outline"
           >
             <Clock3Icon /> View submission

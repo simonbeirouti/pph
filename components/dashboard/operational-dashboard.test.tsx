@@ -59,7 +59,7 @@ function shift(
 }
 
 describe("employee operational dashboard", () => {
-  it("selects actionable work independently of pending review", () => {
+  it("hides pending review and shows only actionable work", () => {
     const review = {
       ...baseJob,
       id: 2,
@@ -91,9 +91,10 @@ describe("employee operational dashboard", () => {
     ).toHaveTextContent("Actionable")
     expect(screen.getByRole("button", { name: "Start" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Resume" })).toBeVisible()
+    expect(screen.queryByText("Pending review")).not.toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "View submission" })
-    ).toBeVisible()
+      screen.queryByRole("button", { name: "View submission" })
+    ).not.toBeInTheDocument()
   })
 
   it("uses plain sections and shows only the current and next shifts", () => {

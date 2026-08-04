@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -82,18 +83,19 @@ describe("EmployeeJobsList review actions", () => {
     )
 
     expect(
-      screen.getByRole("button", { name: "Open & in progress (1)" })
-    ).toHaveClass("w-full", "md:w-auto")
-    expect(
-      screen.getByRole("button", { name: "Open & in progress (1)" })
-    ).toHaveAttribute("aria-pressed", "true")
+      screen.getByRole("tab", { name: "Open & in progress (1)" })
+    ).toHaveAttribute("data-active")
     expect(screen.getByText(readyJob.title)).toBeInTheDocument()
     expect(screen.queryByText(submittedJob.title)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Submitted (1)" }))
+    const submittedTab = screen.getByRole("tab", { name: "Submitted (1)" })
+    fireEvent.click(submittedTab)
 
-    expect(screen.getByText(submittedJob.title)).toBeInTheDocument()
-    expect(screen.queryByText(readyJob.title)).not.toBeInTheDocument()
+    const submittedPanel = document.getElementById(
+      submittedTab.getAttribute("aria-controls")!
+    )!
+    expect(within(submittedPanel).getByText(submittedJob.title)).toBeVisible()
+    expect(within(submittedPanel).queryByText(readyJob.title)).toBeNull()
     expect(
       screen.getByText("Submitted and waiting for owner review.")
     ).toBeInTheDocument()
@@ -103,7 +105,7 @@ describe("EmployeeJobsList review actions", () => {
     render(<EmployeeJobsList jobs={[]} timezone="Australia/Melbourne" />)
 
     expect(screen.getByText("No open jobs")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Submitted (0)" }))
+    fireEvent.click(screen.getByRole("tab", { name: "Submitted (0)" }))
     expect(screen.getByText("No submitted jobs")).toBeInTheDocument()
   })
 

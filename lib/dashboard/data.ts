@@ -2,10 +2,7 @@ import "server-only"
 
 import { cache } from "react"
 
-import {
-  requireAssignedWorker,
-  requireOperations,
-} from "@/lib/auth/membership"
+import { requireAssignedWorker, requireOperations } from "@/lib/auth/membership"
 import { listEmployees } from "@/lib/employees/data"
 import { sortJobsByUrgency } from "@/lib/jobs/board"
 import {
@@ -160,13 +157,14 @@ export const getEmployeeDashboardData = cache(
       getEmployeeAssignedJobs(),
       getEmployeeShiftSummary(employee.membershipId),
     ])
-    const ordered = sortJobsByUrgency(jobs)
+    const ordered = sortJobsByUrgency(
+      jobs.filter(
+        (job) => job.status === "assigned" || job.status === "in_progress"
+      )
+    )
     return {
       jobs: ordered,
-      nextActionable:
-        ordered.find(
-          (job) => job.status === "assigned" || job.status === "in_progress"
-        ) ?? null,
+      nextActionable: ordered[0] ?? null,
       shifts,
     }
   }

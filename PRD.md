@@ -111,12 +111,14 @@ and background synchronisation.
 - S12 production readiness — `in_progress`, **NO-GO**.
 - 2026-08-04 employee jobs status filter: the employee and manager “My work”
   jobs list now defaults to open/assigned and in-progress work, with a
-  two-option control for switching to submitted/in-review work. The control
-  spans the available width on mobile and returns to content width on desktop.
-  Each option exposes its job count and each view has a status-specific empty
-  state. The focused component test passes (1 file / 12 tests), as do
-  changed-file Prettier/ESLint, TypeScript, and `git diff --check`. No
-  environment-variable or database change is required.
+  keyboard-accessible two-tab control for switching to submitted/in-review
+  work. The tabs span the available width on mobile and return to content width
+  on desktop. Each tab exposes its job count and each view has a status-specific
+  empty state. The employee dashboard now excludes in-review work from its
+  assigned queue, including when rendering an older offline snapshot. Focused
+  component tests pass (2 files / 16 tests), as do changed-file
+  Prettier/ESLint, TypeScript, and `git diff --check`. No environment-variable
+  or database change is required.
 - 2026-08-04 private avatar browser-cache hardening: successful authenticated
   avatar responses now remain in the private browser cache for one day, so
   ordinary dashboard reloads do not repeat the avatar API, profile lookup, or
