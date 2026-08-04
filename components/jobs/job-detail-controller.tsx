@@ -65,6 +65,8 @@ export function JobDetailController({
   timezone: string
 }) {
   const offline = useOptionalOfflineV2()
+  const offlineNavigate = offline?.navigate
+  const usesLocalRepository = offline?.usesLocalRepository
   const initialId = initialDetail?.id ?? null
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
   const [detail, setDetail] = useState<JobDetail | null>(initialDetail)
@@ -249,17 +251,18 @@ export function JobDetailController({
     const params = new URLSearchParams(window.location.search)
     params.delete("job")
     const query = params.toString()
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${query ? `?${query}` : ""}`
-    )
+    const href = `${window.location.pathname}${query ? `?${query}` : ""}`
+    if (usesLocalRepository && offlineNavigate) {
+      offlineNavigate(href, { replace: true })
+    } else {
+      window.history.replaceState(null, "", href)
+    }
     selectedIdRef.current = null
     setSelectedId(null)
     detailRef.current = null
     setLoading(false)
     setRetryJobId(null)
-  }, [])
+  }, [offlineNavigate, usesLocalRepository])
 
   useEffect(() => {
     const onPopState = () => {

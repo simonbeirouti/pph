@@ -154,10 +154,13 @@ and background synchronisation.
 - 2026-08-04 cached-shell job-detail regression: prepared dashboard users can
   open, switch, and close job details from `/dashboard/jobs` again. The shared
   detail controller now follows prop-driven detail changes from the cached
-  dashboard router without remounting while preserving direct navigation,
-  history, snapshot, and online-refresh behavior. Added focused controller
-  coverage for open/switch/close transitions. Changed-file Prettier/ESLint, 3
-  Vitest files / 22 tests, TypeScript, and `git diff --check` pass. The focused
+  dashboard router without remounting, and drawer close now updates that router
+  instead of leaving its selected path stale. Reopening the same card and
+  repeatedly moving between cards therefore remain reliable while preserving
+  direct navigation, history, snapshot, and online-refresh behavior. Added
+  focused controller coverage for open/close/reopen/switch transitions.
+  Changed-file Prettier/ESLint, 3 Vitest files / 22 tests, TypeScript, and
+  `git diff --check` pass. The focused
   mobile Playwright drawer regression remains deferred because the local Docker
   daemon/Supabase stack is not running. No environment-variable or database
   change is required.

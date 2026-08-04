@@ -109,7 +109,9 @@ afterEach(() => {
 
 describe("JobDetailController", () => {
   it("follows cached-shell detail changes without remounting", () => {
+    const navigate = vi.fn()
     mocks.offline = {
+      navigate,
       operations: [],
       snapshot: {
         jobDetails: {
@@ -137,6 +139,15 @@ describe("JobDetailController", () => {
     const { rerender } = render(renderController(null))
     expect(screen.queryByText(cachedDetail.title)).not.toBeInTheDocument()
 
+    rerender(renderController(cachedDetail))
+    expect(screen.getByText(cachedDetail.title)).toBeVisible()
+
+    window.history.replaceState(null, "", "/dashboard/jobs?job=1401")
+    fireEvent.click(screen.getByRole("button", { name: "Close job" }))
+    expect(navigate).toHaveBeenCalledWith("/dashboard/jobs", { replace: true })
+
+    rerender(renderController(null))
+    expect(screen.queryByText(cachedDetail.title)).not.toBeInTheDocument()
     rerender(renderController(cachedDetail))
     expect(screen.getByText(cachedDetail.title)).toBeVisible()
 
