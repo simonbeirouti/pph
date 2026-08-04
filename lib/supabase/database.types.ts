@@ -1223,6 +1223,41 @@ export type Database = {
     }
     Functions: {
       activate_invited_membership: { Args: never; Returns: number }
+      list_employee_job_summary_rows: {
+        Args: never
+        Returns: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            Database["public"]["Enums"]["membership_role"] | null
+          requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            Database["public"]["Enums"]["membership_role"] | null
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submission_version: number
+          submitted_at: string | null
+          submitted_by_membership_id: number | null
+          template_id: number | null
+          title: string
+          updated_at: string
+          version: number
+        }[]
+      }
       add_job_comment: {
         Args: { p_body: string; p_job_id: number }
         Returns: {

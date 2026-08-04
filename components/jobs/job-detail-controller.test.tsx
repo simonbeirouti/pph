@@ -108,6 +108,46 @@ afterEach(() => {
 })
 
 describe("JobDetailController", () => {
+  it("follows cached-shell detail changes without remounting", () => {
+    mocks.offline = {
+      operations: [],
+      snapshot: {
+        jobDetails: {
+          [card.id]: cachedDetail,
+          [secondCard.id]: secondCachedDetail,
+        },
+      },
+      updateSnapshot: vi.fn(),
+      usesLocalRepository: true,
+    }
+
+    const renderController = (initialDetail: JobDetail | null) => (
+      <JobDetailController
+        employees={[]}
+        initialDetail={initialDetail}
+        isOwner={false}
+        jobs={[card, secondCard]}
+        role="employee"
+        timezone="Australia/Melbourne"
+      >
+        <span />
+      </JobDetailController>
+    )
+
+    const { rerender } = render(renderController(null))
+    expect(screen.queryByText(cachedDetail.title)).not.toBeInTheDocument()
+
+    rerender(renderController(cachedDetail))
+    expect(screen.getByText(cachedDetail.title)).toBeVisible()
+
+    rerender(renderController(secondCachedDetail))
+    expect(screen.queryByText(cachedDetail.title)).not.toBeInTheDocument()
+    expect(screen.getByText(secondCachedDetail.title)).toBeVisible()
+
+    rerender(renderController(null))
+    expect(screen.queryByText(secondCachedDetail.title)).not.toBeInTheDocument()
+  })
+
   it("opens cached detail immediately and replaces it after server revalidation", async () => {
     let resolveFetch!: (value: Response) => void
     vi.stubGlobal(

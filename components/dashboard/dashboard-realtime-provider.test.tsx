@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react"
+import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -34,6 +34,10 @@ let broadcast:
 let updateStatus: ((status: SubscribeStatus) => void) | undefined
 const removeChannel = vi.fn()
 const setAuth = vi.fn().mockResolvedValue(undefined)
+const unsubscribeAuth = vi.fn()
+const onAuthStateChange = vi.fn(() => ({
+  data: { subscription: { unsubscribe: unsubscribeAuth } },
+}))
 const subscribe = vi.fn((callback: (status: SubscribeStatus) => void) => {
   updateStatus = callback
   return channel
@@ -48,6 +52,7 @@ const channel = {
   subscribe,
 }
 const supabase = {
+  auth: { onAuthStateChange },
   channel: vi.fn(() => channel),
   realtime: { setAuth },
   removeChannel,
@@ -127,7 +132,9 @@ describe("DashboardRealtimeProvider", () => {
 
     act(() => {
       broadcast?.({ payload: event })
-      broadcast?.({ payload: { ...event, entityId: 1402 } })
+      broadcast?.({
+        payload: { ...event, entityId: 1402, eventId: "second-event" },
+      })
     })
 
     expect(listener).toHaveBeenCalledTimes(2)
@@ -139,7 +146,7 @@ describe("DashboardRealtimeProvider", () => {
     window.removeEventListener("pph:offline-invalidate", invalidate)
   })
 
-  it("keeps degraded connectivity unobtrusive and refreshes on recovery", async () => {
+  it("warns after degraded connectivity and refreshes on recovery", async () => {
     const invalidate = vi.fn()
     window.addEventListener("pph:offline-invalidate", invalidate)
     renderProvider()
@@ -162,9 +169,10 @@ describe("DashboardRealtimeProvider", () => {
       "data-realtime-status",
       "degraded"
     )
-    expect(document.querySelector("[role=status]")).not.toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent("Live updates paused")
 
     act(() => updateStatus?.("SUBSCRIBED"))
+    expect(screen.queryByText("Live updates paused")).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(150))
     expect(invalidate).toHaveBeenCalledOnce()
     expect(refresh).not.toHaveBeenCalled()
@@ -206,6 +214,38 @@ describe("DashboardRealtimeProvider", () => {
     act(() => broadcast?.({ payload: event }))
     act(() => vi.advanceTimersByTime(150))
     expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it("keeps the channel stable when the dashboard view source changes", async () => {
+    const { rerender } = render(
+      <DashboardRealtimeProvider
+        membership={{
+          membershipId: 1101,
+          organisationId: 1001,
+          role: "owner",
+        }}
+      >
+        <p>Dashboard</p>
+      </DashboardRealtimeProvider>
+    )
+    await act(async () => {})
+
+    viewSource = "server"
+    rerender(
+      <DashboardRealtimeProvider
+        membership={{
+          membershipId: 1101,
+          organisationId: 1001,
+          role: "owner",
+        }}
+      >
+        <p>Dashboard</p>
+      </DashboardRealtimeProvider>
+    )
+    await act(async () => {})
+
+    expect(supabase.channel).toHaveBeenCalledOnce()
+    expect(removeChannel).not.toHaveBeenCalled()
   })
 
   it("removes its channel during cleanup", async () => {

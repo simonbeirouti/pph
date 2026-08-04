@@ -15,6 +15,7 @@ import {
 } from "react"
 import { toast } from "sonner"
 
+import { useOptionalRealtimeInvalidations } from "@/components/dashboard/dashboard-realtime-provider"
 import {
   EmployeeJobDetail,
   JobDetailLoading,
@@ -23,6 +24,14 @@ import {
 import { useOptionalOfflineV2 } from "@/components/offline/offline-v2-provider"
 import { cacheOfflineSnapshotMedia } from "@/lib/offline-v2/storage"
 import type { JobBoardEmployee, JobCard, JobDetail } from "@/lib/jobs/types"
+
+const JOB_DETAIL_REALTIME_DOMAINS = [
+  "job",
+  "job_update",
+  "evidence",
+  "review",
+] as const
+const JOB_DETAIL_REALTIME_DEBOUNCE_MS = 75
 
 type DetailRole = "employee" | "owner"
 
@@ -59,15 +68,27 @@ export function JobDetailController({
   const initialId = initialDetail?.id ?? null
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
   const [detail, setDetail] = useState<JobDetail | null>(initialDetail)
+  const [lastInitialDetail, setLastInitialDetail] = useState<JobDetail | null>(
+    initialDetail
+  )
   const [loading, setLoading] = useState(false)
   const [retryJobId, setRetryJobId] = useState<number | null>(null)
   const detailRef = useRef(detail)
   const selectedIdRef = useRef(selectedId)
   const requestRef = useRef<AbortController | null>(null)
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jobById = useMemo(
     () => new Map(jobs.map((job) => [job.id, job])),
     [jobs]
   )
+
+  if (initialDetail !== lastInitialDetail) {
+    setLastInitialDetail(initialDetail)
+    setSelectedId(initialId)
+    setDetail(initialDetail)
+    setLoading(false)
+    setRetryJobId(null)
+  }
 
   useEffect(() => {
     selectedIdRef.current = selectedId
@@ -76,6 +97,13 @@ export function JobDetailController({
   useEffect(() => {
     detailRef.current = detail
   }, [detail])
+
+  useEffect(() => {
+    requestRef.current?.abort()
+    requestRef.current = null
+    selectedIdRef.current = initialId
+    detailRef.current = initialDetail
+  }, [initialDetail, initialId])
 
   const replaceSnapshotDetail = useCallback(
     async (nextDetail: JobDetail) => {
@@ -193,6 +221,28 @@ export function JobDetailController({
     await refresh(jobId)
   }, [offline?.usesLocalRepository, refresh])
 
+  const onRealtimeInvalidation = useCallback(
+    (event: { entityId: number }) => {
+      if (
+        event.entityId === selectedIdRef.current &&
+        navigator.onLine &&
+        selectedIdRef.current
+      ) {
+        if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current)
+        const jobId = selectedIdRef.current
+        realtimeTimerRef.current = setTimeout(() => {
+          realtimeTimerRef.current = null
+          void refresh(jobId)
+        }, JOB_DETAIL_REALTIME_DEBOUNCE_MS)
+      }
+    },
+    [refresh]
+  )
+  useOptionalRealtimeInvalidations(
+    JOB_DETAIL_REALTIME_DOMAINS,
+    onRealtimeInvalidation
+  )
+
   const close = useCallback(() => {
     requestRef.current?.abort()
     requestRef.current = null
@@ -228,6 +278,7 @@ export function JobDetailController({
     window.addEventListener("popstate", onPopState)
     return () => {
       requestRef.current?.abort()
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current)
       window.removeEventListener("popstate", onPopState)
     }
   }, [selectJob])

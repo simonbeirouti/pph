@@ -28,6 +28,8 @@ type EmployeeJobRow = JobRow & {
   job_updates: Array<{ count: number }>
 }
 
+const OFFLINE_ARCHIVE_PAGE_SIZE = 15
+
 function assignmentTargets(
   employees: readonly Awaited<ReturnType<typeof listEmployees>>[number][],
   actor: Awaited<ReturnType<typeof requireOperations>>
@@ -71,27 +73,39 @@ function toEmployeeJobCard(row: EmployeeJobRow): JobCard {
 export const getOwnerJobBoardData = cache(async () => {
   const owner = await requireOperations()
   const supabase = await createClient()
-  const [employees, jobsResult, shiftsResult, templates] = await Promise.all([
-    listEmployees(),
-    supabase
-      .from("jobs")
-      .select(JOB_FIELDS)
-      .eq("organisation_id", owner.organisationId)
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("roster_shifts")
-      .select("id, employee_membership_id, starts_at, ends_at")
-      .eq("organisation_id", owner.organisationId)
-      .is("archived_at", null)
-      .gt("ends_at", new Date().toISOString())
-      .order("starts_at", { ascending: true })
-      .limit(500),
-    getActiveJobTemplates(),
-  ])
+  const [employees, workflowResult, archiveResult, shiftsResult, templates] =
+    await Promise.all([
+      listEmployees(),
+      supabase
+        .from("jobs")
+        .select(JOB_FIELDS)
+        .eq("organisation_id", owner.organisationId)
+        .neq("status", "archived")
+        .order("updated_at", { ascending: false }),
+      supabase
+        .from("jobs")
+        .select(JOB_FIELDS, { count: "exact" })
+        .eq("organisation_id", owner.organisationId)
+        .eq("status", "archived")
+        .order("updated_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(OFFLINE_ARCHIVE_PAGE_SIZE),
+      supabase
+        .from("roster_shifts")
+        .select("id, employee_membership_id, starts_at, ends_at")
+        .eq("organisation_id", owner.organisationId)
+        .is("archived_at", null)
+        .gt("ends_at", new Date().toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(500),
+      getActiveJobTemplates(),
+    ])
 
-  if (jobsResult.error || shiftsResult.error) {
+  if (workflowResult.error || archiveResult.error || shiftsResult.error) {
     throw new Error("Unable to load jobs")
   }
+
+  const archiveTotal = archiveResult.count ?? 0
 
   return {
     employees: assignmentTargets(employees, owner).map(
@@ -103,7 +117,18 @@ export const getOwnerJobBoardData = cache(async () => {
         membershipId: employee.membershipId,
       })
     ),
-    jobs: (jobsResult.data ?? []).map((row) => toJobCard(row as JobRow)),
+    archivePagination: {
+      page: 1,
+      pageSize: OFFLINE_ARCHIVE_PAGE_SIZE,
+      total: archiveTotal,
+      totalPages: Math.max(
+        1,
+        Math.ceil(archiveTotal / OFFLINE_ARCHIVE_PAGE_SIZE)
+      ),
+    },
+    jobs: [...(workflowResult.data ?? []), ...(archiveResult.data ?? [])].map(
+      (row) => toJobCard(row as JobRow)
+    ),
     rosterShifts: (shiftsResult.data ?? []).map(
       (shift): JobRosterShiftOption => ({
         employeeMembershipId: shift.employee_membership_id,
@@ -363,14 +388,9 @@ export async function getEmployeeJobSummary(
 export async function listEmployeeJobSummaries(): Promise<
   Record<number, EmployeeJobSummary>
 > {
-  const owner = await requireOperations()
+  await requireOperations()
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(JOB_FIELDS)
-    .eq("organisation_id", owner.organisationId)
-    .not("assignee_membership_id", "is", null)
-    .order("updated_at", { ascending: false })
+  const { data, error } = await supabase.rpc("list_employee_job_summary_rows")
 
   if (error) throw new Error("Unable to load employee job summaries")
   const summaries: Record<number, EmployeeJobSummary> = {}
@@ -390,6 +410,50 @@ export async function listEmployeeJobSummaries(): Promise<
   }
 
   return summaries
+}
+
+export async function getLiveJobCards(
+  jobIds: readonly number[],
+  scope: "my-work" | "team"
+): Promise<{ jobs: JobCard[]; removedIds: number[] }> {
+  const membership = await requireActiveMembership()
+  if (
+    scope === "team" &&
+    membership.role !== "owner" &&
+    membership.role !== "manager"
+  ) {
+    return { jobs: [], removedIds: [...jobIds] }
+  }
+
+  const supabase = await createClient()
+  const workerScope = scope === "my-work"
+  const query = workerScope
+    ? supabase
+        .from("jobs")
+        .select(`${JOB_FIELDS}, job_updates(count), job_assets(count)`)
+        .eq("organisation_id", membership.organisationId)
+        .eq("assignee_membership_id", membership.membershipId)
+        .eq("job_updates.type", "note")
+        .is("job_assets.archived_at", null)
+        .neq("status", "archived")
+        .in("id", [...jobIds])
+    : supabase
+        .from("jobs")
+        .select(JOB_FIELDS)
+        .eq("organisation_id", membership.organisationId)
+        .in("id", [...jobIds])
+
+  const { data, error } = await query
+  if (error) throw new Error("Unable to load live jobs")
+
+  const jobs = workerScope
+    ? (data ?? []).map((row) => toEmployeeJobCard(row as EmployeeJobRow))
+    : (data ?? []).map((row) => toJobCard(row as JobRow))
+  const returnedIds = new Set(jobs.map((job) => job.id))
+  return {
+    jobs,
+    removedIds: jobIds.filter((jobId) => !returnedIds.has(jobId)),
+  }
 }
 
 export const getOwnerJobAggregates = cache(

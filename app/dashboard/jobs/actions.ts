@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 
@@ -523,21 +524,23 @@ export async function submitJobAction(
 
   refreshJobViews(employee.membershipId)
   if (submission.submission_update_id) {
-    try {
-      const { data: deliveries } = await createAdminClient()
-        .from("job_notification_deliveries")
-        .select("id")
-        .eq("organisation_id", employee.organisationId)
-        .eq("submission_update_id", submission.submission_update_id)
-      const origin = await getRequestOrigin()
-      await Promise.allSettled(
-        (deliveries ?? []).map((delivery) =>
-          deliverJobSubmissionEmail(delivery.id, origin)
+    after(async () => {
+      try {
+        const origin = await getRequestOrigin()
+        const { data: deliveries } = await createAdminClient()
+          .from("job_notification_deliveries")
+          .select("id")
+          .eq("organisation_id", employee.organisationId)
+          .eq("submission_update_id", submission.submission_update_id)
+        await Promise.allSettled(
+          (deliveries ?? []).map((delivery) =>
+            deliverJobSubmissionEmail(delivery.id, origin)
+          )
         )
-      )
-    } catch {
-      // Submission is complete even when the non-transactional email fails.
-    }
+      } catch {
+        // Submission is complete even when the non-transactional email fails.
+      }
+    })
   }
   return { message: "Job submitted for review.", ok: true }
 }

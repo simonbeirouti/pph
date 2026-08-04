@@ -124,6 +124,7 @@ export function OfflineV2Provider({
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
   const refreshInFlightRef = useRef<Promise<void> | null>(null)
+  const refreshQueuedRef = useRef(false)
   const lastRefreshAtRef = useRef(0)
   const repositoryStateRef = useRef<OfflineRepositoryState>("preparing")
   const repositoryWaitersRef = useRef(new Set<(ready: boolean) => void>())
@@ -474,8 +475,15 @@ export function OfflineV2Provider({
   }, [reloadLocalState])
 
   const refresh = useCallback(() => {
-    if (refreshInFlightRef.current) return refreshInFlightRef.current
-    const refreshPromise = performRefresh().finally(() => {
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      return refreshInFlightRef.current
+    }
+    const refreshPromise = runTrailingRefreshLoop(
+      refreshQueuedRef,
+      performRefresh,
+      () => navigator.onLine
+    ).finally(() => {
       if (refreshInFlightRef.current === refreshPromise) {
         refreshInFlightRef.current = null
       }
@@ -793,6 +801,17 @@ export function useOfflineV2() {
 
 export function useOptionalOfflineV2() {
   return useContext(OfflineV2Context)
+}
+
+export async function runTrailingRefreshLoop(
+  queued: { current: boolean },
+  performRefresh: () => Promise<void>,
+  canRepeat: () => boolean
+) {
+  do {
+    queued.current = false
+    await performRefresh()
+  } while (queued.current && canRepeat())
 }
 
 async function preparePendingUploads(operations: OfflineV2Operation[]) {

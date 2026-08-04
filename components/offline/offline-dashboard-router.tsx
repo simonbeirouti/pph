@@ -199,6 +199,7 @@ export function CachedDashboardRoutes() {
     )
     return (
       <JobsScreen
+        archivePagination={snapshot.jobs.archivePagination}
         detail={detail}
         employees={snapshot.jobs.employees}
         filterActive={Boolean(statusFilter || priority)}

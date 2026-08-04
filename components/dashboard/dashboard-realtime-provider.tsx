@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation"
 
 import { useOfflineV2 } from "@/components/offline/offline-v2-provider"
+import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import {
   parseRealtimeInvalidation,
@@ -61,21 +62,31 @@ export function DashboardRealtimeProvider({
   const listenersRef = useRef(
     new Map<InvalidationListener, ReadonlySet<RealtimeDomain>>()
   )
+  const offlineRef = useRef(offline)
+  const seenEventIdsRef = useRef(new Set<string>())
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const degradedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hiddenAtRef = useRef<number | null>(null)
   const subscribedOnceRef = useRef(false)
 
+  useEffect(() => {
+    offlineRef.current = offline
+  }, [offline])
+
+  const refreshNow = useCallback(() => {
+    window.dispatchEvent(new Event("pph:offline-invalidate"))
+    if (offlineRef.current.viewSource === "server") {
+      startTransition(() => router.refresh())
+    }
+  }, [router])
+
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null
-      window.dispatchEvent(new Event("pph:offline-invalidate"))
-      if (offline.viewSource === "server") {
-        startTransition(() => router.refresh())
-      }
+      refreshNow()
     }, REFRESH_DEBOUNCE_MS)
-  }, [offline.viewSource, router])
+  }, [refreshNow])
 
   const markDisconnected = useCallback(() => {
     setStatus("connecting")
@@ -89,12 +100,8 @@ export function DashboardRealtimeProvider({
   useEffect(() => {
     const handleOnline = () => setBrowserOnline(true)
     const handleOffline = () => {
-      if (degradedTimerRef.current) {
-        clearTimeout(degradedTimerRef.current)
-        degradedTimerRef.current = null
-      }
-      setStatus("connecting")
       setBrowserOnline(false)
+      markDisconnected()
     }
     window.addEventListener("online", handleOnline)
     window.addEventListener("offline", handleOffline)
@@ -102,7 +109,17 @@ export function DashboardRealtimeProvider({
       window.removeEventListener("online", handleOnline)
       window.removeEventListener("offline", handleOffline)
     }
-  }, [])
+  }, [markDisconnected])
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void supabase.realtime.setAuth(session?.access_token)
+        scheduleRefresh()
+      }
+    })
+    return () => data.subscription.unsubscribe()
+  }, [scheduleRefresh, supabase])
 
   useEffect(() => {
     if (!browserOnline) return
@@ -117,6 +134,12 @@ export function DashboardRealtimeProvider({
         ({ payload }) => {
           const event = parseRealtimeInvalidation(payload)
           if (!event) return
+          if (seenEventIdsRef.current.has(event.eventId)) return
+          seenEventIdsRef.current.add(event.eventId)
+          if (seenEventIdsRef.current.size > 500) {
+            const oldest = seenEventIdsRef.current.values().next().value
+            if (oldest) seenEventIdsRef.current.delete(oldest)
+          }
 
           for (const [listener, domains] of listenersRef.current) {
             if (domains.has(event.domain)) listener(event)
@@ -149,7 +172,6 @@ export function DashboardRealtimeProvider({
     return () => {
       active = false
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
-      if (degradedTimerRef.current) clearTimeout(degradedTimerRef.current)
       void supabase.removeChannel(channel)
     }
   }, [
@@ -161,6 +183,14 @@ export function DashboardRealtimeProvider({
     scheduleRefresh,
     supabase,
   ])
+
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+      if (degradedTimerRef.current) clearTimeout(degradedTimerRef.current)
+    },
+    []
+  )
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -197,6 +227,22 @@ export function DashboardRealtimeProvider({
   return (
     <RealtimeContext.Provider value={context}>
       {children}
+      {status === "degraded" ? (
+        <div
+          className="fixed right-4 bottom-4 z-50 flex items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm shadow-lg"
+          role="status"
+        >
+          <span>Live updates paused</span>
+          <Button
+            onClick={refreshNow}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Refresh
+          </Button>
+        </div>
+      ) : null}
       <span
         aria-hidden="true"
         className="sr-only"
@@ -225,6 +271,22 @@ export function useRealtimeInvalidations(
       ),
     [domainKey, listener, subscribe]
   )
+}
+
+export function useOptionalRealtimeInvalidations(
+  domains: readonly RealtimeDomain[],
+  listener: InvalidationListener
+) {
+  const context = useContext(RealtimeContext)
+  const domainKey = domains.join("|")
+
+  useEffect(() => {
+    if (!context) return
+    return context.subscribe(
+      domainKey ? (domainKey.split("|") as RealtimeDomain[]) : [],
+      listener
+    )
+  }, [context, domainKey, listener])
 }
 
 function useRealtimeContext() {

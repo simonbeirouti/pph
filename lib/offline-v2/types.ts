@@ -8,6 +8,7 @@ import type {
 } from "@/lib/employees/data"
 import type {
   EmployeeJobSummary,
+  JobArchivePagination,
   JobBoardEmployee,
   JobCard,
   JobDetail,
@@ -24,7 +25,7 @@ import type {
   TemplateEmployee,
 } from "@/lib/templates/types"
 
-export const OFFLINE_V2_SCHEMA_VERSION = 3
+export const OFFLINE_V2_SCHEMA_VERSION = 4
 export const OFFLINE_V2_LEASE_MS = 7 * 24 * 60 * 60 * 1000
 
 export type OfflineRole = "owner" | "manager" | "employee"
@@ -42,6 +43,7 @@ export type OfflineMembership = {
 }
 
 export type OfflineJobBoardData = {
+  archivePagination: JobArchivePagination
   employees: JobBoardEmployee[]
   jobs: JobCard[]
   rosterShifts: JobRosterShiftOption[]

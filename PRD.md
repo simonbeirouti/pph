@@ -109,6 +109,49 @@ and background synchronisation.
 ## Delivery register
 
 - S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 realtime review and performance hardening: diagnosed the missing
+  owner-column move as a slow full-snapshot path combined with an in-flight
+  refresh dedupe race that could swallow the submission invalidation. The jobs
+  screen now batches parent job IDs from private broadcasts, fetches only the
+  affected versioned cards through authenticated `GET /api/jobs/live`, and
+  moves submitted work directly from Assigned to To review while preserving
+  pending offline mutations. The stable realtime channel deduplicates event
+  IDs, catches up after reconnect, token refresh, foreground return, and manual
+  refresh, and exposes a self-clearing “Live updates paused” recovery action.
+  The offline reconciler now guarantees a trailing revision sync when an event
+  arrives during an in-flight request. Submission email delivery runs through
+  Next.js `after()` after the committed response without changing its delivery
+  ledger, idempotency, or retry contract.
+- 2026-08-04 realtime review storage/database checkpoint: additive migration
+  `20260804074843_realtime_review_performance_hardening.sql` establishes the
+  parent-job invalidation contract, adds the RLS-respecting bounded employee
+  summary RPC, and adds the partial active-job organisation/update index. The
+  offline schema is v4 and prepares all active team jobs plus the newest 15
+  archives and details; older archives remain paginated online. Focused Vitest
+  (7 files / 27 tests), changed-file Prettier/ESLint, TypeScript, the production
+  build, and `git diff --check` pass. A focused multi-session Playwright
+  checkpoint covers employee submissions visible to manager/owner, manager
+  submissions requiring owner review, the two-second budget, and a deliberately
+  held stale owner sync. The linked production database was updated through the
+  repository `supa` wrapper on 2026-08-04; remote migration history now matches
+  local through `20260804074843`, RPC privileges are authenticated-only, and a
+  forced representative `EXPLAIN` confirms
+  `jobs_organisation_active_updated_idx` is usable. S12 remains **NO-GO**
+  because the local Docker/Supabase stack is not running, so the full pgTAP set
+  and repeated production-build Playwright checkpoint could not execute.
+  Production must also monitor card-move latency, reconnect recovery,
+  trailing-sync frequency, and deferred email failures after deployment. No
+  environment variables were added or changed.
+- 2026-08-04 cached-shell job-detail regression: prepared dashboard users can
+  open, switch, and close job details from `/dashboard/jobs` again. The shared
+  detail controller now follows prop-driven detail changes from the cached
+  dashboard router without remounting while preserving direct navigation,
+  history, snapshot, and online-refresh behavior. Added focused controller
+  coverage for open/switch/close transitions. Changed-file Prettier/ESLint, 3
+  Vitest files / 22 tests, TypeScript, and `git diff --check` pass. The focused
+  mobile Playwright drawer regression remains deferred because the local Docker
+  daemon/Supabase stack is not running. No environment-variable or database
+  change is required.
 - 2026-08-04 deployment asset-cache regression: public shell cache v11 keeps a
   prepared cached shell coherent with its cached immutable Next.js assets when
   Vercel removes an older deployment's chunks. Online dashboard navigation also

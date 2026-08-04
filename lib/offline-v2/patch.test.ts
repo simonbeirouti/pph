@@ -168,6 +168,12 @@ describe("offline v2 patches", () => {
     const local = {
       ...snapshot,
       jobs: {
+        archivePagination: {
+          page: 1,
+          pageSize: 15,
+          total: 0,
+          totalPages: 1,
+        },
         employees: [],
         jobs: [card(1401, "assigned"), card(1402, "in_progress")],
         rosterShifts: [],
