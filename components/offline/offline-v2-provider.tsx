@@ -26,6 +26,7 @@ import {
   persistOfflineV2Snapshot,
   putOfflineV2Operation,
   purgeOfflineV2Data,
+  deleteOfflineV2Database,
 } from "@/lib/offline-v2/storage"
 import { logoutAction } from "@/app/dashboard/actions"
 import {
@@ -85,6 +86,8 @@ type OfflineV2ContextValue = {
   syncState: OfflineRepositorySyncState
   usesLocalRepository: boolean
   viewSource: "cache" | "server"
+  workspaceRecoveryRequired: boolean
+  recoverWorkspace: () => Promise<void>
   updateSnapshot: (
     updater: (snapshot: OfflineV2Snapshot) => OfflineV2Snapshot
   ) => Promise<void>
@@ -93,6 +96,7 @@ type OfflineV2ContextValue = {
 const OfflineV2Context = createContext<OfflineV2ContextValue | null>(null)
 const FOREGROUND_STALE_MS = 30_000
 const REPOSITORY_PREPARATION_WAIT_MS = 10_000
+const WORKSPACE_RECOVERY_WAIT_MS = 10_000
 
 export function OfflineV2Provider({
   cachedShell = false,
@@ -114,6 +118,8 @@ export function OfflineV2Provider({
   const [repositoryState, setRepositoryState] =
     useState<OfflineRepositoryState>("preparing")
   const [syncState, setSyncState] = useState<OfflineRepositorySyncState>("idle")
+  const [workspaceRecoveryRequired, setWorkspaceRecoveryRequired] =
+    useState(false)
   const [currentPath, setCurrentPath] = useState("/dashboard")
   const snapshotStateRef = useRef<OfflineV2Snapshot | null>(null)
   const snapshotRevisionRef = useRef(0)
@@ -478,39 +484,60 @@ export function OfflineV2Provider({
     return refreshPromise
   }, [performRefresh])
 
+  const recoverWorkspace = useCallback(async () => {
+    await Promise.all([
+      deleteOfflineV2Database(),
+      clearOfflineRepositoryPrepared(navigator.serviceWorker, window.caches),
+    ])
+    window.location.reload()
+  }, [])
+
   useEffect(() => {
     let cancelled = false
+    const recoveryTimeout = window.setTimeout(() => {
+      if (!cancelled && repositoryStateRef.current === "preparing") {
+        setWorkspaceRecoveryRequired(true)
+      }
+    }, WORKSPACE_RECOVERY_WAIT_MS)
     void (async () => {
-      setIsOnline(navigator.onLine)
-      setNetworkReachability(navigator.onLine ? "online" : "offline")
-      setCurrentPath(`${window.location.pathname}${window.location.search}`)
-      const logoutPending = await Promise.race([
-        isOfflineLogoutPending(),
-        new Promise<false>((resolve) =>
-          window.setTimeout(() => resolve(false), 1_000)
-        ),
-      ])
-      if (logoutPending) {
-        if (navigator.onLine) {
-          await logoutAction()
+      try {
+        setIsOnline(navigator.onLine)
+        setNetworkReachability(navigator.onLine ? "online" : "offline")
+        setCurrentPath(`${window.location.pathname}${window.location.search}`)
+        const logoutPending = await Promise.race([
+          isOfflineLogoutPending(),
+          new Promise<false>((resolve) =>
+            window.setTimeout(() => resolve(false), 1_000)
+          ),
+        ])
+        if (logoutPending) {
+          if (navigator.onLine) {
+            await logoutAction()
+            return
+          }
+          setSnapshot(null)
+          snapshotStateRef.current = null
+          setRepositoryState("unavailable")
+          setStatus("cold")
           return
         }
-        setSnapshot(null)
-        snapshotStateRef.current = null
-        setRepositoryState("unavailable")
-        setStatus("cold")
-        return
+        await Promise.race([
+          migrateLegacyOfflineData(),
+          new Promise<void>((resolve) => window.setTimeout(resolve, 1_000)),
+        ])
+        if (cancelled) return
+        await reloadLocalState()
+        if (!cancelled && navigator.onLine) await refresh()
+      } catch (error) {
+        console.error("Unable to open the offline workspace.", error)
+        if (!cancelled) setWorkspaceRecoveryRequired(true)
+      } finally {
+        window.clearTimeout(recoveryTimeout)
       }
-      await Promise.race([
-        migrateLegacyOfflineData(),
-        new Promise<void>((resolve) => window.setTimeout(resolve, 1_000)),
-      ])
-      if (cancelled) return
-      await reloadLocalState()
-      if (!cancelled && navigator.onLine) await refresh()
     })()
     return () => {
       cancelled = true
+      window.clearTimeout(recoveryTimeout)
     }
   }, [refresh, reloadLocalState])
 
@@ -707,6 +734,7 @@ export function OfflineV2Provider({
       navigate,
       operations,
       queueOperation,
+      recoverWorkspace,
       refresh,
       repositoryState,
       snapshot,
@@ -715,6 +743,7 @@ export function OfflineV2Provider({
       usesLocalRepository: viewSource === "cache",
       updateSnapshot,
       viewSource,
+      workspaceRecoveryRequired,
     }),
     [
       canQueueOfflineMutation,
@@ -725,6 +754,7 @@ export function OfflineV2Provider({
       operations,
       networkReachability,
       queueOperation,
+      recoverWorkspace,
       refresh,
       repositoryState,
       snapshot,
@@ -732,6 +762,7 @@ export function OfflineV2Provider({
       syncState,
       updateSnapshot,
       viewSource,
+      workspaceRecoveryRequired,
     ]
   )
 

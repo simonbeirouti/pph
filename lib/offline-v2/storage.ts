@@ -39,6 +39,39 @@ type OfflineIdentityKey = {
 
 let databasePromise: Promise<IDBDatabase> | null = null
 
+export async function deleteOfflineV2Database() {
+  const pendingDatabase = databasePromise
+  databasePromise = null
+
+  if (pendingDatabase) {
+    void pendingDatabase.then((database) => database.close()).catch(() => {})
+    try {
+      const database = await Promise.race([
+        pendingDatabase,
+        new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), 250)
+        ),
+      ])
+      database?.close()
+    } catch {
+      // A failed open must not prevent deleting the damaged database.
+    }
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DATABASE_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () =>
+      reject(request.error ?? new Error("Unable to delete offline storage"))
+    request.onblocked = () =>
+      reject(
+        new Error(
+          "Offline storage is open in another tab. Close other tabs and retry."
+        )
+      )
+  })
+}
+
 function openDatabase() {
   if (databasePromise) return databasePromise
   databasePromise = new Promise<IDBDatabase>((resolve, reject) => {

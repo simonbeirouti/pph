@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardHomeScreen } from "@/components/dashboard/dashboard-home-screen"
 import { EmployeeProfileScreen } from "@/components/employees/employee-profile-screen"
@@ -62,7 +62,54 @@ export function OfflineDashboardBoundary({
 }
 
 export function CachedDashboardRoutes() {
-  const { currentPath, navigate, snapshot, status } = useOfflineV2()
+  const {
+    currentPath,
+    navigate,
+    recoverWorkspace,
+    snapshot,
+    status,
+    workspaceRecoveryRequired,
+  } = useOfflineV2()
+  const [recoveryPending, setRecoveryPending] = useState(false)
+  const [recoveryError, setRecoveryError] = useState<string | null>(null)
+  if (!snapshot && workspaceRecoveryRequired) {
+    return (
+      <OfflineUnavailable
+        title="Workspace storage needs attention"
+        description="This device could not open its saved workspace. Clearing local workspace data will remove any changes that have not synced, then reload the app."
+        action={
+          <div className="space-y-3">
+            <Button
+              disabled={recoveryPending}
+              onClick={() => {
+                setRecoveryPending(true)
+                setRecoveryError(null)
+                void recoverWorkspace().catch((error: unknown) => {
+                  setRecoveryPending(false)
+                  setRecoveryError(
+                    error instanceof Error
+                      ? error.message
+                      : "Local workspace data could not be cleared."
+                  )
+                })
+              }}
+              type="button"
+              variant="destructive"
+            >
+              {recoveryPending
+                ? "Clearing local data…"
+                : "Clear local data and retry"}
+            </Button>
+            {recoveryError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {recoveryError}
+              </p>
+            ) : null}
+          </div>
+        }
+      />
+    )
+  }
   if (!snapshot && status === "preparing") {
     return (
       <p className="sr-only" role="status">

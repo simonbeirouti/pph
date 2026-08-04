@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
     snapshot: null,
     status: "preparing" as "cold" | "preparing",
     viewSource: "server" as "cache" | "server",
+    workspaceRecoveryRequired: false,
+    recoverWorkspace: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -33,6 +35,8 @@ afterEach(() => {
   mocks.state.repositoryState = "preparing"
   mocks.state.status = "preparing"
   mocks.state.viewSource = "server"
+  mocks.state.workspaceRecoveryRequired = false
+  mocks.state.recoverWorkspace.mockClear()
 })
 
 describe("OfflineDashboardBoundary", () => {
@@ -76,6 +80,9 @@ describe("OfflineDashboardBoundary", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Opening workspace")
     expect(
+      screen.queryByRole("button", { name: "Clear local data and retry" })
+    ).not.toBeInTheDocument()
+    expect(
       screen.queryByText("Connect once to prepare this device")
     ).not.toBeInTheDocument()
   })
@@ -87,5 +94,20 @@ describe("OfflineDashboardBoundary", () => {
     expect(
       screen.getByText("Connect once to prepare this device")
     ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Clear local data and retry" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows and runs destructive recovery only when workspace opening fails", () => {
+    mocks.state.workspaceRecoveryRequired = true
+    render(<CachedDashboardRoutes />)
+
+    expect(screen.getByText("Workspace storage needs attention")).toBeVisible()
+    const recovery = screen.getByRole("button", {
+      name: "Clear local data and retry",
+    })
+    fireEvent.click(recovery)
+    expect(mocks.state.recoverWorkspace).toHaveBeenCalledOnce()
   })
 })

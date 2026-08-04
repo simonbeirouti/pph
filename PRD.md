@@ -120,3 +120,12 @@ and background synchronisation.
   and `git diff --check` pass. The deployment-transition Playwright regression
   is implemented but still needs execution against the seeded browser stack.
   No environment-variable or database change is required.
+- 2026-08-04 local workspace recovery: when cached-shell repository opening
+  fails or remains stuck for ten seconds, the otherwise hidden opening state is
+  replaced with a styled recovery card. Its destructive action is available
+  only in that failure state, warns that unsynchronised local changes will be
+  removed, deletes the `pph-offline-v2` IndexedDB database, clears the public
+  readiness marker, and reloads for a clean bootstrap. Changed-file
+  Prettier/ESLint, 2 Vitest files / 12 tests, TypeScript, the production build,
+  and `git diff --check` pass. No environment-variable or database migration is
+  required.

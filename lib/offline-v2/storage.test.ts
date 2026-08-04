@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import {
   commitOfflineV2Operation,
   commitOfflineV2Sync,
+  deleteOfflineV2Database,
   getOfflineV2Blob,
   getOfflineV2Identity,
   getOfflineV2Operations,
@@ -80,6 +81,16 @@ afterEach(async () => {
 })
 
 describe("offline v2 IndexedDB", () => {
+  it("deletes a damaged database and allows a clean reopen", async () => {
+    await persistOfflineV2Snapshot(snapshot())
+
+    await deleteOfflineV2Database()
+
+    expect(await getOfflineV2Snapshot()).toBeNull()
+    await persistOfflineV2Snapshot(snapshot(2103, 2001))
+    expect((await getOfflineV2Snapshot())?.membership.membershipId).toBe(2103)
+  })
+
   it("upgrades an expired avatar URL to the stable authenticated endpoint", async () => {
     const legacy = snapshot()
     legacy.profile.avatarPath =
