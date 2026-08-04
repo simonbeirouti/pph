@@ -120,7 +120,6 @@ export async function createCalendarRosterShiftAction(
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/jobs")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${parsed.data.employeeMembershipId}`)
   revalidatePath("/dashboard")
 
   return {
@@ -178,7 +177,6 @@ export async function updateCalendarRosterShiftAction(input: {
 
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${parsed.data.employeeMembershipId}`)
   revalidatePath("/dashboard")
   return {
     message: "Shift updated.",
@@ -276,8 +274,6 @@ export async function editCalendarRosterShiftAction(
 
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${originalEmployeeMembershipId}`)
-  revalidatePath(`/dashboard/employees/${parsed.data.employeeMembershipId}`)
   revalidatePath("/dashboard")
   return {
     message: "Shift updated.",
@@ -334,7 +330,6 @@ export async function setCalendarRosterShiftLockAction(input: {
 
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${parsed.data.employeeMembershipId}`)
   return {
     message: parsed.data.locked ? "Shift locked." : "Shift unlocked.",
     ok: true,

@@ -139,7 +139,6 @@ export async function saveEmployeeRosterShiftAction(
 
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${employeeMembershipId}`)
   revalidatePath("/dashboard")
 
   return {
@@ -189,7 +188,6 @@ export async function archiveEmployeeRosterShiftAction(
 
   revalidatePath("/dashboard/roster")
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${employeeMembershipId}`)
   revalidatePath("/dashboard/jobs")
   revalidatePath("/dashboard")
   return { message: "Shift deleted.", ok: true }

@@ -151,7 +151,7 @@ function EmployeeProfileFieldControls({
           />
           <button
             aria-label="Upload profile photo"
-            className="relative grid aspect-square size-24 shrink-0 place-items-center overflow-hidden rounded-full border bg-muted text-xl font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="relative grid aspect-square size-24 shrink-0 place-items-center overflow-hidden rounded-full border bg-muted text-xl font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={() => avatarInputRef.current?.click()}
             type="button"
           >
@@ -393,7 +393,7 @@ export function EmployeeForm({
               {state.destinationId && showDestinationLink ? (
                 <Link
                   className="underline"
-                  href={`/dashboard/employees/${state.destinationId}`}
+                  href={`/dashboard/employees?employee=${state.destinationId}`}
                   prefetch={false}
                 >
                   View employee
@@ -459,9 +459,7 @@ export function EmployeeForm({
         ) : null}
         {!showSubmitWhenDirty || fieldsDirty || externalDirty ? (
           <div
-            className={
-              fullWidthSubmit ? "grid w-full" : "flex flex-wrap gap-3"
-            }
+            className={fullWidthSubmit ? "grid w-full" : "flex flex-wrap gap-3"}
           >
             <Button
               className={fullWidthSubmit ? "w-full" : undefined}

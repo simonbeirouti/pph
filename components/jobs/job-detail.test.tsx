@@ -703,19 +703,24 @@ describe("job detail surfaces", () => {
       expect(follows(jobDetails, evidence)).toBe(true)
       expect(follows(evidence, history)).toBe(true)
       expect(
-        screen.queryByText("Existing conversation")
-      ).not.toBeInTheDocument()
-      expect(
         screen.queryByRole("button", { name: "Comments" })
       ).not.toBeInTheDocument()
-      expect(history).toHaveAttribute("aria-expanded", "false")
-      fireEvent.click(history)
+      expect(history).toHaveAttribute(
+        "aria-expanded",
+        role === "owner" ? "true" : "false"
+      )
+      if (role === "employee") {
+        expect(
+          screen.queryByText("Existing conversation")
+        ).not.toBeInTheDocument()
+        fireEvent.click(history)
+      }
       expect(screen.getByText("Existing conversation")).toBeVisible()
     }
   )
 
-  it("uses the forty-percent owner review sheet", () => {
-    const timeline = Array.from({ length: 4 }, (_, index) => ({
+  it("uses a narrower owner review sheet with the three latest history events open", () => {
+    const timeline = Array.from({ length: 7 }, (_, index) => ({
       authorMembershipId: 1103,
       body: `Owner history ${index + 1}`,
       createdAt: `2026-07-27T0${index}:00:00.000Z`,
@@ -734,6 +739,18 @@ describe("job detail surfaces", () => {
               role: "employee",
             },
           ],
+          notifications: [
+            {
+              attemptCount: 1,
+              createdAt: "2026-07-27T07:00:00.000Z",
+              errorMessage: null,
+              id: 1701,
+              lastAttemptedAt: "2026-07-27T07:00:00.000Z",
+              recipientEmail: "morgan@example.com",
+              sentAt: "2026-07-27T07:00:00.000Z",
+              status: "sent",
+            },
+          ],
           status: "in_review",
           timeline,
         }}
@@ -747,8 +764,8 @@ describe("job detail surfaces", () => {
     )
     expect(sheet).toHaveClass(
       "data-[side=right]:w-full",
-      "data-[side=right]:sm:w-[40vw]",
-      "data-[side=right]:sm:max-w-[40vw]"
+      "data-[side=right]:sm:w-[32rem]",
+      "data-[side=right]:sm:max-w-[32rem]"
     )
     expect(
       screen.getByRole("button", { name: "Approve and archive" })
@@ -761,23 +778,45 @@ describe("job detail surfaces", () => {
       screen.queryByText("Submission requirements")
     ).not.toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "History, 4 updates" })
-    ).toHaveAttribute("aria-expanded", "false")
+      screen.getByRole("button", { name: "History, 8 updates" })
+    ).toHaveAttribute("aria-expanded", "true")
     expect(
       screen.queryByRole("button", { name: "Comments" })
     ).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Add comment")).not.toBeInTheDocument()
-    expect(screen.queryByText("Owner history 4")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "History, 4 updates" }))
-    expect(screen.getByText("Owner history 4")).toBeVisible()
+    expect(screen.getByText("Owner history 7")).toBeVisible()
+    expect(screen.getByText("Owner history 6")).toBeVisible()
+    expect(screen.queryByText("Owner history 5")).not.toBeInTheDocument()
+    expect(screen.queryByText("Owner history 1")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }))
+    expect(screen.getByText("Owner history 5")).toBeVisible()
     expect(screen.getByText("Owner history 2")).toBeVisible()
     expect(screen.queryByText("Owner history 1")).not.toBeInTheDocument()
+    const historyContent = container.ownerDocument.querySelector(
+      '[data-slot="accordion-content"]'
+    ) as HTMLElement
+    const actionFooter = container.ownerDocument.querySelector(
+      '[data-slot="sheet-footer"]'
+    ) as HTMLElement
     expect(
-      container.ownerDocument.querySelector('[data-slot="sheet-footer"]')
-    ).toHaveClass("shrink-0", "border-t")
+      within(historyContent).getByText("Submission email: sent")
+    ).toBeVisible()
+    expect(within(historyContent).getByText("morgan@example.com")).toBeVisible()
+    expect(
+      within(actionFooter).queryByText("Submission email: sent")
+    ).not.toBeInTheDocument()
+    expect(actionFooter).toHaveClass("shrink-0", "border-t")
+    expect(
+      container.ownerDocument.querySelector('[data-slot="scroll-area"]')
+    ).toHaveClass("min-h-0", "flex-1", "overflow-hidden")
+    expect(
+      container.ownerDocument.querySelector(
+        '[data-slot="scroll-area-viewport"]'
+      )
+    ).toBeInTheDocument()
   })
 
-  it("reveals job history three entries at a time", () => {
+  it("starts with three history entries and reveals four more", () => {
     const timeline = Array.from({ length: 7 }, (_, index) => ({
       authorMembershipId: 1103,
       body: `History entry ${index + 1}`,
@@ -800,10 +839,8 @@ describe("job detail surfaces", () => {
     expect(screen.queryByText("History entry 4")).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Show more" }))
+    expect(screen.getByText("History entry 4")).toBeVisible()
     expect(screen.getByText("History entry 2")).toBeVisible()
-    expect(screen.queryByText("History entry 1")).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole("button", { name: "Show more" }))
     expect(screen.getByText("History entry 1")).toBeVisible()
     expect(
       screen.queryByRole("button", { name: "Show more" })

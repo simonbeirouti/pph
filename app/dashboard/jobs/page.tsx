@@ -14,6 +14,7 @@ export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{
+    employee?: string | string[]
     job?: string | string[]
     mode?: string | string[]
     page?: string | string[]
@@ -25,6 +26,11 @@ export default async function Page({
   const membership = await requireActiveMembership()
   const params = await searchParams
   const rawJobId = params.job
+  const rawEmployeeId = params.employee
+  const selectedEmployeeId =
+    typeof rawEmployeeId === "string" && /^[1-9]\d*$/.test(rawEmployeeId)
+      ? Number(rawEmployeeId)
+      : null
   const selectedJobId =
     typeof rawJobId === "string" && /^[1-9]\d*$/.test(rawJobId)
       ? Number(rawJobId)
@@ -55,6 +61,7 @@ export default async function Page({
       ? "my-work"
       : "team"
   if (
+    (rawEmployeeId !== undefined && !selectedEmployeeId) ||
     (params.status !== undefined && !status) ||
     (params.priority !== undefined && !priority) ||
     (params.mode !== undefined &&
@@ -96,6 +103,14 @@ export default async function Page({
     getOwnerJobsPageData(archivePage, ARCHIVE_PAGE_SIZE),
     selectedJobId ? getJobDetail(selectedJobId) : null,
   ])
+  if (
+    selectedEmployeeId &&
+    !data.employees.some(
+      (employee) => employee.membershipId === selectedEmployeeId
+    )
+  ) {
+    notFound()
+  }
   if (selectedJobId && !detail) notFound()
   if (archivePage > data.archivePagination.totalPages) notFound()
   const filteredJobs = data.jobs.filter(
@@ -112,7 +127,8 @@ export default async function Page({
       archivePagination={data.archivePagination}
       detail={detail}
       employees={data.employees}
-      filterActive={Boolean(status || priority)}
+      filterActive={Boolean(status || priority || selectedEmployeeId)}
+      initialEmployeeFilter={selectedEmployeeId}
       jobs={filteredJobs}
       mode={mode}
       role={membership.role}

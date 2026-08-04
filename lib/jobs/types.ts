@@ -82,6 +82,7 @@ export type JobTimelineItem = {
 
 export type JobNotificationDelivery = {
   attemptCount: number
+  createdAt: string
   errorMessage: string | null
   id: number
   lastAttemptedAt: string | null

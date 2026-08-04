@@ -278,7 +278,6 @@ export async function updateEmployeeAction(
       warnings.push("Profile saved, but the avatar was not updated.")
   }
 
-  revalidatePath(`/dashboard/employees/${membershipId}`)
   revalidatePath("/dashboard/employees")
   return { message: "Employee profile updated.", ok: true, warnings }
 }
@@ -348,7 +347,6 @@ export async function changeMembershipRoleAction(
     p_role: role,
   })
   revalidatePath("/dashboard/employees")
-  revalidatePath(`/dashboard/employees/${membershipId}`)
   return error
     ? { message: error.message, ok: false }
     : { message: `Role changed to ${role}.`, ok: true }
@@ -363,7 +361,6 @@ export async function employeeAccessAction(
     membershipId,
     formData.get("active") === "true"
   )
-  revalidatePath(`/dashboard/employees/${membershipId}`)
   revalidatePath("/dashboard/employees")
   return result
 }
@@ -418,7 +415,6 @@ export async function resendEmployeeInvitationAction(
     email: employee.email,
     membershipId,
   })
-  revalidatePath(`/dashboard/employees/${membershipId}`)
   revalidatePath("/dashboard/employees")
 
   return {

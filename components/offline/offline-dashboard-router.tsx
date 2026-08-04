@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardHomeScreen } from "@/components/dashboard/dashboard-home-screen"
-import { EmployeeProfileScreen } from "@/components/employees/employee-profile-screen"
 import { EmployeesScreen } from "@/components/employees/employees-screen"
 import type { EmployeeStatusFilterValue } from "@/components/employees/employee-status-filter"
 import { JobsScreen } from "@/components/jobs/jobs-screen"
@@ -189,6 +188,7 @@ export function CachedDashboardRoutes() {
     }
     const statusFilter = url.searchParams.get("status")
     const priority = url.searchParams.get("priority")
+    const employeeFilter = positiveInteger(url.searchParams.get("employee"))
     const jobs = snapshot.jobs.jobs.filter(
       (job) =>
         (!statusFilter ||
@@ -202,7 +202,8 @@ export function CachedDashboardRoutes() {
         archivePagination={snapshot.jobs.archivePagination}
         detail={detail}
         employees={snapshot.jobs.employees}
-        filterActive={Boolean(statusFilter || priority)}
+        filterActive={Boolean(statusFilter || priority || employeeFilter)}
+        initialEmployeeFilter={employeeFilter}
         jobs={jobs}
         mode={mode}
         role={membership.role}
@@ -295,6 +296,12 @@ export function CachedDashboardRoutes() {
       rawStatus && EMPLOYEE_STATUSES.has(rawStatus as EmployeeStatusFilterValue)
         ? (rawStatus as EmployeeStatusFilterValue)
         : "all"
+    const rawEmployeeId = url.searchParams.get("employee")
+    const employeeId = Number(rawEmployeeId)
+    const openEmployeeId =
+      rawEmployeeId && Number.isSafeInteger(employeeId) && employeeId > 0
+        ? employeeId
+        : null
     const employees = snapshot.people.employees.filter(
       (employee) =>
         (employeeStatus === "all" || employee.status === employeeStatus) &&
@@ -312,43 +319,11 @@ export function CachedDashboardRoutes() {
           route === "/dashboard/employees/new" ||
           url.searchParams.get("create") === "1"
         }
+        openEmployeeId={openEmployeeId}
         query={url.searchParams.get("q") ?? undefined}
         shiftSummaries={snapshot.people.shiftSummaries}
         status={employeeStatus}
         timezone={membership.timezone}
-      />
-    )
-  }
-
-  const employeeMatch = route.match(/^\/dashboard\/employees\/(\d+)$/)
-  if (employeeMatch) {
-    const membershipId = Number(employeeMatch[1])
-    const employee = snapshot.people?.employees.find(
-      (item) => item.membershipId === membershipId
-    )
-    const jobSummary = snapshot.people?.jobSummaries[membershipId]
-    const shiftSummary = snapshot.people?.shiftSummaries[membershipId]
-    if (
-      employee &&
-      jobSummary &&
-      shiftSummary &&
-      (membership.role === "owner" || membership.role === "manager")
-    ) {
-      return (
-        <EmployeeProfileScreen
-          access={url.searchParams.get("access") ?? undefined}
-          actorRole={membership.role}
-          employee={employee}
-          jobSummary={jobSummary}
-          shiftSummary={shiftSummary}
-          timezone={membership.timezone}
-        />
-      )
-    }
-    return (
-      <OfflineUnavailable
-        title="Employee unavailable"
-        description="This employee is not in the prepared role-scoped data."
       />
     )
   }

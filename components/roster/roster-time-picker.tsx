@@ -37,7 +37,7 @@ export function RosterTimePicker({
 }: {
   "aria-invalid"?: boolean
   id: string
-  label: "Start" | "End"
+  label: string
   name: string
   onChange: (value: string) => void
   value: string
@@ -45,6 +45,9 @@ export function RosterTimePicker({
   const anchorRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const selected = parseClockTime(value) ?? { hour: 9, minute: 0 }
+  const choiceLabel = label.toLocaleLowerCase().endsWith("time")
+    ? label
+    : `${label} time`
 
   const updateHour = (hour: number) => {
     onChange(`${formatPart(hour)}:${formatPart(selected.minute)}`)
@@ -75,7 +78,7 @@ export function RosterTimePicker({
         <PopoverTrigger
           render={
             <Button
-              aria-label={`Choose ${label.toLocaleLowerCase()} time`}
+              aria-label={`Choose ${choiceLabel.toLocaleLowerCase()}`}
               className="absolute top-1/2 right-0.5 -translate-y-1/2"
               size="icon-sm"
               type="button"

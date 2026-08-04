@@ -109,6 +109,37 @@ and background synchronisation.
 ## Delivery register
 
 - S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 desktop sidebar inset polish: the dashboard content panel retains
+  its existing sidebar-facing spacing while preserving the 8px top, bottom, and
+  far-right desktop inset after the sidebar is collapsed. This is a visual-only
+  layout correction; focused Prettier, ESLint, TypeScript, and diff checks pass.
+  No environment-variable, database, RLS, or Storage policy change is required.
+- 2026-08-04 existing-job detail sheet polish: owner and manager job details
+  now use a narrower 32rem desktop sheet, keep the history section open by
+  default, and initially show the three newest events. Show more reveals four
+  additional events at a time for every role, within the sheet's scrollable
+  body so its sticky actions remain accessible. Evidence image treatment is
+  unchanged. Submission-email delivery updates and their retry controls sit in
+  the same chronological history instead of the sticky action footer. The
+  focused component test passes (1 file / 18 tests), as do changed-file
+  Prettier/ESLint, TypeScript, and `git diff --check`. No environment-variable,
+  database, RLS, or Storage policy change is required.
+- 2026-08-04 employee sheet and schedule picker polish: employee management now
+  has one canonical detail surface. The duplicate full-page employee route and
+  cached-route implementation were removed, dashboard roster links open the
+  selected employee directly in the directory sheet, and the sheet uses a
+  wider responsive layout with work and roster summaries side by side when
+  space allows. The summaries are read-only, omit aggregate job-stat cards, and
+  are limited to the three soonest jobs and shifts, while profile inputs form
+  one desktop row and stack on mobile. Each summary links to its full jobs or
+  roster workspace with that employee filter applied. Existing clickable
+  avatar, Email and Call, role, invitation,
+  password, access, and profile controls remain shared in that sheet.
+  Template schedules use the roster's shadcn calendar and time popovers for
+  required local time/start date and optional end date without changing server
+  or offline payloads. Focused component tests pass (10 files / 63 tests), as do
+  changed-file ESLint, TypeScript, and `git diff --check`. No environment-variable,
+  database, RLS, or Storage policy change is required.
 - 2026-08-04 employee job submission integration: employees can now submit
   requirement-complete assigned or in-progress work directly from the open job
   detail surface. The card and detail reuse one eligibility and mutation
@@ -120,7 +151,11 @@ and background synchronisation.
   mistaken for dismissal, while the separate handle, outside press, and Escape
   dismissal remain available. The Pixel 7 journey now submits inside the drawer
   and covers outside-tap and handle-swipe dismissal plus Submitted-tab placement.
-  Focused component tests pass (3 files / 37 tests), as do changed-file
+  Submission also removes the job from the prepared employee dashboard snapshot
+  immediately and promotes the next assigned/in-progress job, preventing stale
+  “Resume” actions after online or offline submission; reopened work remains
+  actionable through its existing return to `assigned`. Focused component tests
+  pass (4 files / 38 tests), as do changed-file
   Prettier/ESLint, TypeScript, and `git diff --check`. The focused Playwright
   checkpoint remains deferred because the local Docker/Supabase stack is not
   running. No environment-variable or database change is required.

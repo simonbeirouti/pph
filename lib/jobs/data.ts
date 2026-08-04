@@ -346,6 +346,7 @@ export const getJobDetail = cache(
       noteCount: timeline.filter((item) => item.type === "note").length,
       notifications: notifications.map((notification) => ({
         attemptCount: notification.attempt_count,
+        createdAt: notification.created_at,
         errorMessage: notification.error_message,
         id: notification.id,
         lastAttemptedAt: notification.last_attempted_at,

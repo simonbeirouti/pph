@@ -111,9 +111,7 @@ describe("TemplateScheduleWorkspace", () => {
     expect(priority).toHaveAttribute("data-slot", "select-trigger")
     expect(priority).toHaveClass("w-full")
     expect(
-      dialog.querySelector(
-        '[data-template-form-row="location-priority"]'
-      )
+      dialog.querySelector('[data-template-form-row="location-priority"]')
     ).toHaveClass("grid-cols-2")
     expect(
       dialog.querySelector('[data-template-form-row="assignee-photos"]')
@@ -126,7 +124,7 @@ describe("TemplateScheduleWorkspace", () => {
     expect(await screen.findAllByRole("option")).toHaveLength(11)
   })
 
-  it("uses shadcn selects in schedule forms and corners schedule actions", async () => {
+  it("uses shadcn selects and roster date/time pickers in schedule forms", async () => {
     const user = userEvent.setup()
     render(
       <TemplateScheduleWorkspace
@@ -178,11 +176,40 @@ describe("TemplateScheduleWorkspace", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Repeats" })
     ).toHaveTextContent("Daily")
+    const localTime = within(dialog).getByLabelText("Local time")
+    const startsOn = within(dialog).getByLabelText("Starts on")
+    const endsOn = within(dialog).getByLabelText("Ends on")
+    expect(localTime).toBeRequired()
+    expect(startsOn).toBeRequired()
+    expect(endsOn).not.toBeRequired()
+    expect(dialog.querySelector('input[type="date"]')).toBeNull()
+    expect(dialog.querySelector('input[type="time"]')).toBeNull()
     for (const row of ["template-assignee", "repeat-time", "dates"]) {
       expect(
         dialog.querySelector(`[data-schedule-form-row="${row}"]`)
       ).toHaveClass("grid-cols-2")
     }
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Choose local time" })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Set hour to 14" })
+    )
+    await user.click(screen.getByRole("button", { name: "Set minute to 30" }))
+    expect(localTime).toHaveValue("14:30")
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Choose starts on" })
+    )
+    const calendar = document.querySelector('[data-slot="calendar"]')
+    expect(calendar).not.toBeNull()
+    const availableDays = Array.from(
+      calendar!.querySelectorAll<HTMLButtonElement>("button[data-day]")
+    ).filter((button) => !button.disabled)
+    expect(availableDays.length).toBeGreaterThan(0)
+    await user.click(availableDays.at(-1)!)
+    expect((startsOn as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 
   it("opens template forms in a bottom drawer on mobile", async () => {

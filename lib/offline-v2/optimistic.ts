@@ -59,6 +59,35 @@ export function updateJobEverywhere(
   }
 }
 
+export function submitJobEverywhere(
+  snapshot: OfflineV2Snapshot,
+  jobId: number,
+  submittedAt: string
+) {
+  const updated = updateJobEverywhere(snapshot, jobId, (job) => ({
+    ...job,
+    status: "in_review",
+    submittedAt,
+  }))
+  const employeeDashboard = updated.dashboard.employee
+  if (!employeeDashboard) return updated
+
+  const actionableJobs = employeeDashboard.jobs.filter(
+    (job) => job.status === "assigned" || job.status === "in_progress"
+  )
+  return {
+    ...updated,
+    dashboard: {
+      ...updated.dashboard,
+      employee: {
+        ...employeeDashboard,
+        jobs: actionableJobs,
+        nextActionable: actionableJobs[0] ?? null,
+      },
+    },
+  }
+}
+
 export function preservePendingOptimisticDomains(
   incoming: OfflineV2Snapshot,
   local: OfflineV2Snapshot,

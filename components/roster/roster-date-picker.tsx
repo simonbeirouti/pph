@@ -33,14 +33,18 @@ function formatDatePart(value: Date) {
 export function RosterDatePicker({
   "aria-invalid": ariaInvalid,
   id,
+  label = "Date",
   name,
   onChange,
+  required = true,
   value,
 }: {
   "aria-invalid"?: boolean
   id: string
+  label?: string
   name: string
   onChange: (value: string) => void
+  required?: boolean
   value: string
 }) {
   const [open, setOpen] = useState(false)
@@ -52,7 +56,7 @@ export function RosterDatePicker({
       <div className="relative" ref={anchorRef}>
         <Input
           aria-invalid={ariaInvalid}
-          aria-label="Date"
+          aria-label={label}
           autoComplete="off"
           className="pr-9 tabular-nums"
           id={id}
@@ -62,13 +66,13 @@ export function RosterDatePicker({
           onClick={() => setOpen(true)}
           pattern="\d{4}-\d{2}-\d{2}"
           placeholder="YYYY-MM-DD"
-          required
+          required={required}
           value={value}
         />
         <PopoverTrigger
           render={
             <Button
-              aria-label="Choose date"
+              aria-label={`Choose ${label.toLocaleLowerCase()}`}
               className="absolute top-1/2 right-0.5 -translate-y-1/2"
               size="icon-sm"
               type="button"

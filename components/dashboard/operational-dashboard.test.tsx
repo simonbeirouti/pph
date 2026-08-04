@@ -236,6 +236,10 @@ describe("owner operational dashboard", () => {
     expect(rosterGrid?.children).toHaveLength(2)
     expect(screen.getByText("Bill Burr")).toBeVisible()
     expect(screen.getByText("Axel Rod")).toBeVisible()
+    expect(screen.getByText("Bill Burr").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/employees?employee=1103"
+    )
     expect(
       container.querySelector('a[href="/dashboard/roster"] svg')
     ).toHaveClass("size-10")

@@ -13,10 +13,18 @@ const STATUSES = new Set(["all", "invited", "active", "inactive"])
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ create?: string; q?: string; status?: string }>
+  searchParams: Promise<{
+    create?: string
+    employee?: string
+    q?: string
+    status?: string
+  }>
 }) {
   const params = await searchParams
   const actor = await requirePeopleManager()
+  const employeeId = Number(params.employee)
+  const openEmployeeId =
+    Number.isSafeInteger(employeeId) && employeeId > 0 ? employeeId : null
   const status = STATUSES.has(params.status ?? "")
     ? (params.status as EmployeeStatusFilterValue)
     : "all"
@@ -34,6 +42,7 @@ export default async function Page({
       employees={employees}
       jobSummaries={jobSummaries}
       openCreate={params.create === "1"}
+      openEmployeeId={openEmployeeId}
       query={params.q}
       shiftSummaries={shiftSummaries}
       status={status}

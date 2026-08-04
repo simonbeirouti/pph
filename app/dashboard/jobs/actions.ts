@@ -184,7 +184,6 @@ export async function createJobAction(
   const job = toJobCard(data as JobRow)
   revalidatePath("/dashboard/jobs")
   if (job.assigneeMembershipId) {
-    revalidatePath(`/dashboard/employees/${job.assigneeMembershipId}`)
   }
   revalidatePath("/dashboard")
   return { job, message: "Job created.", ok: true }
@@ -306,7 +305,6 @@ function refreshJobViews(assigneeMembershipId?: number | null) {
   revalidatePath("/dashboard/jobs")
   revalidatePath("/dashboard")
   if (assigneeMembershipId) {
-    revalidatePath(`/dashboard/employees/${assigneeMembershipId}`)
   }
 }
 

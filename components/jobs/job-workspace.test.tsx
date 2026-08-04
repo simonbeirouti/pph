@@ -85,6 +85,31 @@ afterEach(() => {
 })
 
 describe("JobWorkspace", () => {
+  it("initializes the employee filter from a linked employee view", () => {
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialEmployeeFilter={1103}
+        initialJobs={[
+          job,
+          {
+            ...job,
+            assigneeMembershipId: 1104,
+            id: 1402,
+            title: "Casey task",
+          },
+        ]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getByRole("combobox", { name: "Filter by employee" })
+    ).toHaveTextContent("Alex Employee")
+    expect(screen.getByLabelText("Job Inspect loading bay")).toBeVisible()
+    expect(screen.queryByLabelText("Job Casey task")).not.toBeInTheDocument()
+  })
+
   it("offers Edit and Delete from the job actions menu and deletes after confirmation", async () => {
     const user = userEvent.setup()
     vi.mocked(deleteJobAction).mockResolvedValue({

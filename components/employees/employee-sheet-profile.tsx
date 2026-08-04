@@ -1,11 +1,14 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
+import { ArrowRightIcon, CameraIcon, MailIcon, PhoneIcon } from "lucide-react"
 
-import { EmployeeProfileFields, FieldErrors } from "@/components/employees/employee-form"
 import { EmployeeAvatar } from "@/components/employees/employee-avatar"
-import { EmployeeRosterShiftManager } from "@/components/roster/employee-roster-shift-manager"
+import {
+  EmployeeProfileFields,
+  FieldErrors,
+} from "@/components/employees/employee-form"
 import { useEmployeeEdit } from "@/components/employees/membership-role-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,13 +19,26 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { formatShortWeekdayZonedDate } from "@/lib/date-format"
 import type { EmployeeSummary } from "@/lib/employees/data"
-import type { EmployeeJobSummary } from "@/lib/jobs/types"
-import type { EmployeeShiftSummary as EmployeeShiftSummaryModel } from "@/lib/roster/types"
 import {
   INITIAL_ACTION_STATE,
   type ActionState,
 } from "@/lib/forms/action-state"
+import type { EmployeeJobSummary } from "@/lib/jobs/types"
+import {
+  formatDuration,
+  formatLocalTime,
+  shiftDurationMinutes,
+} from "@/lib/roster/time"
+import type { EmployeeShiftSummary as EmployeeShiftSummaryModel } from "@/lib/roster/types"
+
+const MAX_SUMMARY_ITEMS = 3
+
+function jobScheduleTime(job: EmployeeJobSummary["active"][number]) {
+  const timestamp = Date.parse(job.dueAt ?? job.scheduledAt ?? "")
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER
+}
 
 type EmployeeFormAction = (
   state: ActionState,
@@ -51,14 +67,20 @@ export function EmployeeSheetProfile({
   const [state, setState] = useState<ActionState>(INITIAL_ACTION_STATE)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const selectedAvatarRef = useRef<File | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const submitProfile = useCallback(async () => {
-    const result = formRef.current
-      ? await action(INITIAL_ACTION_STATE, new FormData(formRef.current))
+    const formData = formRef.current ? new FormData(formRef.current) : null
+    if (formData && selectedAvatarRef.current) {
+      formData.set("avatar", selectedAvatarRef.current)
+    }
+    const result = formData
+      ? await action(INITIAL_ACTION_STATE, formData)
       : { message: "The employee form is unavailable.", ok: false }
     setState(result)
     if (result.ok && avatarInputRef.current) {
       avatarInputRef.current.value = ""
+      selectedAvatarRef.current = null
     }
     return result
   }, [action])
@@ -78,11 +100,21 @@ export function EmployeeSheetProfile({
   const selectAvatar = () => avatarInputRef.current?.click()
   const updateAvatarPreview = (file: File | undefined) => {
     markProfileDirty()
+    selectedAvatarRef.current = file ?? null
     setPreviewUrl((currentUrl) => {
       if (currentUrl) URL.revokeObjectURL(currentUrl)
       return file ? URL.createObjectURL(file) : null
     })
   }
+  const visibleJobs = [...jobSummary.active]
+    .sort((left, right) => jobScheduleTime(left) - jobScheduleTime(right))
+    .slice(0, MAX_SUMMARY_ITEMS)
+  const visibleShifts = [
+    ...(shiftSummary.current ? [shiftSummary.current] : []),
+    ...[...shiftSummary.upcoming].sort(
+      (left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt)
+    ),
+  ].slice(0, MAX_SUMMARY_ITEMS)
 
   return (
     <form
@@ -132,7 +164,7 @@ export function EmployeeSheetProfile({
             {employee.role}
           </Badge>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 pt-3">
+        <div className="grid w-full max-w-3xl grid-cols-2 gap-2 pt-3">
           <Button
             nativeButton={false}
             render={<a href={`mailto:${employee.email}`} />}
@@ -152,67 +184,106 @@ export function EmployeeSheetProfile({
             Call
           </Button>
         </div>
-        {roleActions}
+        {roleActions ? (
+          <div className="w-full max-w-3xl">{roleActions}</div>
+        ) : null}
       </SheetHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <FieldGroup>
           <FieldErrors errors={state.errors?.avatar} />
-          <div className="grid gap-1">
-            <h3 className="font-medium">Work summary</h3>
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-2xl font-semibold">
-                  {jobSummary.active.length}
-                </p>
-                <p className="text-xs text-muted-foreground">Active jobs</p>
+          <div
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] gap-5"
+            data-employee-work-layout
+          >
+            <div className="grid content-start gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-medium">Work summary</h3>
+                <Button
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={`/dashboard/jobs?employee=${employee.membershipId}`}
+                      prefetch={false}
+                    />
+                  }
+                  size="sm"
+                  variant="outline"
+                >
+                  View jobs
+                  <ArrowRightIcon />
+                </Button>
               </div>
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-2xl font-semibold">
-                  {jobSummary.archived.length}
+              {visibleJobs.length ? (
+                <div className="grid gap-2" data-employee-summary="jobs">
+                  {visibleJobs.map((job) => (
+                    <div className="rounded-md border p-2.5" key={job.id}>
+                      <p className="text-sm font-medium">{job.title}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {job.priority} · {job.status.replace("_", " ")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="pt-2 text-sm text-muted-foreground">
+                  No active jobs assigned.
                 </p>
-                <p className="text-xs text-muted-foreground">Recent archived</p>
-              </div>
+              )}
             </div>
-            {jobSummary.active.length ? (
-              <div className="mt-2 grid gap-2">
-                {jobSummary.active.map((job) => (
-                  <div className="rounded-md border p-2.5" key={job.id}>
-                    <p className="text-sm font-medium">{job.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {job.priority} · {job.status.replace("_", " ")}
-                    </p>
-                  </div>
-                ))}
+            <div className="grid content-start gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-medium">Shifts</h3>
+                <Button
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={`/dashboard/roster?employee=${employee.membershipId}`}
+                      prefetch={false}
+                    />
+                  }
+                  size="sm"
+                  variant="outline"
+                >
+                  View shifts
+                  <ArrowRightIcon />
+                </Button>
               </div>
-            ) : (
-              <p className="pt-2 text-sm text-muted-foreground">
-                No active jobs assigned.
-              </p>
-            )}
-            <div className="pt-3">
-              <EmployeeRosterShiftManager
-                canManage={
-                  canEdit &&
-                  employee.role !== "owner" &&
-                  employee.status === "active"
-                }
-                employeeMembershipId={employee.membershipId}
-                employeeName={employee.displayName}
-                summary={shiftSummary}
-                timezone={timezone}
-              />
+              {visibleShifts.length ? (
+                <div className="grid gap-2" data-employee-summary="shifts">
+                  {visibleShifts.map((shift) => (
+                    <div className="rounded-md border p-3" key={shift.id}>
+                      <p className="truncate text-sm font-medium">
+                        {formatShortWeekdayZonedDate(shift.startsAt, timezone)}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {formatLocalTime(shift.startsAt, timezone)}–
+                        {formatLocalTime(shift.endsAt, timezone)} ·{" "}
+                        {formatDuration(shiftDurationMinutes(shift))}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No current or upcoming shifts.
+                </p>
+              )}
             </div>
           </div>
           {canEdit ? (
-            <div className="grid gap-3 border-t pt-5">
+            <div className="grid max-w-3xl gap-3 border-t pt-5">
               <div>
                 <h3 className="font-medium">Edit profile</h3>
                 <FieldDescription>
                   Update the employee’s name or phone number.
                 </FieldDescription>
               </div>
-              <div className="grid gap-4" onChange={markProfileDirty}>
+              <div
+                className="grid gap-4 sm:grid-cols-3 [&>div]:contents"
+                data-employee-profile-fields
+                onChange={markProfileDirty}
+              >
                 <EmployeeProfileFields
                   employee={employee}
                   idPrefix={`sheet-${employee.membershipId}-`}

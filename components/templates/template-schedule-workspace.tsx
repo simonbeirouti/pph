@@ -30,6 +30,8 @@ import {
   setTemplateActiveAction,
 } from "@/app/dashboard/templates/actions"
 import { useOfflineV2Actions } from "@/components/offline/offline-v2-actions"
+import { RosterDatePicker } from "@/components/roster/roster-date-picker"
+import { RosterTimePicker } from "@/components/roster/roster-time-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -561,23 +563,19 @@ function ScheduleCard({
                               templates: snapshot.templates
                                 ? {
                                     ...snapshot.templates,
-                                    schedules:
-                                      snapshot.templates.schedules.map(
-                                        (item) =>
-                                          item.id === schedule.id
-                                            ? { ...item, isEnabled }
-                                            : item
-                                      ),
+                                    schedules: snapshot.templates.schedules.map(
+                                      (item) =>
+                                        item.id === schedule.id
+                                          ? { ...item, isEnabled }
+                                          : item
+                                    ),
                                   }
                                 : null,
                             }),
                           })
                         )
                           return
-                        await setScheduleEnabledAction(
-                          schedule.id,
-                          isEnabled
-                        )
+                        await setScheduleEnabledAction(schedule.id, isEnabled)
                       },
                       schedule.isEnabled
                         ? "Schedule paused"
@@ -599,32 +597,29 @@ function ScheduleCard({
                   )
                     return
                   startTransition(() =>
-                    run(
-                      async () => {
-                        if (
-                          await offline.queue({
-                            entityId: schedule.id,
-                            entityType: "job_schedule",
-                            kind: "schedule.delete",
-                            optimistic: (snapshot) => ({
-                              ...snapshot,
-                              templates: snapshot.templates
-                                ? {
-                                    ...snapshot.templates,
-                                    schedules:
-                                      snapshot.templates.schedules.filter(
-                                        (item) => item.id !== schedule.id
-                                      ),
-                                  }
-                                : null,
-                            }),
-                          })
-                        )
-                          return
-                        await deleteScheduleAction(schedule.id)
-                      },
-                      "Schedule deleted"
-                    )
+                    run(async () => {
+                      if (
+                        await offline.queue({
+                          entityId: schedule.id,
+                          entityType: "job_schedule",
+                          kind: "schedule.delete",
+                          optimistic: (snapshot) => ({
+                            ...snapshot,
+                            templates: snapshot.templates
+                              ? {
+                                  ...snapshot.templates,
+                                  schedules:
+                                    snapshot.templates.schedules.filter(
+                                      (item) => item.id !== schedule.id
+                                    ),
+                                }
+                              : null,
+                          }),
+                        })
+                      )
+                        return
+                      await deleteScheduleAction(schedule.id)
+                    }, "Schedule deleted")
                   )
                 }}
               >
@@ -685,20 +680,17 @@ function ScheduleCard({
             disabled={pending}
             onClick={() =>
               startTransition(() =>
-                run(
-                  async () => {
-                    if (
-                      await offline.queue({
-                        entityId: schedule.id,
-                        entityType: "job_schedule",
-                        kind: "schedule.retry",
-                      })
-                    )
-                      return
-                    await retryScheduleAction(schedule.id)
-                  },
-                  "Retry requested"
-                )
+                run(async () => {
+                  if (
+                    await offline.queue({
+                      entityId: schedule.id,
+                      entityType: "job_schedule",
+                      kind: "schedule.retry",
+                    })
+                  )
+                    return
+                  await retryScheduleAction(schedule.id)
+                }, "Retry requested")
               )
             }
             size="sm"
@@ -723,54 +715,55 @@ function TemplateForm({
 }) {
   const offline = useOfflineV2Actions()
   const action = useMemo(
-    () => async (
-      state: typeof INITIAL_TEMPLATE_ACTION_STATE,
-      formData: FormData
-    ) => {
-      if (!offline.usesLocalRepository) {
-        return saveTemplateAction(template?.id ?? null, state, formData)
-      }
-      const payload = templateFormPayload(formData)
-      const localId = crypto.randomUUID()
-      const temporaryId = template?.id ?? -Date.now()
-      const now = new Date().toISOString()
-      const next: JobTemplate = {
-        assigneeMembershipId: nullablePositiveNumber(
-          payload.assigneeMembershipId
-        ),
-        createdAt: template?.createdAt ?? now,
-        description: payload.description,
-        id: temporaryId,
-        isActive: template?.isActive ?? true,
-        location: payload.location,
-        minimumCompletionPhotos: Number(payload.minimumCompletionPhotos),
-        priority: payload.priority as JobTemplate["priority"],
-        requiresCompletionNote: payload.requiresCompletionNote,
-        title: payload.title,
-        updatedAt: now,
-      }
-      await offline.queue({
-        entityId: template?.id ?? localId,
-        entityType: "job_template",
-        kind: template ? "template.update" : "template.create",
-        payload: { ...payload, temporaryId },
-        optimistic: (snapshot) => ({
-          ...snapshot,
-          templates: snapshot.templates
-            ? {
-                ...snapshot.templates,
-                templates: [
-                  next,
-                  ...snapshot.templates.templates.filter(
-                    (item) => item.id !== temporaryId
-                  ),
-                ],
-              }
-            : null,
-        }),
-      })
-      return { message: "Template saved on this device.", ok: true }
-    },
+    () =>
+      async (
+        state: typeof INITIAL_TEMPLATE_ACTION_STATE,
+        formData: FormData
+      ) => {
+        if (!offline.usesLocalRepository) {
+          return saveTemplateAction(template?.id ?? null, state, formData)
+        }
+        const payload = templateFormPayload(formData)
+        const localId = crypto.randomUUID()
+        const temporaryId = template?.id ?? -Date.now()
+        const now = new Date().toISOString()
+        const next: JobTemplate = {
+          assigneeMembershipId: nullablePositiveNumber(
+            payload.assigneeMembershipId
+          ),
+          createdAt: template?.createdAt ?? now,
+          description: payload.description,
+          id: temporaryId,
+          isActive: template?.isActive ?? true,
+          location: payload.location,
+          minimumCompletionPhotos: Number(payload.minimumCompletionPhotos),
+          priority: payload.priority as JobTemplate["priority"],
+          requiresCompletionNote: payload.requiresCompletionNote,
+          title: payload.title,
+          updatedAt: now,
+        }
+        await offline.queue({
+          entityId: template?.id ?? localId,
+          entityType: "job_template",
+          kind: template ? "template.update" : "template.create",
+          payload: { ...payload, temporaryId },
+          optimistic: (snapshot) => ({
+            ...snapshot,
+            templates: snapshot.templates
+              ? {
+                  ...snapshot.templates,
+                  templates: [
+                    next,
+                    ...snapshot.templates.templates.filter(
+                      (item) => item.id !== temporaryId
+                    ),
+                  ],
+                }
+              : null,
+          }),
+        })
+        return { message: "Template saved on this device.", ok: true }
+      },
     [offline, template]
   )
   const [state, formAction, pending] = useActionState(
@@ -898,56 +891,58 @@ function ScheduleForm({
 }) {
   const offline = useOfflineV2Actions()
   const action = useMemo(
-    () => async (
-      state: typeof INITIAL_TEMPLATE_ACTION_STATE,
-      formData: FormData
-    ) => {
-      if (!offline.usesLocalRepository) {
-        return saveScheduleAction(schedule?.id ?? null, state, formData)
-      }
-      const payload = scheduleFormPayload(formData)
-      const localId = crypto.randomUUID()
-      const temporaryId = schedule?.id ?? -Date.now()
-      const now = new Date().toISOString()
-      const next: JobSchedule = {
-        assigneeMembershipId: Number(payload.assigneeMembershipId),
-        createdAt: schedule?.createdAt ?? now,
-        deletedAt: null,
-        endsOn: payload.endsOn || null,
-        id: temporaryId,
-        isEnabled: payload.isEnabled,
-        localTime: payload.localTime,
-        nextOccurrenceAt: schedule?.nextOccurrenceAt ?? null,
-        occurrences: schedule?.occurrences ?? [],
-        recurrenceType: payload.recurrenceType as JobSchedule["recurrenceType"],
-        startsOn: payload.startsOn,
-        templateId: Number(payload.templateId),
-        timezone: schedule?.timezone ?? timezone,
-        updatedAt: now,
-        weekdays: payload.weekdays.map(Number),
-      }
-      await offline.queue({
-        entityId: schedule?.id ?? localId,
-        entityType: "job_schedule",
-        kind: schedule ? "schedule.update" : "schedule.create",
-        payload: { ...payload, temporaryId },
-        optimistic: (snapshot) => ({
-          ...snapshot,
-          templates: snapshot.templates
-            ? {
-                ...snapshot.templates,
-                schedules: [
-                  next,
-                  ...snapshot.templates.schedules.filter(
-                    (item) => item.id !== temporaryId
-                  ),
-                ],
-              }
-            : null,
-        }),
-      })
-      return { message: "Schedule saved on this device.", ok: true }
-    },
+    () =>
+      async (
+        state: typeof INITIAL_TEMPLATE_ACTION_STATE,
+        formData: FormData
+      ) => {
+        if (!offline.usesLocalRepository) {
+          return saveScheduleAction(schedule?.id ?? null, state, formData)
+        }
+        const payload = scheduleFormPayload(formData)
+        const localId = crypto.randomUUID()
+        const temporaryId = schedule?.id ?? -Date.now()
+        const now = new Date().toISOString()
+        const next: JobSchedule = {
+          assigneeMembershipId: Number(payload.assigneeMembershipId),
+          createdAt: schedule?.createdAt ?? now,
+          deletedAt: null,
+          endsOn: payload.endsOn || null,
+          id: temporaryId,
+          isEnabled: payload.isEnabled,
+          localTime: payload.localTime,
+          nextOccurrenceAt: schedule?.nextOccurrenceAt ?? null,
+          occurrences: schedule?.occurrences ?? [],
+          recurrenceType:
+            payload.recurrenceType as JobSchedule["recurrenceType"],
+          startsOn: payload.startsOn,
+          templateId: Number(payload.templateId),
+          timezone: schedule?.timezone ?? timezone,
+          updatedAt: now,
+          weekdays: payload.weekdays.map(Number),
+        }
+        await offline.queue({
+          entityId: schedule?.id ?? localId,
+          entityType: "job_schedule",
+          kind: schedule ? "schedule.update" : "schedule.create",
+          payload: { ...payload, temporaryId },
+          optimistic: (snapshot) => ({
+            ...snapshot,
+            templates: snapshot.templates
+              ? {
+                  ...snapshot.templates,
+                  schedules: [
+                    next,
+                    ...snapshot.templates.schedules.filter(
+                      (item) => item.id !== temporaryId
+                    ),
+                  ],
+                }
+              : null,
+          }),
+        })
+        return { message: "Schedule saved on this device.", ok: true }
+      },
     [offline, schedule, timezone]
   )
   const [state, formAction, pending] = useActionState(
@@ -957,6 +952,11 @@ function ScheduleForm({
   const [recurrence, setRecurrence] = useState(
     schedule?.recurrenceType ?? "daily"
   )
+  const [localTime, setLocalTime] = useState(schedule?.localTime ?? "09:00")
+  const [startsOn, setStartsOn] = useState(
+    schedule?.startsOn ?? new Date().toISOString().slice(0, 10)
+  )
+  const [endsOn, setEndsOn] = useState(schedule?.endsOn ?? "")
   useEffect(() => {
     if (state.ok) onSaved()
   }, [onSaved, state.ok])
@@ -1019,12 +1019,13 @@ function ScheduleForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="schedule-time">Local time</FieldLabel>
-            <Input
-              defaultValue={schedule?.localTime ?? "09:00"}
+            <RosterTimePicker
+              aria-invalid={Boolean(state.errors?.localTime)}
               id="schedule-time"
+              label="Local time"
               name="localTime"
-              required
-              type="time"
+              onChange={setLocalTime}
+              value={localTime}
             />
           </Field>
         </div>
@@ -1045,29 +1046,28 @@ function ScheduleForm({
             </div>
           </Field>
         ) : null}
-        <div
-          className="grid grid-cols-2 gap-4"
-          data-schedule-form-row="dates"
-        >
+        <div className="grid grid-cols-2 gap-4" data-schedule-form-row="dates">
           <Field>
             <FieldLabel htmlFor="schedule-starts-on">Starts on</FieldLabel>
-            <Input
-              defaultValue={
-                schedule?.startsOn ?? new Date().toISOString().slice(0, 10)
-              }
+            <RosterDatePicker
+              aria-invalid={Boolean(state.errors?.startsOn)}
               id="schedule-starts-on"
+              label="Starts on"
               name="startsOn"
-              required
-              type="date"
+              onChange={setStartsOn}
+              value={startsOn}
             />
           </Field>
           <Field>
             <FieldLabel htmlFor="schedule-ends-on">Ends on</FieldLabel>
-            <Input
-              defaultValue={schedule?.endsOn ?? ""}
+            <RosterDatePicker
+              aria-invalid={Boolean(state.errors?.endsOn)}
               id="schedule-ends-on"
+              label="Ends on"
               name="endsOn"
-              type="date"
+              onChange={setEndsOn}
+              required={false}
+              value={endsOn}
             />
           </Field>
         </div>
@@ -1095,9 +1095,7 @@ function ScheduleForm({
 
 function templateFormPayload(formData: FormData) {
   return {
-    assigneeMembershipId: String(
-      formData.get("assigneeMembershipId") ?? ""
-    ),
+    assigneeMembershipId: String(formData.get("assigneeMembershipId") ?? ""),
     description: String(formData.get("description") ?? ""),
     location: String(formData.get("location") ?? ""),
     minimumCompletionPhotos: String(
@@ -1111,9 +1109,7 @@ function templateFormPayload(formData: FormData) {
 
 function scheduleFormPayload(formData: FormData) {
   return {
-    assigneeMembershipId: String(
-      formData.get("assigneeMembershipId") ?? ""
-    ),
+    assigneeMembershipId: String(formData.get("assigneeMembershipId") ?? ""),
     endsOn: String(formData.get("endsOn") ?? ""),
     isEnabled: formData.has("isEnabled"),
     localTime: String(formData.get("localTime") ?? ""),

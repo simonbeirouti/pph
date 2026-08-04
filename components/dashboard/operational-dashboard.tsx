@@ -131,7 +131,7 @@ export function OwnerOperationalDashboard({
               {data.todayRoster.map((shift) => (
                 <Link
                   className="flex h-full flex-col gap-3 rounded-lg border p-4 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-                  href={`/dashboard/employees/${shift.employeeMembershipId}`}
+                  href={`/dashboard/employees?employee=${shift.employeeMembershipId}`}
                   key={shift.id}
                   prefetch={false}
                 >

@@ -90,6 +90,11 @@ import { cn } from "@/lib/utils"
 
 type Role = "employee" | "owner"
 
+const OWNER_JOB_SHEET_CLASS_NAME =
+  "data-[side=right]:w-full data-[side=right]:sm:w-[32rem] data-[side=right]:sm:max-w-[32rem]"
+const OPEN_HISTORY = ["history"]
+const CLOSED_HISTORY: string[] = []
+
 export function EmployeeJobDetail({
   detail,
   onClose,
@@ -193,7 +198,7 @@ export function OwnerJobDetail({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:w-[40vw] data-[side=right]:sm:max-w-[40vw]">
+      <SheetContent className={OWNER_JOB_SHEET_CLASS_NAME}>
         <SheetHeader className="border-b pr-12">
           <SheetTitle>{detail.title}</SheetTitle>
           <JobBadges align="start" detail={detail} />
@@ -201,7 +206,7 @@ export function OwnerJobDetail({
             <SheetDescription>{detail.description}</SheetDescription>
           ) : null}
         </SheetHeader>
-        <ScrollArea className="min-h-0 flex-1">
+        <ScrollArea className="min-h-0 flex-1 overflow-hidden">
           <JobDetailBody
             detail={detail}
             onMutationSuccess={onMutationSuccess}
@@ -283,7 +288,7 @@ export function JobDetailLoading({
 
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:w-[40vw] data-[side=right]:sm:max-w-[40vw]">
+      <SheetContent className={OWNER_JOB_SHEET_CLASS_NAME}>
         <SheetHeader className="border-b pr-12">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>Loading the latest job details.</SheetDescription>
@@ -340,6 +345,9 @@ function JobDetailBody({
   const canStart = role === "employee" && detail.status === "assigned"
   const canComplete = role === "employee" && detail.status === "in_progress"
   const showProgress = role === "owner" || detail.status !== "assigned"
+  const historyUpdateCount =
+    detail.timeline.length +
+    (role === "owner" ? detail.notifications.length : 0)
 
   function run(
     action: () => Promise<{ message: string; ok: boolean }>,
@@ -392,6 +400,16 @@ function JobDetailBody({
         })),
     })
     return queued
+  }
+
+  async function queueNotificationRetry(deliveryId: number) {
+    return offline.queue({
+      entityId: detail.id,
+      entityType: "notification",
+      expectedVersion: detail.version ?? null,
+      kind: "job.notification.retry",
+      payload: { deliveryId },
+    })
   }
 
   return (
@@ -474,27 +492,45 @@ function JobDetailBody({
         />
       ) : null}
 
-      <Accordion key={`${detail.id}-${detail.status}-${role}`} multiple>
+      <Accordion
+        defaultValue={role === "owner" ? OPEN_HISTORY : CLOSED_HISTORY}
+        key={`${detail.id}-${detail.status}-${role}`}
+        multiple
+      >
         <AccordionItem value="history">
           <AccordionTrigger
-            aria-label={`History, ${detail.timeline.length} ${
-              detail.timeline.length === 1 ? "update" : "updates"
+            aria-label={`History, ${historyUpdateCount} ${
+              historyUpdateCount === 1 ? "update" : "updates"
             }`}
             className="hover:no-underline"
           >
             <span>
               <span className="block font-medium">History</span>
               <span className="block text-xs font-normal text-muted-foreground">
-                {detail.timeline.length}{" "}
-                {detail.timeline.length === 1 ? "update" : "updates"}
+                {historyUpdateCount}{" "}
+                {historyUpdateCount === 1 ? "update" : "updates"}
               </span>
             </span>
           </AccordionTrigger>
           <AccordionContent>
             <p className="mb-3 text-sm text-muted-foreground">
-              Notes, comments, evidence, assignments, and status changes.
+              Notes, comments, evidence, assignments, status changes, and
+              submission emails.
             </p>
-            <Timeline key={detail.id} detail={detail} timezone={timezone} />
+            <Timeline
+              key={detail.id}
+              detail={detail}
+              onRetry={(deliveryId) =>
+                run(async () =>
+                  (await queueNotificationRetry(deliveryId))
+                    ? { message: "Email retry queued.", ok: true }
+                    : retryJobNotificationAction(deliveryId)
+                )
+              }
+              pending={pending}
+              showNotifications={role === "owner"}
+              timezone={timezone}
+            />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -520,9 +556,7 @@ function OwnerJobActions({
     detail.assigneeMembershipId ? String(detail.assigneeMembershipId) : ""
   )
   const hasActions =
-    detail.notifications.length > 0 ||
-    detail.status === "in_review" ||
-    detail.status === "archived"
+    detail.status === "in_review" || detail.status === "archived"
 
   function run(
     action: () => Promise<{ message: string; ok: boolean }>,
@@ -544,29 +578,26 @@ function OwnerJobActions({
   }
 
   async function queueOwnerJobOperation(
-    kind: "job.archive" | "job.reopen" | "job.notification.retry",
+    kind: "job.archive" | "job.reopen",
     payload: Record<string, unknown>
   ) {
     return offline.queue({
       entityId: detail.id,
-      entityType: kind === "job.notification.retry" ? "notification" : "job",
+      entityType: "job",
       expectedVersion: detail.version ?? null,
       kind,
       payload,
-      optimistic:
-        kind === "job.notification.retry"
-          ? undefined
-          : (snapshot) =>
-              updateJobEverywhere(snapshot, detail.id, (current) => ({
-                ...current,
-                ...(kind === "job.archive"
-                  ? { archivedAt: new Date().toISOString(), status: "archived" }
-                  : {
-                      archivedAt: null,
-                      status: "assigned",
-                      submittedAt: null,
-                    }),
-              })),
+      optimistic: (snapshot) =>
+        updateJobEverywhere(snapshot, detail.id, (current) => ({
+          ...current,
+          ...(kind === "job.archive"
+            ? { archivedAt: new Date().toISOString(), status: "archived" }
+            : {
+                archivedAt: null,
+                status: "assigned",
+                submittedAt: null,
+              }),
+        })),
     })
   }
 
@@ -575,44 +606,6 @@ function OwnerJobActions({
   return (
     <>
       <SheetFooter className="shrink-0 border-t bg-popover">
-        {detail.notifications.map((notification) => (
-          <div className="text-sm" key={notification.id}>
-            <p>
-              Submission email:{" "}
-              <span className="font-medium capitalize">
-                {notification.status}
-              </span>
-            </p>
-            <p className="text-muted-foreground">
-              {notification.recipientEmail ?? "No active recipient"}
-            </p>
-            {notification.errorMessage ? (
-              <p className="mt-1 text-destructive">
-                {notification.errorMessage}
-              </p>
-            ) : null}
-            {["queued", "failed"].includes(notification.status) ? (
-              <Button
-                className="mt-3"
-                disabled={pending}
-                onClick={() =>
-                  run(async () =>
-                    (await queueOwnerJobOperation("job.notification.retry", {
-                      deliveryId: notification.id,
-                    }))
-                      ? { message: "Email retry queued.", ok: true }
-                      : retryJobNotificationAction(notification.id)
-                  )
-                }
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                Retry email
-              </Button>
-            ) : null}
-          </div>
-        ))}
         {detail.status === "in_review" ? (
           <>
             <Button
@@ -1318,9 +1311,15 @@ function RequirementProgress({ detail }: { detail: JobDetail }) {
 
 function Timeline({
   detail,
+  onRetry,
+  pending,
+  showNotifications,
   timezone,
 }: {
   detail: JobDetail
+  onRetry: (deliveryId: number) => void
+  pending: boolean
+  showNotifications: boolean
   timezone: string
 }) {
   const [visibleCount, setVisibleCount] = useState(3)
@@ -1330,38 +1329,105 @@ function Timeline({
       identity.displayName,
     ])
   )
-  const orderedItems = detail.timeline.toSorted(
+  const orderedItems = [
+    ...detail.timeline.map((item) => ({
+      createdAt: item.createdAt,
+      id: `timeline-${item.id}`,
+      item,
+      kind: "timeline" as const,
+    })),
+    ...(showNotifications
+      ? detail.notifications.map((notification) => ({
+          createdAt:
+            notification.sentAt ??
+            notification.lastAttemptedAt ??
+            notification.createdAt ??
+            detail.updatedAt,
+          id: `notification-${notification.id}`,
+          kind: "notification" as const,
+          notification,
+        }))
+      : []),
+  ].toSorted(
     (left, right) =>
       Date.parse(right.createdAt) - Date.parse(left.createdAt) ||
-      right.id - left.id
+      right.id.localeCompare(left.id)
   )
   const visibleItems = orderedItems.slice(0, visibleCount)
-  const hasMore = visibleCount < detail.timeline.length
+  const hasMore = visibleCount < orderedItems.length
 
   return (
     <div className="grid gap-3">
       {visibleItems.length ? (
         <ol className="grid gap-3">
-          {visibleItems.map((item) => (
+          {visibleItems.map((entry) => (
             <li
               className={cn(
                 "rounded-lg border-l-4 bg-muted/50 p-3 text-sm",
-                item.type === "comment" && "border-l-blue-400",
-                item.type === "note" && "border-l-emerald-400",
-                item.type === "status_change" && "border-l-violet-400",
-                item.type === "assignment_change" && "border-l-amber-400"
+                entry.kind === "notification" && "border-l-sky-400",
+                entry.kind === "timeline" &&
+                  entry.item.type === "comment" &&
+                  "border-l-blue-400",
+                entry.kind === "timeline" &&
+                  entry.item.type === "note" &&
+                  "border-l-emerald-400",
+                entry.kind === "timeline" &&
+                  entry.item.type === "status_change" &&
+                  "border-l-violet-400",
+                entry.kind === "timeline" &&
+                  entry.item.type === "assignment_change" &&
+                  "border-l-amber-400"
               )}
-              key={item.id}
+              key={entry.id}
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-medium">{timelineLabel(item, names)}</p>
-                <time className="shrink-0 text-xs text-muted-foreground">
-                  {formatDateTime(item.createdAt, timezone)}
-                </time>
-              </div>
-              {item.body ? (
-                <p className="mt-1 whitespace-pre-wrap">{item.body}</p>
-              ) : null}
+              {entry.kind === "notification" ? (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium">
+                      Submission email: {entry.notification.status}
+                    </p>
+                    <time className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(entry.createdAt, timezone)}
+                    </time>
+                  </div>
+                  <p className="text-muted-foreground">
+                    {entry.notification.recipientEmail ?? "No active recipient"}
+                  </p>
+                  {entry.notification.errorMessage ? (
+                    <p className="mt-1 text-destructive">
+                      {entry.notification.errorMessage}
+                    </p>
+                  ) : null}
+                  {["queued", "failed"].includes(entry.notification.status) ? (
+                    <Button
+                      className="mt-3"
+                      disabled={pending}
+                      onClick={() => onRetry(entry.notification.id)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Retry email
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium">
+                      {timelineLabel(entry.item, names)}
+                    </p>
+                    <time className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(entry.createdAt, timezone)}
+                    </time>
+                  </div>
+                  {entry.item.body ? (
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {entry.item.body}
+                    </p>
+                  ) : null}
+                </>
+              )}
             </li>
           ))}
         </ol>
@@ -1370,7 +1436,7 @@ function Timeline({
       )}
       {hasMore ? (
         <Button
-          onClick={() => setVisibleCount((count) => count + 3)}
+          onClick={() => setVisibleCount((count) => count + 4)}
           type="button"
           variant="outline"
         >

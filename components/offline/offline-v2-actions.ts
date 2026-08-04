@@ -11,7 +11,10 @@ import type {
 } from "@/lib/offline-v2/types"
 import { selectMutationTransport } from "@/lib/offline-v2/view-mode"
 
-export { updateJobEverywhere } from "@/lib/offline-v2/optimistic"
+export {
+  submitJobEverywhere,
+  updateJobEverywhere,
+} from "@/lib/offline-v2/optimistic"
 
 type QueueInput = {
   blob?: Blob
@@ -82,6 +85,7 @@ export function useOfflineV2Actions() {
     mutationTransport,
     queue,
     repositoryState: offline?.repositoryState ?? "preparing",
+    updateSnapshot: offline?.updateSnapshot,
     usesLocalRepository: repositoryManaged,
   }
 }

@@ -22,6 +22,7 @@ export function EmployeesScreen({
   employees,
   jobSummaries,
   openCreate = false,
+  openEmployeeId,
   query,
   shiftSummaries,
   status,
@@ -31,6 +32,7 @@ export function EmployeesScreen({
   employees: EmployeeSummary[]
   jobSummaries: Record<number, EmployeeJobSummary>
   openCreate?: boolean
+  openEmployeeId?: number | null
   query?: string
   shiftSummaries: Record<number, EmployeeShiftSummary>
   status: EmployeeStatusFilterValue
@@ -40,11 +42,12 @@ export function EmployeesScreen({
   const router = useRouter()
 
   useEffect(() => {
-    if (!openCreate) return
+    if (!openCreate && !openEmployeeId) return
     const url = new URL(window.location.href)
     url.searchParams.delete("create")
+    url.searchParams.delete("employee")
     window.history.replaceState(null, "", `${url.pathname}${url.search}`)
-  }, [openCreate])
+  }, [openCreate, openEmployeeId])
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -95,6 +98,7 @@ export function EmployeesScreen({
               actorRole={actorRole}
               employees={employees}
               jobSummaries={jobSummaries}
+              openEmployeeId={openEmployeeId}
               shiftSummaries={shiftSummaries}
               timezone={timezone}
             />

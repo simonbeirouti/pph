@@ -42,6 +42,7 @@ import {
 import { restoreOfflineEvidenceFile } from "@/lib/offline-v2/evidence-upload"
 import {
   preservePendingOptimisticDomains,
+  submitJobEverywhere,
   updateJobEverywhere,
 } from "@/lib/offline-v2/optimistic"
 import { applyOfflineV2Patch } from "@/lib/offline-v2/patch"
@@ -982,14 +983,13 @@ async function applyPendingOptimisticState(
       continue
     }
     if (operation.kind === "job.submit") {
-      optimistic = updateJobEverywhere(optimistic, jobId, (job) => ({
-        ...job,
-        status: "in_review",
-        submittedAt:
-          typeof operation.payload.submittedAt === "string"
-            ? operation.payload.submittedAt
-            : operation.createdAt,
-      }))
+      optimistic = submitJobEverywhere(
+        optimistic,
+        jobId,
+        typeof operation.payload.submittedAt === "string"
+          ? operation.payload.submittedAt
+          : operation.createdAt
+      )
       continue
     }
     if (operation.kind !== "job.evidence.add") continue

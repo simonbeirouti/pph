@@ -32,7 +32,10 @@ import {
   updateJobEverywhere,
   useOfflineV2Actions,
 } from "@/components/offline/offline-v2-actions"
-import { JobCreateDialog, JobEditDialog } from "@/components/jobs/job-create-dialog"
+import {
+  JobCreateDialog,
+  JobEditDialog,
+} from "@/components/jobs/job-create-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -143,6 +146,7 @@ export function JobWorkspace({
   archivePagination,
   employees,
   filterActive = false,
+  initialEmployeeFilter = null,
   initialJobs,
   initialView = "workflow",
   rosterShifts = [],
@@ -152,6 +156,7 @@ export function JobWorkspace({
   archivePagination?: JobArchivePagination
   employees: readonly JobBoardEmployee[]
   filterActive?: boolean
+  initialEmployeeFilter?: number | null
   initialJobs: readonly JobCard[]
   initialView?: JobView
   rosterShifts?: readonly JobRosterShiftOption[]
@@ -161,7 +166,11 @@ export function JobWorkspace({
   const offline = useOfflineV2Actions()
   const [view, setView] = useState<JobView>(initialView)
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all")
-  const [employeeFilter, setEmployeeFilter] = useState<EmployeeFilter>("all")
+  const [employeeFilter, setEmployeeFilter] = useState<EmployeeFilter>(() =>
+    initialEmployeeFilter
+      ? (String(initialEmployeeFilter) as EmployeeFilter)
+      : "all"
+  )
   const [jobs, setJobs] = useState(() => [...initialJobs])
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set())
   const [assignmentJob, setAssignmentJob] = useState<JobCard | null>(null)

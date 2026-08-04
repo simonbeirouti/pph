@@ -32,20 +32,27 @@ export function EmployeeDirectoryTable({
   actorRole,
   employees,
   jobSummaries,
+  openEmployeeId,
   shiftSummaries,
   timezone,
 }: {
   actorRole: "owner" | "manager"
   employees: EmployeeSummary[]
   jobSummaries: Record<number, EmployeeJobSummary>
+  openEmployeeId?: number | null
   shiftSummaries: Record<number, EmployeeShiftSummary>
   timezone: string
 }) {
   const offline = useOfflineV2Actions()
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
-    null
+  const initialEmployeeId = employees.some(
+    (employee) => employee.membershipId === openEmployeeId
   )
-  const [open, setOpen] = useState(false)
+    ? (openEmployeeId ?? null)
+    : null
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
+    initialEmployeeId
+  )
+  const [open, setOpen] = useState(initialEmployeeId !== null)
   const selectedEmployee =
     employees.find(
       (employee) => employee.membershipId === selectedEmployeeId
@@ -174,7 +181,7 @@ export function EmployeeDirectoryTable({
         </TableBody>
       </Table>
 
-      <SheetContent className="w-full gap-0 overflow-hidden sm:max-w-2xl">
+      <SheetContent className="gap-0 overflow-hidden data-[side=right]:w-full data-[side=right]:sm:w-[min(46rem,calc(100vw-2rem))] data-[side=right]:sm:max-w-[min(84rem,calc(100vw-2rem))]">
         {selectedEmployee ? (
           <EmployeeEditor
             currentRole={selectedEmployee.role}
@@ -205,30 +212,32 @@ export function EmployeeDirectoryTable({
               timezone={timezone}
               key={`profile-${selectedEmployee.membershipId}`}
             />
-            <div className="grid shrink-0 gap-2 border-t p-4">
-              {actorRole === "owner" ? (
-                <EmployeeSaveAction />
-              ) : selectedEmployee.role === "employee" ? (
-                <EmployeeSaveAction />
-              ) : null}
-              {actorRole === "owner" ||
-              selectedEmployee.role === "employee" ? (
-                <>
-                  <EmployeeInvitationAction
-                    deliveryStatus={selectedEmployee.inviteDeliveryStatus}
-                    key={`invitation-${selectedEmployee.membershipId}`}
-                    membershipId={selectedEmployee.membershipId}
-                    status={selectedEmployee.status}
-                  />
-                  <EmployeeAccessActions
-                    displayName={selectedEmployee.displayName}
-                    key={`access-${selectedEmployee.membershipId}`}
-                    membershipId={selectedEmployee.membershipId}
-                    onDeleted={() => setOpen(false)}
-                    status={selectedEmployee.status}
-                  />
-                </>
-              ) : null}
+            <div className="shrink-0 border-t p-4">
+              <div className="mx-auto grid w-full max-w-3xl gap-2">
+                {actorRole === "owner" ? (
+                  <EmployeeSaveAction />
+                ) : selectedEmployee.role === "employee" ? (
+                  <EmployeeSaveAction />
+                ) : null}
+                {actorRole === "owner" ||
+                selectedEmployee.role === "employee" ? (
+                  <>
+                    <EmployeeInvitationAction
+                      deliveryStatus={selectedEmployee.inviteDeliveryStatus}
+                      key={`invitation-${selectedEmployee.membershipId}`}
+                      membershipId={selectedEmployee.membershipId}
+                      status={selectedEmployee.status}
+                    />
+                    <EmployeeAccessActions
+                      displayName={selectedEmployee.displayName}
+                      key={`access-${selectedEmployee.membershipId}`}
+                      membershipId={selectedEmployee.membershipId}
+                      onDeleted={() => setOpen(false)}
+                      status={selectedEmployee.status}
+                    />
+                  </>
+                ) : null}
+              </div>
             </div>
           </EmployeeEditor>
         ) : null}

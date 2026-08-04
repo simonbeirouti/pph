@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 import { submitJobAction } from "@/app/dashboard/jobs/actions"
 import {
-  updateJobEverywhere,
+  submitJobEverywhere,
   useOfflineV2Actions,
 } from "@/components/offline/offline-v2-actions"
 import { Button } from "@/components/ui/button"
@@ -50,17 +50,14 @@ export function JobSubmitButton({
       disabled={pending}
       onClick={() => {
         startTransition(async () => {
+          const submittedAt = new Date().toISOString()
           const queued = await offline.queue({
             entityId: job.id,
             entityType: "job",
             expectedVersion: job.version ?? null,
             kind: "job.submit",
             optimistic: (snapshot) =>
-              updateJobEverywhere(snapshot, job.id, (current) => ({
-                ...current,
-                status: "in_review",
-                submittedAt: new Date().toISOString(),
-              })),
+              submitJobEverywhere(snapshot, job.id, submittedAt),
           })
           const result = queued
             ? { message: "Submission saved.", ok: true }
@@ -72,7 +69,12 @@ export function JobSubmitButton({
           }
 
           toast.success(result.message)
-          if (!queued) router.refresh()
+          if (!queued) {
+            await offline.updateSnapshot?.((snapshot) =>
+              submitJobEverywhere(snapshot, job.id, submittedAt)
+            )
+            router.refresh()
+          }
           await onSuccess?.(queued)
         })
       }}

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  updateSnapshot: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
@@ -35,11 +36,12 @@ vi.mock("@/app/dashboard/jobs/actions", () => ({
   submitJobAction: vi.fn(),
 }))
 vi.mock("@/components/offline/offline-v2-actions", () => ({
-  updateJobEverywhere: vi.fn(),
+  submitJobEverywhere: vi.fn(),
   useOfflineV2Actions: () => ({
     isOffline: false,
     navigate: undefined,
     queue: mocks.queue,
+    updateSnapshot: mocks.updateSnapshot,
   }),
 }))
 
@@ -142,6 +144,7 @@ describe("EmployeeJobsList review actions", () => {
     )
     expect(mocks.toastSuccess).toHaveBeenCalledWith("Job submitted for review.")
     expect(mocks.refresh).toHaveBeenCalled()
+    expect(mocks.updateSnapshot).toHaveBeenCalledOnce()
   })
 
   it("keeps server-side validation authoritative for a stale ready card", async () => {

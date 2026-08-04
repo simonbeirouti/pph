@@ -32,6 +32,7 @@ export function JobsScreen({
   detail,
   employees,
   filterActive,
+  initialEmployeeFilter,
   jobs,
   mode,
   role,
@@ -44,6 +45,7 @@ export function JobsScreen({
   detail: JobDetail | null
   employees: readonly JobBoardEmployee[]
   filterActive: boolean
+  initialEmployeeFilter?: number | null
   jobs: readonly JobCard[]
   mode: "my-work" | "team"
   role: "employee" | "manager" | "owner"
@@ -231,8 +233,10 @@ export function JobsScreen({
           archivePagination={archivePagination}
           employees={employees}
           filterActive={filterActive}
+          initialEmployeeFilter={initialEmployeeFilter}
           initialJobs={liveJobs}
           initialView={view}
+          key={`jobs-${initialEmployeeFilter ?? "all"}`}
           rosterShifts={rosterShifts}
           templates={templates}
           timezone={timezone}
@@ -253,6 +257,8 @@ function matchesCurrentFilter(
   job: JobCard,
   searchParams: { get(name: string): string | null }
 ) {
+  const employee = searchParams.get("employee")
+  if (employee && String(job.assigneeMembershipId) !== employee) return false
   const status = searchParams.get("status")
   if (
     status === "outstanding" &&
