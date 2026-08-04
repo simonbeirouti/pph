@@ -129,3 +129,12 @@ and background synchronisation.
   Prettier/ESLint, 2 Vitest files / 12 tests, TypeScript, the production build,
   and `git diff --check` pass. No environment-variable or database migration is
   required.
+- 2026-08-04 sidebar persistence regression: prepared deployed installations
+  serve the cached `/offline` shell even while online, and that shell previously
+  hardcoded the sidebar open instead of applying the persisted cookie. The
+  shared dashboard chrome now writes the non-sensitive preference to browser
+  storage and its cookie synchronously, then reconciles from browser storage or
+  the cookie after hydration. The server write also migrates existing HttpOnly
+  preference cookies. Both the server layout and cached shell therefore restore
+  the last choice. Added focused persistence parsing coverage. No
+  environment-variable or database change is required.

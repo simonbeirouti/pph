@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useSyncExternalStore, type ReactNode } from "react"
 
 import { setSidebarOpenAction } from "@/app/dashboard/actions"
 import { AppSidebar } from "@/components/navigation/app-sidebar"
@@ -20,6 +20,23 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import type { OfflineMembership } from "@/lib/offline-v2/types"
+import {
+  readSidebarOpenCookie,
+  readSidebarOpenValue,
+  SIDEBAR_COOKIE_MAX_AGE,
+  SIDEBAR_COOKIE_NAME,
+} from "@/lib/sidebar"
+
+const SIDEBAR_STATE_EVENT = "pph:sidebar-state"
+
+function subscribeToSidebarState(onStoreChange: () => void) {
+  window.addEventListener(SIDEBAR_STATE_EVENT, onStoreChange)
+  window.addEventListener("storage", onStoreChange)
+  return () => {
+    window.removeEventListener(SIDEBAR_STATE_EVENT, onStoreChange)
+    window.removeEventListener("storage", onStoreChange)
+  }
+}
 
 export function DashboardChrome({
   avatarUrl,
@@ -33,17 +50,24 @@ export function DashboardChrome({
   membership: OfflineMembership
 }) {
   const offline = useOfflineV2()
+  const sidebarOpen = useSyncExternalStore(
+    subscribeToSidebarState,
+    () =>
+      readSidebarOpenValue(localStorage.getItem(SIDEBAR_COOKIE_NAME)) ??
+      readSidebarOpenCookie(document.cookie) ??
+      defaultSidebarOpen,
+    () => defaultSidebarOpen
+  )
 
   return (
     <SidebarProvider
       className="h-svh overflow-hidden overscroll-none"
-      defaultOpen={defaultSidebarOpen}
+      open={sidebarOpen}
       onOpenChange={(open) => {
-        void setSidebarOpenAction(open).catch(() => {
-          // Cached dashboard views can also be online. If the network is
-          // unavailable, keep the local toggle responsive and retry on the
-          // user's next choice instead of surfacing an unhandled rejection.
-        })
+        localStorage.setItem(SIDEBAR_COOKIE_NAME, String(open))
+        document.cookie = `${SIDEBAR_COOKIE_NAME}=${String(open)}; Path=/; Max-Age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`
+        window.dispatchEvent(new Event(SIDEBAR_STATE_EVENT))
+        void setSidebarOpenAction(open).catch(() => {})
       }}
     >
       <DashboardRealtimeProvider
