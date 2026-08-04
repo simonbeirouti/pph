@@ -34,10 +34,13 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { GET } from "@/app/api/avatars/[membershipId]/route"
 
-function request(membershipId: string) {
-  return GET(new Request(`https://pph.test/api/avatars/${membershipId}`), {
-    params: Promise.resolve({ membershipId }),
-  })
+function request(membershipId: string, headers?: HeadersInit) {
+  return GET(
+    new Request(`https://pph.test/api/avatars/${membershipId}`, { headers }),
+    {
+      params: Promise.resolve({ membershipId }),
+    }
+  )
 }
 
 describe("GET /api/avatars/[membershipId]", () => {
@@ -54,12 +57,30 @@ describe("GET /api/avatars/[membershipId]", () => {
     const response = await request("1101")
 
     expect(response.status).toBe(200)
-    expect(response.headers.get("Cache-Control")).toBe("private, no-store")
+    expect(response.headers.get("Cache-Control")).toBe(
+      "private, max-age=86400, must-revalidate"
+    )
+    expect(response.headers.get("ETag")).toMatch(/^"[A-Za-z0-9_-]{43}"$/)
     expect(response.headers.get("Content-Type")).toBe("image/png")
     expect(response.headers.get("Vary")).toBe("Cookie")
     expect(eq).toHaveBeenCalledWith("membership_id", 1101)
     expect(download).toHaveBeenCalledWith("1001/1101/avatar.png")
     await expect(response.text()).resolves.toBe("avatar")
+  })
+
+  it("revalidates an unchanged cached avatar without downloading it", async () => {
+    const initialResponse = await request("1101")
+    const etag = initialResponse.headers.get("ETag")
+    vi.clearAllMocks()
+
+    const response = await request("1101", { "If-None-Match": etag! })
+
+    expect(response.status).toBe(304)
+    expect(response.headers.get("Cache-Control")).toBe(
+      "private, max-age=86400, must-revalidate"
+    )
+    expect(response.headers.get("ETag")).toBe(etag)
+    expect(download).not.toHaveBeenCalled()
   })
 
   it("requires an active authenticated membership", async () => {
@@ -68,6 +89,7 @@ describe("GET /api/avatars/[membershipId]", () => {
     const response = await request("1101")
 
     expect(response.status).toBe(401)
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store")
     expect(select).not.toHaveBeenCalled()
   })
 

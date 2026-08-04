@@ -109,6 +109,15 @@ and background synchronisation.
 ## Delivery register
 
 - S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 private avatar browser-cache hardening: successful authenticated
+  avatar responses now remain in the private browser cache for one day, so
+  ordinary dashboard reloads do not repeat the avatar API, profile lookup, or
+  Storage download. Stable ETags derived from the immutable Storage object path
+  allow stale entries to revalidate with a `304` without downloading the object;
+  authentication failures and missing media remain `no-store`. All 60 Vitest
+  files / 274 tests, changed-file Prettier/ESLint, TypeScript, and
+  `git diff --check` pass. No environment-variable or database change is
+  required.
 - 2026-08-04 realtime review and performance hardening: diagnosed the missing
   owner-column move as a slow full-snapshot path combined with an in-flight
   refresh dedupe race that could swallow the submission invalidation. The jobs
