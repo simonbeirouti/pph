@@ -67,8 +67,7 @@ export function preservePendingOptimisticDomains(
   const entityTypes = new Set(
     operations.map((operation) => operation.entityType)
   )
-  const preserveJobs =
-    entityTypes.has("job") || entityTypes.has("notification")
+  const preserveJobs = entityTypes.has("job") || entityTypes.has("notification")
   const preservePeople =
     preserveJobs ||
     entityTypes.has("membership") ||
@@ -81,14 +80,101 @@ export function preservePendingOptimisticDomains(
     entityTypes.has("job_template") || entityTypes.has("job_schedule")
   const preserveProfile = entityTypes.has("profile")
 
+  const pendingJobIds = new Set<number>()
+  for (const operation of operations) {
+    if (
+      operation.entityType !== "job" &&
+      operation.entityType !== "notification"
+    ) {
+      continue
+    }
+    if (operation.entity.source === "server") {
+      pendingJobIds.add(operation.entity.id)
+      continue
+    }
+    const temporaryId = operation.payload.temporaryId
+    if (typeof temporaryId === "number") pendingJobIds.add(temporaryId)
+  }
+
+  const preservePendingJobs = <T extends { id: number }>(
+    fresh: T[],
+    optimistic: T[]
+  ) => {
+    if (!pendingJobIds.size) return fresh
+    const optimisticById = new Map(
+      optimistic
+        .filter((job) => pendingJobIds.has(job.id))
+        .map((job) => [job.id, job])
+    )
+    const merged = fresh.map((job) => optimisticById.get(job.id) ?? job)
+    const freshIds = new Set(fresh.map((job) => job.id))
+    for (const job of optimisticById.values()) {
+      if (!freshIds.has(job.id)) merged.push(job)
+    }
+    return merged
+  }
+
+  const dashboard = preserveJobs
+    ? {
+        employee:
+          incoming.dashboard.employee && local.dashboard.employee
+            ? {
+                ...incoming.dashboard.employee,
+                jobs: preservePendingJobs(
+                  incoming.dashboard.employee.jobs,
+                  local.dashboard.employee.jobs
+                ),
+                nextActionable:
+                  local.dashboard.employee.nextActionable &&
+                  pendingJobIds.has(local.dashboard.employee.nextActionable.id)
+                    ? local.dashboard.employee.nextActionable
+                    : incoming.dashboard.employee.nextActionable,
+              }
+            : incoming.dashboard.employee,
+        operations:
+          incoming.dashboard.operations && local.dashboard.operations
+            ? {
+                ...incoming.dashboard.operations,
+                recentlySubmitted: preservePendingJobs(
+                  incoming.dashboard.operations.recentlySubmitted,
+                  local.dashboard.operations.recentlySubmitted
+                ),
+                urgent: preservePendingJobs(
+                  incoming.dashboard.operations.urgent,
+                  local.dashboard.operations.urgent
+                ),
+              }
+            : incoming.dashboard.operations,
+      }
+    : incoming.dashboard
+
   return {
     ...incoming,
     ...(preserveJobs
       ? {
-          dashboard: local.dashboard,
-          employeeJobs: local.employeeJobs,
-          jobDetails: local.jobDetails,
-          jobs: local.jobs,
+          dashboard,
+          employeeJobs: preservePendingJobs(
+            incoming.employeeJobs,
+            local.employeeJobs
+          ),
+          jobDetails: Object.fromEntries(
+            Object.entries(incoming.jobDetails).map(([id, detail]) => [
+              id,
+              pendingJobIds.has(Number(id))
+                ? (local.jobDetails[Number(id)] ?? detail)
+                : detail,
+            ])
+          ),
+          jobs:
+            incoming.jobs && local.jobs
+              ? {
+                  ...incoming.jobs,
+                  jobs: preservePendingJobs(
+                    incoming.jobs.jobs,
+                    local.jobs.jobs
+                  ),
+                }
+              : incoming.jobs,
         }
       : {}),
     ...(preservePeople ? { people: local.people } : {}),

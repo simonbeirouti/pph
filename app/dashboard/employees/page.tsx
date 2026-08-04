@@ -1,5 +1,5 @@
-import { EmployeesScreen } from "@/components/employees-screen"
-import type { EmployeeStatusFilterValue } from "@/components/employee-status-filter"
+import { EmployeesScreen } from "@/components/employees/employees-screen"
+import type { EmployeeStatusFilterValue } from "@/components/employees/employee-status-filter"
 import { listEmployees } from "@/lib/employees/data"
 import { requirePeopleManager } from "@/lib/auth/membership"
 import { listEmployeeJobSummaries } from "@/lib/jobs/data"

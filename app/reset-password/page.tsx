@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 
-import { AuthScreen } from "@/components/auth-screen"
-import { ResetPasswordForm } from "@/components/reset-password-form"
+import { AuthScreen } from "@/components/auth/auth-screen"
+import { ResetPasswordForm } from "@/components/auth/reset-password-form"
 import {
   PASSWORD_RECOVERY_COOKIE,
   PASSWORD_RECOVERY_COOKIE_VALUE,

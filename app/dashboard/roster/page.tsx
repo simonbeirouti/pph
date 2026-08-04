@@ -1,4 +1,4 @@
-import { RosterCalendar } from "@/components/roster-calendar"
+import { RosterCalendar } from "@/components/roster/roster-calendar"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getCurrentEmployee,

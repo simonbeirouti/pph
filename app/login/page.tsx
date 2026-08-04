@@ -1,5 +1,5 @@
-import { LoginForm } from "@/components/login-form"
-import { AuthScreen } from "@/components/auth-screen"
+import { LoginForm } from "@/components/auth/login-form"
+import { AuthScreen } from "@/components/auth/auth-screen"
 
 export default async function Page({
   searchParams,

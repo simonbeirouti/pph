@@ -1,5 +1,6 @@
 "use client"
 
+import { createAvatarUrl } from "@/lib/employees/avatar"
 import {
   getOperations as getLegacyOperations,
   getPhoto as getLegacyPhoto,
@@ -382,14 +383,21 @@ export async function hydrateOfflineSnapshotMedia(snapshot: OfflineV2Snapshot) {
     const blob = await getOfflineMedia(mediaKey(url))
     if (blob) replacements.set(url, URL.createObjectURL(blob))
   }
-  hydrated.profile.avatarUrl = replaceMediaUrl(
+  hydrated.profile.avatarUrl = hydratedAvatarUrl(
+    hydrated.profile.membershipId,
+    hydrated.profile.avatarPath,
     hydrated.profile.avatarUrl,
     replacements
   )
   if (hydrated.people) {
     hydrated.people.employees = hydrated.people.employees.map((employee) => ({
       ...employee,
-      avatarUrl: replaceMediaUrl(employee.avatarUrl, replacements),
+      avatarUrl: hydratedAvatarUrl(
+        employee.membershipId,
+        employee.avatarPath,
+        employee.avatarUrl,
+        replacements
+      ),
     }))
   }
   for (const detail of Object.values(hydrated.jobDetails)) {
@@ -550,6 +558,18 @@ function replaceMediaUrl(
   replacements: Map<string, string>
 ) {
   return value ? (replacements.get(value) ?? value) : null
+}
+
+function hydratedAvatarUrl(
+  membershipId: number,
+  avatarPath: string | null,
+  storedUrl: string | null,
+  replacements: Map<string, string>
+) {
+  const cachedUrl = replaceMediaUrl(storedUrl, replacements)
+  return cachedUrl?.startsWith("blob:")
+    ? cachedUrl
+    : createAvatarUrl(membershipId, avatarPath)
 }
 
 function rewriteMappedValues(

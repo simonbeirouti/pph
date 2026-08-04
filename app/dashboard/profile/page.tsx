@@ -1,4 +1,4 @@
-import { ProfileScreen } from "@/components/profile-screen"
+import { ProfileScreen } from "@/components/profile/profile-screen"
 import { getCurrentProfile } from "@/lib/employees/data"
 
 export default async function Page() {

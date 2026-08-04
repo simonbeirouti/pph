@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { JobsScreen } from "@/components/jobs-screen"
+import { JobsScreen } from "@/components/jobs/jobs-screen"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getEmployeeAssignedJobs,

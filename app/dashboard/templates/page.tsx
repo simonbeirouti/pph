@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { TemplateScheduleWorkspace } from "@/components/template-schedule-workspace"
+import { TemplateScheduleWorkspace } from "@/components/templates/template-schedule-workspace"
 import { getTemplateScheduleData } from "@/lib/templates/data"
 
 export default async function Page({

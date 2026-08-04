@@ -1,4 +1,4 @@
-import { DashboardHomeScreen } from "@/components/dashboard-home-screen"
+import { DashboardHomeScreen } from "@/components/dashboard/dashboard-home-screen"
 import { requireActiveMembership } from "@/lib/auth/membership"
 import {
   getEmployeeDashboardData,

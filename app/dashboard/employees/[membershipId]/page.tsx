@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { EmployeeProfileScreen } from "@/components/employee-profile-screen"
+import { EmployeeProfileScreen } from "@/components/employees/employee-profile-screen"
 import { requirePeopleManager } from "@/lib/auth/membership"
 import { getEmployee } from "@/lib/employees/data"
 import { getEmployeeJobSummary } from "@/lib/jobs/data"

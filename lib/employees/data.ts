@@ -2,6 +2,7 @@ import "server-only"
 
 import { cache } from "react"
 
+import { createAvatarUrl } from "@/lib/employees/avatar"
 import type { Database } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
 import {
@@ -75,23 +76,12 @@ export function toActiveEmployeeOption(
   }
 }
 
-export async function createSignedAvatarUrl(
-  avatarPath: string | null
-): Promise<string | null> {
-  if (!avatarPath) return null
-  const supabase = await createClient()
-  const { data, error } = await supabase.storage
-    .from("avatars")
-    .createSignedUrl(avatarPath, 300)
-  return error ? null : data.signedUrl
-}
-
 async function mapEmployee(row: EmployeeQueryRow): Promise<EmployeeSummary> {
   const profile = row.employee_profiles[0]
   if (!profile) throw new Error("Employee is missing its profile")
   return {
     avatarPath: profile.avatar_path,
-    avatarUrl: await createSignedAvatarUrl(profile.avatar_path),
+    avatarUrl: createAvatarUrl(row.id, profile.avatar_path),
     displayName: `${profile.first_name} ${profile.last_name}`.trim(),
     email: row.email,
     firstName: profile.first_name,

@@ -13,7 +13,8 @@ type OptimizationRequest = {
 }
 
 type OptimizationResponse =
-  { blob: Blob; ok: true } | { message: string; ok: false }
+  | { blob: Blob; ok: true }
+  | { message: string; ok: false }
 
 const worker = self as unknown as DedicatedWorkerGlobalScope
 

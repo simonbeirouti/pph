@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-import { AuthScreen } from "@/components/auth-screen"
+import { AuthScreen } from "@/components/auth/auth-screen"
 import { Button } from "@/components/ui/button"
 
 export default function Page() {

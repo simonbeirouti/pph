@@ -9,6 +9,7 @@ import {
   getOfflineV2Identity,
   getOfflineV2Operations,
   getOfflineV2Snapshot,
+  hydrateOfflineSnapshotMedia,
   isOfflineLogoutPending,
   persistOfflineV2Snapshot,
   purgeOfflineV2Data,
@@ -79,6 +80,18 @@ afterEach(async () => {
 })
 
 describe("offline v2 IndexedDB", () => {
+  it("upgrades an expired avatar URL to the stable authenticated endpoint", async () => {
+    const legacy = snapshot()
+    legacy.profile.avatarPath =
+      "1001/1103/00000000-0000-4000-8000-000000000001.png"
+    legacy.profile.avatarUrl =
+      "https://example.supabase.co/storage/v1/object/sign/avatars/expired"
+
+    const hydrated = await hydrateOfflineSnapshotMedia(legacy)
+
+    expect(hydrated.profile.avatarUrl).toBe("/api/avatars/1103")
+  })
+
   it("persists a membership-scoped snapshot and replaces another identity", async () => {
     await persistOfflineV2Snapshot(snapshot())
     expect(await getOfflineV2Identity()).toEqual({

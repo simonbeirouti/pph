@@ -156,4 +156,51 @@ describe("offline v2 patches", () => {
     expect(next.membership.role).toBe("manager")
     expect(next.membership.displayName).toBe("Local Name")
   })
+
+  it("accepts another worker's submitted status while preserving only the pending job", () => {
+    const card = (
+      id: number,
+      status: "assigned" | "in_progress" | "in_review"
+    ) =>
+      ({ id, status }) as OfflineV2Snapshot["jobs"] extends null
+        ? never
+        : NonNullable<OfflineV2Snapshot["jobs"]>["jobs"][number]
+    const local = {
+      ...snapshot,
+      jobs: {
+        employees: [],
+        jobs: [card(1401, "assigned"), card(1402, "in_progress")],
+        rosterShifts: [],
+        templates: [],
+        timezone: "Australia/Melbourne",
+      },
+    }
+    const incoming = {
+      ...local,
+      revision: 2,
+      jobs: {
+        ...local.jobs,
+        jobs: [card(1401, "assigned"), card(1402, "in_review")],
+      },
+    }
+
+    const next = preservePendingOptimisticDomains(incoming, local, [
+      {
+        clientOperationId: "job-1",
+        createdAt: snapshot.refreshedAt,
+        dependsOn: [],
+        entity: { id: 1401, source: "server" },
+        entityType: "job",
+        expectedVersion: 1,
+        kind: "job.reassign",
+        payload: {},
+        state: "pending",
+      },
+    ])
+
+    expect(next.jobs?.jobs).toEqual([
+      expect.objectContaining({ id: 1401, status: "assigned" }),
+      expect.objectContaining({ id: 1402, status: "in_review" }),
+    ])
+  })
 })

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react"
 import { cookies } from "next/headers"
 
-import { DashboardChrome } from "@/components/dashboard-chrome"
-import { OfflineV2Provider } from "@/components/offline-v2-provider"
-import { PushNotificationProvider } from "@/components/push-notification-provider"
+import { DashboardChrome } from "@/components/dashboard/dashboard-chrome"
+import { OfflineV2Provider } from "@/components/offline/offline-v2-provider"
+import { PushNotificationProvider } from "@/components/notifications/push-notification-provider"
 import { requireActiveMembership } from "@/lib/auth/membership"
-import { createSignedAvatarUrl } from "@/lib/employees/data"
+import { createAvatarUrl } from "@/lib/employees/avatar"
 import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar"
 
 export default async function DashboardLayout({
@@ -14,7 +14,10 @@ export default async function DashboardLayout({
   children: ReactNode
 }) {
   const membership = await requireActiveMembership()
-  const avatarUrl = await createSignedAvatarUrl(membership.avatarPath)
+  const avatarUrl = createAvatarUrl(
+    membership.membershipId,
+    membership.avatarPath
+  )
   const sidebarOpen =
     (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value !== "false"
 

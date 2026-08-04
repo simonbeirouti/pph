@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest"
 
+import { createAvatarUrl } from "@/lib/employees/avatar"
 import {
   isRosterAssignableEmployee,
   toActiveEmployeeOption,
 } from "@/lib/employees/data"
 
 describe("active employee options", () => {
+  it("uses a stable authenticated application URL for stored avatars", () => {
+    expect(createAvatarUrl(1103, "1001/1103/avatar.png")).toBe(
+      "/api/avatars/1103"
+    )
+    expect(createAvatarUrl(1103, null)).toBeNull()
+  })
+
   it("publishes only the stable server-side option contract", () => {
     expect(
       toActiveEmployeeOption({
