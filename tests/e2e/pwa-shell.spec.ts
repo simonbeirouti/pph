@@ -122,7 +122,7 @@ test("registers the root service worker with only the public shell cache", async
 
   expect(result.scope).toBe(`${new URL(employeePage.url()).origin}/`)
   expect(result.scriptUrl).toBe(`${new URL(employeePage.url()).origin}/sw.js`)
-  expect(result.caches).toEqual(["pph-shell-v5"])
+  expect(result.caches).toEqual(["pph-dashboard-shell-v11"])
 })
 
 test("revalidates Next.js assets instead of serving stale PWA code", async ({
@@ -147,7 +147,7 @@ test("revalidates Next.js assets instead of serving stale PWA code", async ({
       )
     }
 
-    const cache = await caches.open("pph-shell-v5")
+    const cache = await caches.open("pph-dashboard-shell-v11")
     await cache.put(
       url,
       new Response("stale-static-asset", {
@@ -165,6 +165,47 @@ test("revalidates Next.js assets instead of serving stale PWA code", async ({
 
   expect(result.body).not.toBe("stale-static-asset")
   expect(result.refreshedBody).toBe(result.body)
+})
+
+test("serves a cached immutable asset after a deployment removes it", async ({
+  employeePage,
+}) => {
+  await employeePage.goto("/dashboard")
+
+  const result = await employeePage.evaluate(async () => {
+    await navigator.serviceWorker.ready
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) =>
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          () => resolve(),
+          { once: true }
+        )
+      )
+    }
+
+    const missingAsset = `/_next/static/chunks/removed-deployment-${crypto.randomUUID()}.js`
+    const cache = await caches.open("pph-dashboard-shell-v11")
+    await cache.put(
+      missingAsset,
+      new Response("cached-deployment-asset", {
+        headers: { "content-type": "application/javascript" },
+      })
+    )
+
+    const response = await fetch(missingAsset)
+    return {
+      body: await response.text(),
+      contentType: response.headers.get("content-type"),
+      status: response.status,
+    }
+  })
+
+  expect(result).toEqual({
+    body: "cached-deployment-asset",
+    contentType: "application/javascript",
+    status: 200,
+  })
 })
 
 test("keeps Auth and the application usable without service-worker support", async ({

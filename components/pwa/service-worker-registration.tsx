@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-export const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v10"
+export const OFFLINE_SHELL_VERSION = "pph-dashboard-shell-v11"
 const OFFLINE_REPOSITORY_READY_URL = "/offline-repository-ready"
 
 export function offlineShellIsEnabled() {

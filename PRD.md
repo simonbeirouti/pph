@@ -105,3 +105,18 @@ switching, payroll, timesheets, clock-in/out, leave management, non-image job
 attachments, and employee-to-employee visibility. Future enhancements may add
 reporting, exports, time tracking, payroll integrations, richer notifications,
 and background synchronisation.
+
+## Delivery register
+
+- S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 deployment asset-cache regression: public shell cache v11 keeps a
+  prepared cached shell coherent with its cached immutable Next.js assets when
+  Vercel removes an older deployment's chunks. Online dashboard navigation also
+  refreshes the shell and current asset set in the background for the next
+  navigation. The global `X-Content-Type-Options: nosniff` protection remains
+  unchanged. The deployed v10 worker and a reported chunk URL reproduced the
+  mismatched-cache path (the asset is now a text/plain 404). Changed-file
+  Prettier/ESLint, 2 Vitest files / 12 tests, TypeScript, the production build,
+  and `git diff --check` pass. The deployment-transition Playwright regression
+  is implemented but still needs execution against the seeded browser stack.
+  No environment-variable or database change is required.

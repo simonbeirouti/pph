@@ -1,4 +1,4 @@
-const SHELL_CACHE = "pph-dashboard-shell-v10"
+const SHELL_CACHE = "pph-dashboard-shell-v11"
 const DASHBOARD_SHELL_URL = "/offline"
 const REPOSITORY_READY_URL = "/offline-repository-ready"
 const PUBLIC_ASSETS = [
@@ -7,6 +7,29 @@ const PUBLIC_ASSETS = [
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
 ]
+
+async function refreshDashboardShell(cache) {
+  const shellResponse = await fetch(DASHBOARD_SHELL_URL, { cache: "no-store" })
+  if (!shellResponse.ok) {
+    throw new Error("Unable to refresh the offline dashboard shell")
+  }
+
+  const html = await shellResponse.clone().text()
+  const assetPaths = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+    .map((match) => match[1])
+    .filter((path) => path.startsWith("/_next/static/"))
+
+  await Promise.all(
+    [...new Set(assetPaths)].map(async (path) => {
+      const response = await fetch(path)
+      if (!response.ok) {
+        throw new Error(`Unable to refresh dashboard asset: ${path}`)
+      }
+      await cache.put(path, response)
+    })
+  )
+  await cache.put(DASHBOARD_SHELL_URL, shellResponse)
+}
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "PPH_OFFLINE_SHELL_VERSION") {
@@ -45,16 +68,7 @@ self.addEventListener("install", (event) => {
       .open(SHELL_CACHE)
       .then(async (cache) => {
         await cache.addAll(PUBLIC_ASSETS.slice(1))
-        const shellResponse = await fetch(DASHBOARD_SHELL_URL)
-        if (!shellResponse.ok) {
-          throw new Error("Unable to install the offline dashboard shell")
-        }
-        await cache.put(DASHBOARD_SHELL_URL, shellResponse.clone())
-        const html = await shellResponse.text()
-        const assetPaths = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
-          .map((match) => match[1])
-          .filter((path) => path.startsWith("/_next/static/"))
-        await cache.addAll([...new Set(assetPaths)])
+        await refreshDashboardShell(cache)
       })
       .then(() => self.skipWaiting())
   )
@@ -92,6 +106,14 @@ self.addEventListener("fetch", (event) => {
       url.pathname === "/dashboard" ||
       url.pathname.startsWith("/dashboard/")
     if (!isDashboardNavigation) return
+    if (url.pathname !== DASHBOARD_SHELL_URL) {
+      event.waitUntil(
+        caches
+          .open(SHELL_CACHE)
+          .then((cache) => refreshDashboardShell(cache))
+          .catch(() => {})
+      )
+    }
     event.respondWith(
       url.pathname === DASHBOARD_SHELL_URL
         ? fetch(request, { cache: "no-store" }).catch(async () => {
@@ -118,11 +140,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then(async (response) => {
+          const cache = await caches.open(SHELL_CACHE)
           if (response.ok) {
-            const cache = await caches.open(SHELL_CACHE)
             await cache.put(request, response.clone())
+            return response
           }
-          return response
+          return (
+            (await cache.match(request, { ignoreSearch: true })) || response
+          )
         })
         .catch(async () => {
           const cached = await caches.match(request, { ignoreSearch: true })
