@@ -122,6 +122,22 @@ const PRIORITY_LABELS = {
 type PriorityFilter = JobPriority | "all"
 type EmployeeFilter = `${number}` | "all" | "unassigned"
 
+function deduplicateJobs(jobs: readonly JobCard[]) {
+  const byId = new Map<number, JobCard>()
+  for (const job of jobs) {
+    const existing = byId.get(job.id)
+    if (
+      !existing ||
+      (job.version !== undefined && existing.version !== undefined
+        ? job.version > existing.version
+        : job.updatedAt > existing.updatedAt)
+    ) {
+      byId.set(job.id, job)
+    }
+  }
+  return [...byId.values()]
+}
+
 function buildBoard(jobs: readonly JobCard[], view: JobView): BoardItems {
   const board: BoardItems = {
     archived: [],
@@ -171,13 +187,16 @@ export function JobWorkspace({
       ? (String(initialEmployeeFilter) as EmployeeFilter)
       : "all"
   )
-  const [jobs, setJobs] = useState(() => [...initialJobs])
+  const [jobs, setJobs] = useState(() => deduplicateJobs(initialJobs))
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set())
   const [assignmentJob, setAssignmentJob] = useState<JobCard | null>(null)
   const [deleteJob, setDeleteJob] = useState<JobCard | null>(null)
   const [editJob, setEditJob] = useState<JobCard | null>(null)
   const pendingIdsRef = useRef(new Set<number>())
   const deferredJobsRef = useRef<readonly JobCard[] | null>(null)
+  const serverJobsRef = useRef(
+    new Map(deduplicateJobs(initialJobs).map((job) => [job.id, job]))
+  )
   const columns = columnsForJobView(view)
   const visibleJobs = useMemo(
     () =>
@@ -219,14 +238,26 @@ export function JobWorkspace({
   }, [jobs])
 
   useEffect(() => {
+    const incoming = deduplicateJobs(initialJobs)
+    const reopened = incoming.some(
+      (job) =>
+        serverJobsRef.current.get(job.id)?.status === "archived" &&
+        job.status !== "archived"
+    )
+    serverJobsRef.current = new Map(incoming.map((job) => [job.id, job]))
+
     if (pendingIdsRef.current.size) {
-      deferredJobsRef.current = initialJobs
+      deferredJobsRef.current = incoming
       return
     }
 
-    const next = [...initialJobs]
+    const next = incoming
     jobsRef.current = next
     setJobs(next)
+    if (reopened) {
+      viewRef.current = "workflow"
+      setView("workflow")
+    }
   }, [initialJobs])
 
   useEffect(() => {
@@ -322,7 +353,7 @@ export function JobWorkspace({
         return next
       })
       if (!pendingIdsRef.current.size && deferredJobsRef.current) {
-        const next = [...deferredJobsRef.current]
+        const next = deduplicateJobs(deferredJobsRef.current)
         deferredJobsRef.current = null
         jobsRef.current = next
         setJobs(next)
@@ -331,10 +362,7 @@ export function JobWorkspace({
   }
 
   function addCreatedJob(job: JobCard) {
-    const next = [
-      job,
-      ...jobsRef.current.filter((current) => current.id !== job.id),
-    ]
+    const next = deduplicateJobs([job, ...jobsRef.current])
     jobsRef.current = next
     setJobs(next)
     viewRef.current = "workflow"

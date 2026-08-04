@@ -220,6 +220,7 @@ export function OwnerJobDetail({
             detail={detail}
             employees={employees}
             onMutationSuccess={onMutationSuccess}
+            onReopen={close}
           />
         ) : detail.status === "in_review" ? (
           <SheetFooter className="border-t">
@@ -542,10 +543,12 @@ function OwnerJobActions({
   detail,
   employees,
   onMutationSuccess,
+  onReopen,
 }: {
   detail: JobDetail
   employees: readonly JobBoardEmployee[]
   onMutationSuccess?: () => Promise<void> | void
+  onReopen: () => void
 }) {
   const router = useRouter()
   const offline = useOfflineV2Actions()
@@ -723,6 +726,7 @@ function OwnerJobActions({
                   () => {
                     setFeedback("")
                     setReopenOpen(false)
+                    onReopen()
                   }
                 )
               }
@@ -1168,6 +1172,10 @@ function EvidenceGallery({
   const offline = useOfflineV2Actions()
   const [pendingId, setPendingId] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const refreshEvidence = () => {
+    router.refresh()
+    void onMutationSuccess?.()
+  }
   if (!detail.evidence.length) return null
   const selectedAsset =
     detail.evidence.find((asset) => asset.id === selectedId) ?? null
@@ -1190,12 +1198,13 @@ function EvidenceGallery({
                   onClick={() => setSelectedId(asset.id)}
                   type="button"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer */}
-                  <img
+                  <EvidenceImage
                     alt={`Completion evidence added ${addedDate}`}
                     className="size-full object-contain"
                     decoding="async"
+                    key={asset.signedUrl}
                     loading="lazy"
+                    onLoadError={refreshEvidence}
                     src={asset.signedUrl}
                   />
                 </button>
@@ -1273,16 +1282,64 @@ function EvidenceGallery({
             </DialogDescription>
           </DialogHeader>
           {selectedAsset ? (
-            // eslint-disable-next-line @next/next/no-img-element -- the authorised URL expires in five minutes and cannot use the public image optimizer
-            <img
+            <EvidenceImage
               alt={`Full completion evidence added ${formatShortZonedDate(selectedAsset.createdAt, timezone)}`}
               className="max-h-[calc(100svh-8rem)] w-full object-contain"
+              key={selectedAsset.signedUrl}
+              onLoadError={refreshEvidence}
               src={selectedAsset.signedUrl}
             />
           ) : null}
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function EvidenceImage({
+  alt,
+  className,
+  decoding,
+  loading,
+  onLoadError,
+  src,
+}: {
+  alt: string
+  className: string
+  decoding?: "async"
+  loading?: "lazy"
+  onLoadError: () => void
+  src: string
+}) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <span
+        className={cn(
+          "grid place-items-center p-3 text-center text-xs text-muted-foreground",
+          className
+        )}
+        role="status"
+      >
+        Refreshing the photo…
+      </span>
+    )
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- evidence is served with a short-lived authorised URL and cannot use the public image optimizer
+    <img
+      alt={alt}
+      className={className}
+      decoding={decoding}
+      loading={loading}
+      onError={() => {
+        setFailed(true)
+        onLoadError()
+      }}
+      src={src}
+    />
   )
 }
 

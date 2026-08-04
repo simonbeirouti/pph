@@ -220,6 +220,12 @@ export async function optimizeJobEvidenceFile(
     }
   } catch (error) {
     if (isAbortError(error)) throw error
+    if (isPhoneNativeMimeType(mimeType)) {
+      throw new JobEvidenceOptimizationError(
+        "This HEIC or HEIF photo could not be converted for reliable viewing. Choose a JPEG, PNG, or WebP image instead.",
+        "unsupported_file"
+      )
+    }
     return {
       file,
       originalSizeBytes,

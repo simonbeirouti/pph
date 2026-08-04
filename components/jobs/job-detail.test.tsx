@@ -13,6 +13,7 @@ import {
   addJobNoteAction,
   finalizeJobEvidenceUploadAction,
   prepareJobEvidenceUploadAction,
+  reopenJobAction,
   submitJobAction,
 } from "@/app/dashboard/jobs/actions"
 import { EmployeeJobDetail, OwnerJobDetail } from "@/components/jobs/job-detail"
@@ -527,6 +528,79 @@ describe("job detail surfaces", () => {
     expect(
       screen.getByRole("img", { name: /Completion evidence added/ })
     ).toHaveAttribute("decoding", "async")
+  })
+
+  it("refreshes evidence rather than leaving a broken image visible", async () => {
+    const refreshEvidence = vi.fn()
+    render(
+      <EmployeeJobDetail
+        detail={{
+          ...detail,
+          evidence: [
+            {
+              createdAt: "2026-07-27T00:00:00.000Z",
+              id: 1601,
+              mimeType: "image/jpeg",
+              removable: false,
+              signedUrl: "https://example.test/expired-evidence.jpg",
+              sizeBytes: 1024,
+              uploadedByMembershipId: 1103,
+            },
+          ],
+          status: "in_progress",
+        }}
+        onMutationSuccess={refreshEvidence}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    fireEvent.error(
+      screen.getByRole("img", { name: /Completion evidence added/ })
+    )
+
+    expect(await screen.findByText("Refreshing the photo…")).toBeVisible()
+    expect(refreshEvidence).toHaveBeenCalledOnce()
+  })
+
+  it("closes the job sheet after reopening a job", async () => {
+    const onClose = vi.fn()
+    vi.mocked(reopenJobAction).mockResolvedValue({
+      message: "Job reopened with feedback.",
+      ok: true,
+    })
+    render(
+      <OwnerJobDetail
+        detail={{ ...detail, status: "in_review" }}
+        employees={[
+          {
+            active: true,
+            avatarUrl: null,
+            displayName: "Alex Employee",
+            jobTitle: "Operator",
+            membershipId: 1103,
+          },
+        ]}
+        onClose={onClose}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Reopen job" }))
+    const dialog = screen.getByRole("dialog", { name: "Reopen job" })
+    fireEvent.change(within(dialog).getByLabelText("Feedback"), {
+      target: { value: "Please correct the final label." },
+    })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reopen job" }))
+
+    await waitFor(() =>
+      expect(reopenJobAction).toHaveBeenCalledWith({
+        assigneeMembershipId: 1103,
+        feedback: "Please correct the final label.",
+        jobId: detail.id,
+        submissionVersion: detail.submissionVersion,
+      })
+    )
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it("opens employee detail from the live URL for the same and another job", () => {

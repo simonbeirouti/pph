@@ -85,6 +85,20 @@ afterEach(() => {
 })
 
 describe("JobWorkspace", () => {
+  it("renders each job once when an incoming refresh repeats its id", () => {
+    render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[job, { ...job }]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      screen.getAllByRole("article", { name: "Job Inspect loading bay" })
+    ).toHaveLength(1)
+  })
+
   it("initializes the employee filter from a linked employee view", () => {
     render(
       <JobWorkspace
@@ -678,5 +692,43 @@ describe("JobWorkspace", () => {
         })
       ).toBeVisible()
     )
+  })
+
+  it("returns to Workflow when an archived job is reopened", () => {
+    const archivedJob: JobCard = {
+      ...job,
+      archivedAt: "2026-07-27T04:30:00.000Z",
+      status: "archived",
+    }
+    const { rerender } = render(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[archivedJob]}
+        initialView="archived"
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(screen.getByRole("tab", { name: "Archived" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+
+    rerender(
+      <JobWorkspace
+        employees={employees}
+        initialJobs={[{ ...job, version: 2 }]}
+        initialView="archived"
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(screen.getByRole("tab", { name: "Workflow" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+    expect(
+      screen.getByRole("article", { name: "Job Inspect loading bay" })
+    ).toBeVisible()
   })
 })

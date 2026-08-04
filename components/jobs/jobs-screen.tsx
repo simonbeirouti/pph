@@ -56,7 +56,7 @@ export function JobsScreen({
 }) {
   const searchParams = useSearchParams()
   const offline = useOptionalOfflineV2()
-  const [liveJobs, setLiveJobs] = useState(() => [...jobs])
+  const [liveJobs, setLiveJobs] = useState(() => deduplicateJobs(jobs))
   const fastPathIdsRef = useRef(new Set<number>())
   const pendingIdsRef = useRef(new Set<number>())
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -64,7 +64,7 @@ export function JobsScreen({
   useEffect(() => {
     setLiveJobs((current) => {
       const currentById = new Map(current.map((job) => [job.id, job]))
-      const next = jobs.map((job) => {
+      const next = deduplicateJobs(jobs).map((job) => {
         const existing = currentById.get(job.id)
         if (!existing || !isNewerJob(existing, job)) {
           fastPathIdsRef.current.delete(job.id)
@@ -251,6 +251,15 @@ function isNewerJob(candidate: JobCard, current: JobCard) {
     return candidate.version > current.version
   }
   return candidate.updatedAt > current.updatedAt
+}
+
+function deduplicateJobs(jobs: readonly JobCard[]) {
+  const byId = new Map<number, JobCard>()
+  for (const job of jobs) {
+    const existing = byId.get(job.id)
+    if (!existing || isNewerJob(job, existing)) byId.set(job.id, job)
+  }
+  return [...byId.values()]
 }
 
 function matchesCurrentFilter(
