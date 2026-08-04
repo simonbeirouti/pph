@@ -61,7 +61,7 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeVisible()
   await expect(employeePage.getByText("Owner feedback")).toHaveCount(0)
 
-  await employeePage.keyboard.press("Escape")
+  await employeePage.touchscreen.tap(8, 8)
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
   await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
 
@@ -73,7 +73,20 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
   await anotherJob.getByRole("button", { name: "Open job" }).click()
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs\?job=\d+$/)
   await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeVisible()
-  await employeePage.keyboard.press("Escape")
+  const swipeHandle = employeePage.locator('[data-slot="drawer-swipe-handle"]')
+  const swipeBox = await swipeHandle.boundingBox()
+  expect(swipeBox).not.toBeNull()
+  await employeePage.mouse.move(
+    swipeBox!.x + swipeBox!.width / 2,
+    swipeBox!.y + swipeBox!.height / 2
+  )
+  await employeePage.mouse.down()
+  await employeePage.mouse.move(
+    swipeBox!.x + swipeBox!.width / 2,
+    swipeBox!.y + 180,
+    { steps: 10 }
+  )
+  await employeePage.mouse.up()
   await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
 
   await employeeJob.getByRole("button", { name: "Open job" }).click()
@@ -186,20 +199,19 @@ test("employee executes and resubmits while owner reviews in the URL-controlled 
     .toBeGreaterThan(0)
   await employeeEvidenceViewer.getByRole("button", { name: "Close" }).click()
   await expect(employeeEvidenceViewer).not.toBeVisible()
-  await employeePage.keyboard.press("Escape")
-  await expect(employeePage.locator('[data-slot="drawer-popup"]')).toBeHidden()
-  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
-  const employeeJobCard = employeePage
-    .getByRole("article")
-    .filter({ hasText: title })
+  const drawer = employeePage.locator('[data-slot="drawer-popup"]')
   await expect(
-    employeeJobCard.getByRole("button", { name: "Submit for review" })
+    drawer.getByRole("button", { name: "Submit for review" })
   ).toBeEnabled()
-  await employeeJobCard
-    .getByRole("button", { name: "Submit for review" })
-    .click()
+  await drawer.getByRole("button", { name: "Submit for review" }).click()
   await expect(
     employeePage.getByText("Job submitted for review.")
+  ).toBeVisible()
+  await expect(drawer).toBeHidden()
+  await expect(employeePage).toHaveURL(/\/dashboard\/jobs$/)
+  await employeePage.getByRole("tab", { name: /Submitted/ }).click()
+  await expect(
+    employeePage.getByRole("article").filter({ hasText: title })
   ).toBeVisible()
   await employeePage.goto("about:blank")
 

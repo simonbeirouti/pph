@@ -1,22 +1,13 @@
 "use client"
 
-import {
-  CalendarClockIcon,
-  CheckCircle2Icon,
-  LoaderCircleIcon,
-  MapPinIcon,
-  SendIcon,
-} from "lucide-react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useTransition } from "react"
-import { toast } from "sonner"
+import { CalendarClockIcon, CheckCircle2Icon, MapPinIcon } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 
-import { submitJobAction } from "@/app/dashboard/jobs/actions"
 import { OpenJobLink } from "@/components/jobs/job-detail-controller"
 import {
-  updateJobEverywhere,
-  useOfflineV2Actions,
-} from "@/components/offline/offline-v2-actions"
+  canSubmitJob,
+  JobSubmitButton,
+} from "@/components/jobs/job-submit-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -185,19 +176,7 @@ function EmployeeJobsPanel({
 }
 
 function JobCardActions({ href, job }: { href: string; job: JobCard }) {
-  const router = useRouter()
-  const offline = useOfflineV2Actions()
-  const [pending, startTransition] = useTransition()
-  const hasCounts =
-    typeof job.completionNoteCount === "number" &&
-    typeof job.completionPhotoCount === "number"
-  const requirementsMet =
-    hasCounts &&
-    (!job.requiresCompletionNote || job.completionNoteCount! > 0) &&
-    job.completionPhotoCount! >= job.minimumCompletionPhotos
-  const canSubmit =
-    requirementsMet &&
-    (job.status === "assigned" || job.status === "in_progress")
+  const canSubmit = canSubmitJob(job)
 
   return (
     <div className={cn("grid gap-2", canSubmit && "grid-cols-2")}>
@@ -207,46 +186,7 @@ function JobCardActions({ href, job }: { href: string; job: JobCard }) {
       >
         Open job
       </Button>
-      {canSubmit ? (
-        <Button
-          aria-label="Submit for review"
-          disabled={pending}
-          onClick={() => {
-            startTransition(async () => {
-              const queued = await offline.queue({
-                entityId: job.id,
-                entityType: "job",
-                expectedVersion: job.version ?? null,
-                kind: "job.submit",
-                optimistic: (snapshot) =>
-                  updateJobEverywhere(snapshot, job.id, (current) => ({
-                    ...current,
-                    status: "in_review",
-                    submittedAt: new Date().toISOString(),
-                  })),
-              })
-              const result = queued
-                ? { message: "Submission saved.", ok: true }
-                : await submitJobAction(job.id)
-              if (result.ok) {
-                toast.success(result.message)
-                if (!queued) router.refresh()
-              } else {
-                toast.error(result.message)
-              }
-            })
-          }}
-          type="button"
-          variant="outline"
-        >
-          {pending ? (
-            <LoaderCircleIcon className="animate-spin" />
-          ) : (
-            <SendIcon />
-          )}
-          Submit
-        </Button>
-      ) : null}
+      {canSubmit ? <JobSubmitButton job={job} /> : null}
     </div>
   )
 }

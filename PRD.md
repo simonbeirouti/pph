@@ -109,6 +109,21 @@ and background synchronisation.
 ## Delivery register
 
 - S12 production readiness — `in_progress`, **NO-GO**.
+- 2026-08-04 employee job submission integration: employees can now submit
+  requirement-complete assigned or in-progress work directly from the open job
+  detail surface. The card and detail reuse one eligibility and mutation
+  contract, including offline queueing, optimistic `in_review` state, pending
+  protection, authoritative server errors, and success feedback; successful or
+  queued detail submissions close the drawer and return to the status-filtered
+  list, while failures preserve the open work. Mobile drawer content opts out of
+  swipe recognition so taps, typing, uploads, and evidence controls cannot be
+  mistaken for dismissal, while the separate handle, outside press, and Escape
+  dismissal remain available. The Pixel 7 journey now submits inside the drawer
+  and covers outside-tap and handle-swipe dismissal plus Submitted-tab placement.
+  Focused component tests pass (3 files / 37 tests), as do changed-file
+  Prettier/ESLint, TypeScript, and `git diff --check`. The focused Playwright
+  checkpoint remains deferred because the local Docker/Supabase stack is not
+  running. No environment-variable or database change is required.
 - 2026-08-04 owner dashboard roster grid: today’s roster now lays employee
   shift cards into an auto-fitting responsive grid. It remains a single column
   when space is constrained, adds columns dynamically as the dashboard widens,

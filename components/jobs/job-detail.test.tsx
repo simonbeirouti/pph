@@ -13,6 +13,7 @@ import {
   addJobNoteAction,
   finalizeJobEvidenceUploadAction,
   prepareJobEvidenceUploadAction,
+  submitJobAction,
 } from "@/app/dashboard/jobs/actions"
 import { EmployeeJobDetail, OwnerJobDetail } from "@/components/jobs/job-detail"
 import type { JobDetail } from "@/lib/jobs/types"
@@ -41,7 +42,9 @@ vi.mock("@/hooks/use-mobile", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), replace: navigationMocks.replace }),
   useSearchParams: () =>
-    new URLSearchParams(navigationMocks.job ? `job=${navigationMocks.job}` : ""),
+    new URLSearchParams(
+      navigationMocks.job ? `job=${navigationMocks.job}` : ""
+    ),
 }))
 vi.mock("@/lib/uploads/job-evidence-optimizer", () => ({
   optimizeJobEvidenceFile: uploadMocks.optimize,
@@ -207,6 +210,101 @@ describe("job detail surfaces", () => {
       screen.getByRole("button", { name: "History, 0 updates" })
     ).toBeVisible()
     expect(screen.queryByText("Evidence")).not.toBeInTheDocument()
+  })
+
+  it("submits completed work from the detail and closes after success", async () => {
+    const onClose = vi.fn()
+    vi.mocked(submitJobAction).mockResolvedValue({
+      message: "Job submitted for review.",
+      ok: true,
+    })
+    render(
+      <EmployeeJobDetail
+        detail={{
+          ...detail,
+          evidence: [
+            {
+              createdAt: "2026-07-27T01:00:00.000Z",
+              id: 9,
+              mimeType: "image/jpeg",
+              removable: true,
+              signedUrl: "/evidence/9",
+              sizeBytes: 1_024,
+              uploadedByMembershipId: 1103,
+            },
+          ],
+          noteCount: 1,
+          status: "in_progress",
+        }}
+        onClose={onClose}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }))
+
+    await waitFor(() => expect(submitJobAction).toHaveBeenCalledWith(detail.id))
+    expect(uploadMocks.toastSuccess).toHaveBeenCalledWith(
+      "Job submitted for review."
+    )
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it("keeps completed work open when submission fails", async () => {
+    const onClose = vi.fn()
+    vi.mocked(submitJobAction).mockResolvedValue({
+      message: "The latest requirements are not complete.",
+      ok: false,
+    })
+    render(
+      <EmployeeJobDetail
+        detail={{
+          ...detail,
+          evidence: [
+            {
+              createdAt: "2026-07-27T01:00:00.000Z",
+              id: 9,
+              mimeType: "image/jpeg",
+              removable: true,
+              signedUrl: "/evidence/9",
+              sizeBytes: 1_024,
+              uploadedByMembershipId: 1103,
+            },
+          ],
+          noteCount: 1,
+          status: "in_progress",
+        }}
+        onClose={onClose}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }))
+
+    await waitFor(() =>
+      expect(uploadMocks.toastError).toHaveBeenCalledWith(
+        "The latest requirements are not complete."
+      )
+    )
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole("dialog")).toBeVisible()
+  })
+
+  it("marks mobile drawer content as swipe ignored while keeping its handle", () => {
+    isMobile.mockReturnValue(true)
+    render(
+      <EmployeeJobDetail
+        detail={{ ...detail, status: "in_progress" }}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    expect(
+      document.querySelector('[data-slot="drawer-content"]')
+    ).toHaveAttribute("data-base-ui-swipe-ignore")
+    expect(
+      document.querySelector('[data-slot="drawer-swipe-handle"]')
+    ).not.toHaveAttribute("data-base-ui-swipe-ignore")
   })
 
   it("optimizes before preparing and uploading completion evidence", async () => {
@@ -433,31 +531,28 @@ describe("job detail surfaces", () => {
 
   it("opens employee detail from the live URL for the same and another job", () => {
     const { rerender } = render(
-      <EmployeeJobDetail
-        detail={detail}
-        timezone="Australia/Melbourne"
-      />
+      <EmployeeJobDetail detail={detail} timezone="Australia/Melbourne" />
     )
 
-    expect(
-      screen.getByRole("dialog", { name: detail.title })
-    ).toHaveAttribute("data-open")
+    expect(screen.getByRole("dialog", { name: detail.title })).toHaveAttribute(
+      "data-open"
+    )
 
     navigationMocks.job = null
     rerender(
       <EmployeeJobDetail detail={detail} timezone="Australia/Melbourne" />
     )
-    expect(
-      screen.getByRole("dialog", { name: detail.title })
-    ).toHaveAttribute("data-closed")
+    expect(screen.getByRole("dialog", { name: detail.title })).toHaveAttribute(
+      "data-closed"
+    )
 
     navigationMocks.job = String(detail.id)
     rerender(
       <EmployeeJobDetail detail={detail} timezone="Australia/Melbourne" />
     )
-    expect(
-      screen.getByRole("dialog", { name: detail.title })
-    ).toHaveAttribute("data-open")
+    expect(screen.getByRole("dialog", { name: detail.title })).toHaveAttribute(
+      "data-open"
+    )
 
     const nextDetail = {
       ...detail,
@@ -466,10 +561,7 @@ describe("job detail surfaces", () => {
     }
     navigationMocks.job = String(nextDetail.id)
     rerender(
-      <EmployeeJobDetail
-        detail={nextDetail}
-        timezone="Australia/Melbourne"
-      />
+      <EmployeeJobDetail detail={nextDetail} timezone="Australia/Melbourne" />
     )
 
     expect(
@@ -486,9 +578,9 @@ describe("job detail surfaces", () => {
       />
     )
 
-    expect(
-      screen.getByRole("dialog", { name: detail.title })
-    ).toHaveAttribute("data-open")
+    expect(screen.getByRole("dialog", { name: detail.title })).toHaveAttribute(
+      "data-open"
+    )
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }))
     expect(navigationMocks.replace).toHaveBeenCalledWith("/dashboard/jobs", {
@@ -503,9 +595,9 @@ describe("job detail surfaces", () => {
         timezone="Australia/Melbourne"
       />
     )
-    expect(
-      screen.getByRole("dialog", { name: detail.title })
-    ).toHaveAttribute("data-closed")
+    expect(screen.getByRole("dialog", { name: detail.title })).toHaveAttribute(
+      "data-closed"
+    )
   })
 
   it("shows the evidence gallery only after a photo exists", () => {
@@ -605,12 +697,14 @@ describe("job detail surfaces", () => {
       const follows = (first: Element, second: Element) =>
         Boolean(
           first.compareDocumentPosition(second) &
-            Node.DOCUMENT_POSITION_FOLLOWING
+          Node.DOCUMENT_POSITION_FOLLOWING
         )
 
       expect(follows(jobDetails, evidence)).toBe(true)
       expect(follows(evidence, history)).toBe(true)
-      expect(screen.queryByText("Existing conversation")).not.toBeInTheDocument()
+      expect(
+        screen.queryByText("Existing conversation")
+      ).not.toBeInTheDocument()
       expect(
         screen.queryByRole("button", { name: "Comments" })
       ).not.toBeInTheDocument()
@@ -674,9 +768,7 @@ describe("job detail surfaces", () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Add comment")).not.toBeInTheDocument()
     expect(screen.queryByText("Owner history 4")).not.toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole("button", { name: "History, 4 updates" })
-    )
+    fireEvent.click(screen.getByRole("button", { name: "History, 4 updates" }))
     expect(screen.getByText("Owner history 4")).toBeVisible()
     expect(screen.getByText("Owner history 2")).toBeVisible()
     expect(screen.queryByText("Owner history 1")).not.toBeInTheDocument()
@@ -702,9 +794,7 @@ describe("job detail surfaces", () => {
       />
     )
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "History, 7 updates" })
-    )
+    fireEvent.click(screen.getByRole("button", { name: "History, 7 updates" }))
     expect(screen.getByText("History entry 7")).toBeVisible()
     expect(screen.getByText("History entry 5")).toBeVisible()
     expect(screen.queryByText("History entry 4")).not.toBeInTheDocument()

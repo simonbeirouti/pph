@@ -25,6 +25,7 @@ import {
   retryJobNotificationAction,
   startJobAction,
 } from "@/app/dashboard/jobs/actions"
+import { JobSubmitButton } from "@/components/jobs/job-submit-button"
 import {
   updateJobEverywhere,
   useOfflineV2Actions,
@@ -129,6 +130,7 @@ export function EmployeeJobDetail({
           </DrawerHeader>
           <JobDetailBody
             detail={detail}
+            onClose={close}
             onMutationSuccess={onMutationSuccess}
             role="employee"
             timezone={timezone}
@@ -151,6 +153,7 @@ export function EmployeeJobDetail({
         <ScrollArea className="-mx-1 min-h-0 flex-1 px-1">
           <JobDetailBody
             detail={detail}
+            onClose={close}
             onMutationSuccess={onMutationSuccess}
             role="employee"
             timezone={timezone}
@@ -320,11 +323,13 @@ function JobBadges({
 
 function JobDetailBody({
   detail,
+  onClose,
   onMutationSuccess,
   role,
   timezone,
 }: {
   detail: JobDetail
+  onClose?: () => void
   onMutationSuccess?: () => Promise<void> | void
   role: Role
   timezone: string
@@ -446,6 +451,18 @@ function JobDetailBody({
           detail={detail}
           onMutationSuccess={onMutationSuccess}
           timezone={timezone}
+        />
+      ) : null}
+
+      {role === "employee" ? (
+        <JobSubmitButton
+          job={{
+            ...detail,
+            completionNoteCount: detail.noteCount,
+            completionPhotoCount: detail.evidence.length,
+          }}
+          onSuccess={() => onClose?.()}
+          variant="default"
         />
       ) : null}
 
