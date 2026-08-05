@@ -117,6 +117,8 @@ const RECURRENCE_OPTIONS = [
   { label: "Weekly", value: "weekly" },
 ] as const
 
+const DEFAULT_SCHEDULE_RECURRENCE = "weekly"
+
 export function TemplateScheduleWorkspace({
   employees,
   initialView,
@@ -950,7 +952,7 @@ function ScheduleForm({
     INITIAL_TEMPLATE_ACTION_STATE
   )
   const [recurrence, setRecurrence] = useState(
-    schedule?.recurrenceType ?? "daily"
+    schedule?.recurrenceType ?? DEFAULT_SCHEDULE_RECURRENCE
   )
   const [localTime, setLocalTime] = useState(schedule?.localTime ?? "09:00")
   const [startsOn, setStartsOn] = useState(

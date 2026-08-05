@@ -175,7 +175,12 @@ describe("TemplateScheduleWorkspace", () => {
     ).toHaveTextContent("Alex Employee")
     expect(
       within(dialog).getByRole("combobox", { name: "Repeats" })
-    ).toHaveTextContent("Daily")
+    ).toHaveTextContent("Weekly")
+    for (const weekday of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+      expect(
+        within(dialog).getByRole("checkbox", { name: weekday })
+      ).toBeVisible()
+    }
     const localTime = within(dialog).getByLabelText("Local time")
     const startsOn = within(dialog).getByLabelText("Starts on")
     const endsOn = within(dialog).getByLabelText("Ends on")

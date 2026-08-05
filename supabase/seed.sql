@@ -16,14 +16,14 @@ values
   (
     '00000000-0000-0000-0000-000000000000',
     '00000000-0000-4000-8000-000000000002',
-    'authenticated', 'authenticated', 'taylor.green@example.test',
+    'authenticated', 'authenticated', 'hello+taylor@simonbeirouti.com',
     extensions.crypt('Password123!', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
   ),
   (
     '00000000-0000-0000-0000-000000000000',
     '00000000-0000-4000-8000-000000000003',
-    'authenticated', 'authenticated', 'morgan.lee@example.test',
+    'authenticated', 'authenticated', 'hello+morgan@simonbeirouti.com',
     extensions.crypt('Password123!', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
   );
@@ -43,14 +43,14 @@ values
     '00000000-0000-4000-8000-000000000002',
     '00000000-0000-4000-8000-000000000002',
     '00000000-0000-4000-8000-000000000002',
-    jsonb_build_object('sub', '00000000-0000-4000-8000-000000000002', 'email', 'taylor.green@example.test', 'email_verified', true, 'phone_verified', false),
+    jsonb_build_object('sub', '00000000-0000-4000-8000-000000000002', 'email', 'hello+taylor@simonbeirouti.com', 'email_verified', true, 'phone_verified', false),
     'email', now(), now(), now()
   ),
   (
     '00000000-0000-4000-8000-000000000003',
     '00000000-0000-4000-8000-000000000003',
     '00000000-0000-4000-8000-000000000003',
-    jsonb_build_object('sub', '00000000-0000-4000-8000-000000000003', 'email', 'morgan.lee@example.test', 'email_verified', true, 'phone_verified', false),
+    jsonb_build_object('sub', '00000000-0000-4000-8000-000000000003', 'email', 'hello+morgan@simonbeirouti.com', 'email_verified', true, 'phone_verified', false),
     'email', now(), now(), now()
   );
 
@@ -65,9 +65,9 @@ insert into public.memberships (
 overriding system value
 values
   (1101, 1001, '00000000-0000-4000-8000-000000000001', 'hello@simonbeirouti.com', 'owner', 'active', now(), now(), null, 'sent', now()),
-  (1102, 1001, '00000000-0000-4000-8000-000000000002', 'taylor.green@example.test', 'employee', 'active', now() - interval '14 days', now() - interval '14 days', null, 'sent', now() - interval '14 days'),
-  (1103, 1001, '00000000-0000-4000-8000-000000000003', 'morgan.lee@example.test', 'employee', 'active', now() - interval '7 days', now() - interval '7 days', null, 'sent', now() - interval '7 days'),
-  (1104, 1001, null, 'jamie.invited@example.test', 'employee', 'invited', now(), null, null, 'pending', null);
+  (1102, 1001, '00000000-0000-4000-8000-000000000002', 'hello+taylor@simonbeirouti.com', 'employee', 'active', now() - interval '14 days', now() - interval '14 days', null, 'sent', now() - interval '14 days'),
+  (1103, 1001, '00000000-0000-4000-8000-000000000003', 'hello+morgan@simonbeirouti.com', 'employee', 'active', now() - interval '7 days', now() - interval '7 days', null, 'sent', now() - interval '7 days'),
+  (1104, 1001, null, 'hello+jamie@simonbeirouti.com', 'employee', 'invited', now(), null, null, 'pending', null);
 
 insert into public.employee_profiles (
   id, organisation_id, membership_id, first_name, last_name, phone, job_title
