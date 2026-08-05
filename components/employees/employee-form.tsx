@@ -195,9 +195,10 @@ function EmployeeProfileFieldControls({
           createLayout
             ? "grid grid-cols-2 gap-4 pt-2"
             : !includeJobTitle
-              ? "grid grid-cols-1 gap-4"
+              ? "grid grid-cols-2 gap-4"
               : "grid gap-4 pt-2 sm:grid-cols-2"
         }
+        data-employee-name-row
         data-employee-form-row={createLayout ? "name" : undefined}
       >
         <Field className={!includeJobTitle ? "pt-2" : undefined}>

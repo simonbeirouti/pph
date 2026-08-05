@@ -181,7 +181,7 @@ export function EmployeeDirectoryTable({
         </TableBody>
       </Table>
 
-      <SheetContent className="gap-0 overflow-hidden data-[side=right]:w-full data-[side=right]:sm:w-[min(46rem,calc(100vw-2rem))] data-[side=right]:sm:max-w-[min(84rem,calc(100vw-2rem))]">
+      <SheetContent className="gap-0 overflow-hidden data-[side=right]:w-full data-[side=right]:sm:w-[min(34.5rem,calc(100vw-2rem))] data-[side=right]:sm:max-w-[min(63rem,calc(100vw-2rem))]">
         {selectedEmployee ? (
           <EmployeeEditor
             currentRole={selectedEmployee.role}

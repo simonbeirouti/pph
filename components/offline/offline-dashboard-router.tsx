@@ -22,7 +22,6 @@ import { isOfflineLeaseValid } from "@/lib/offline-v2/types"
 import {
   localDateForInstant,
   localDateRange,
-  mondayForLocalDate,
 } from "@/lib/roster/time"
 
 const EMPLOYEE_STATUSES = new Set<EmployeeStatusFilterValue>([
@@ -222,7 +221,7 @@ export function CachedDashboardRoutes() {
     const timezone = membership.timezone
     const today = localDateForInstant(now, timezone)
     const selectedDate = validLocalDate(url.searchParams.get("date")) ?? today
-    const range = localDateRange(mondayForLocalDate(selectedDate), 7, timezone)
+    const range = localDateRange(selectedDate, 7, timezone)
     const shifts = snapshot.roster.shifts.filter(
       (shift) =>
         shift.archivedAt === null &&

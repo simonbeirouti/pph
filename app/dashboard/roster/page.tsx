@@ -13,7 +13,6 @@ import {
 import {
   localDateForInstant,
   localDateRange,
-  mondayForLocalDate,
 } from "@/lib/roster/time"
 
 function validLocalDate(value: string | undefined) {
@@ -43,8 +42,7 @@ export default async function RosterPage({
   const now = new Date()
   const today = localDateForInstant(now, timezone)
   const selectedDate = validLocalDate(params.date) ?? today
-  const weekStart = mondayForLocalDate(selectedDate)
-  const range = localDateRange(weekStart, 7, timezone)
+  const range = localDateRange(selectedDate, 7, timezone)
 
   if (membership.role === "employee") {
     const [calendar, employee, assignedJobs] = await Promise.all([

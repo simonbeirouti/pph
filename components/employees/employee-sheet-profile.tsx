@@ -125,7 +125,7 @@ export function EmployeeSheetProfile({
       }}
       ref={formRef}
     >
-      <SheetHeader className="shrink-0 items-center border-b px-6 pb-5 text-center">
+      <SheetHeader className="shrink-0 flex-row items-center gap-4 border-b px-6 pb-5 text-left">
         <button
           aria-label={`Change ${employee.displayName} profile photo`}
           className="group relative rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -152,41 +152,45 @@ export function EmployeeSheetProfile({
           tabIndex={-1}
           type="file"
         />
-        <SheetTitle className="mt-2 text-xl">{employee.displayName}</SheetTitle>
-        <SheetDescription className="sr-only">
-          Employee profile and work details.
-        </SheetDescription>
-        <div className="flex flex-wrap justify-center gap-2 pt-2">
-          <Badge className="capitalize" variant="secondary">
-            {employee.status === "invited" ? "Invite pending" : employee.status}
-          </Badge>
-          <Badge className="capitalize" variant="outline">
-            {employee.role}
-          </Badge>
+        <div className="min-w-0 flex-1" data-employee-profile-header>
+          <SheetTitle className="text-xl">{employee.displayName}</SheetTitle>
+          <SheetDescription className="sr-only">
+            Employee profile and work details.
+          </SheetDescription>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Badge className="capitalize" variant="secondary">
+              {employee.status === "invited" ? "Invite pending" : employee.status}
+            </Badge>
+            <Badge className="capitalize" variant="outline">
+              {employee.role}
+            </Badge>
+          </div>
+          <div className="flex items-start gap-2 pt-3" data-employee-profile-actions>
+            <div className="flex gap-2">
+              <Button
+                aria-label={`Email ${employee.displayName}`}
+                nativeButton={false}
+                render={<a href={`mailto:${employee.email}`} />}
+                size="icon-sm"
+                variant="outline"
+              >
+                <MailIcon />
+              </Button>
+              <Button
+                aria-label={`Call ${employee.displayName}`}
+                nativeButton={false}
+                render={
+                  <a href={`tel:${employee.phone.replace(/[^\d+*#,;]/g, "")}`} />
+                }
+                size="icon-sm"
+                variant="outline"
+              >
+                <PhoneIcon />
+              </Button>
+            </div>
+            {roleActions ? <div className="w-36">{roleActions}</div> : null}
+          </div>
         </div>
-        <div className="grid w-full max-w-3xl grid-cols-2 gap-2 pt-3">
-          <Button
-            nativeButton={false}
-            render={<a href={`mailto:${employee.email}`} />}
-            variant="outline"
-          >
-            <MailIcon />
-            Email
-          </Button>
-          <Button
-            nativeButton={false}
-            render={
-              <a href={`tel:${employee.phone.replace(/[^\d+*#,;]/g, "")}`} />
-            }
-            variant="outline"
-          >
-            <PhoneIcon />
-            Call
-          </Button>
-        </div>
-        {roleActions ? (
-          <div className="w-full max-w-3xl">{roleActions}</div>
-        ) : null}
       </SheetHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -280,7 +284,7 @@ export function EmployeeSheetProfile({
                 </FieldDescription>
               </div>
               <div
-                className="grid gap-4 sm:grid-cols-3 [&>div]:contents"
+                className="grid gap-4 sm:grid-cols-3 [&>div:not([data-employee-name-row])]:contents sm:[&>div[data-employee-name-row]]:contents"
                 data-employee-profile-fields
                 onChange={markProfileDirty}
               >

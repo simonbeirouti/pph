@@ -164,7 +164,7 @@ export function MembershipRoleSelector() {
   const { displayName, pending, role, setRole } = useEmployeeEdit()
 
   return (
-    <div className="w-full pt-3">
+    <div className="w-full">
       <Select
         disabled={pending}
         onValueChange={(value) => setRole(value as MembershipRole)}
@@ -172,7 +172,7 @@ export function MembershipRoleSelector() {
       >
         <SelectTrigger
           aria-label={`Role for ${displayName}`}
-          className="w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center"
+          className="w-full *:data-[slot=select-value]:justify-start *:data-[slot=select-value]:text-left"
         >
           <SelectValue>{ROLE_LABELS[role]}</SelectValue>
         </SelectTrigger>

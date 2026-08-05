@@ -129,8 +129,8 @@ describe("EmployeeDirectoryTable", () => {
 
     const sheet = screen.getByRole("dialog")
     expect(sheet).toHaveClass(
-      "data-[side=right]:sm:w-[min(46rem,calc(100vw-2rem))]",
-      "data-[side=right]:sm:max-w-[min(84rem,calc(100vw-2rem))]"
+      "data-[side=right]:sm:w-[min(34.5rem,calc(100vw-2rem))]",
+      "data-[side=right]:sm:max-w-[min(63rem,calc(100vw-2rem))]"
     )
     expect(document.querySelector("[data-employee-work-layout]")).toHaveClass(
       "grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))]"
@@ -140,6 +140,25 @@ describe("EmployeeDirectoryTable", () => {
         name: "Change Alex Employee profile photo",
       })
     ).toBeVisible()
+    expect(document.querySelector("[data-employee-profile-header]")).toHaveClass(
+      "min-w-0",
+      "flex-1"
+    )
+    expect(
+      document.querySelector("[data-slot=sheet-header]")
+    ).toHaveClass("flex-row", "items-center", "text-left")
+    expect(
+      screen.getByRole("button", { name: "Email Alex Employee" })
+    ).toHaveClass("size-7")
+    expect(
+      screen.getByRole("button", { name: "Call Alex Employee" })
+    ).toHaveClass("size-7")
+    expect(screen.getByRole("combobox", { name: "Role for Alex Employee" }))
+      .toBeVisible()
+    expect(document.querySelector("[data-employee-profile-actions]")).toHaveClass(
+      "flex",
+      "items-start"
+    )
   })
 
   it("shows only the three soonest jobs and shifts without shift controls", () => {
@@ -177,6 +196,7 @@ describe("EmployeeDirectoryTable", () => {
     const jobs = document.querySelector('[data-employee-summary="jobs"]')
     const shifts = document.querySelector('[data-employee-summary="shifts"]')
     const fields = document.querySelector("[data-employee-profile-fields]")
+    const nameRow = document.querySelector("[data-employee-name-row]")
     expect(jobs?.children).toHaveLength(3)
     expect(within(jobs as HTMLElement).getByText("First job")).toBeVisible()
     expect(within(jobs as HTMLElement).getByText("Second job")).toBeVisible()
@@ -197,6 +217,11 @@ describe("EmployeeDirectoryTable", () => {
       screen.queryByRole("button", { name: "Add shift" })
     ).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Edit .* shift/)).not.toBeInTheDocument()
-    expect(fields).toHaveClass("sm:grid-cols-3", "[&>div]:contents")
+    expect(fields).toHaveClass(
+      "sm:grid-cols-3",
+      "[&>div:not([data-employee-name-row])]:contents",
+      "sm:[&>div[data-employee-name-row]]:contents"
+    )
+    expect(nameRow).toHaveClass("grid", "grid-cols-2")
   })
 })

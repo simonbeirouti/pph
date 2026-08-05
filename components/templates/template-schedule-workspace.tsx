@@ -223,7 +223,7 @@ export function TemplateScheduleWorkspace({
           />
         )
       ) : schedules.length ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {schedules.map((schedule) => (
             <ScheduleCard
               employee={employees.find(
