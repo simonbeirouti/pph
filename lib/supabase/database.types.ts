@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       employee_profiles: {
@@ -345,7 +350,7 @@ export type Database = {
       }
       job_schedules: {
         Row: {
-          assignee_membership_id: number
+          assignee_membership_id: number | null
           created_at: string
           created_by: number
           deleted_at: string | null
@@ -364,7 +369,7 @@ export type Database = {
           weekdays: number[]
         }
         Insert: {
-          assignee_membership_id: number
+          assignee_membership_id?: number | null
           created_at?: string
           created_by: number
           deleted_at?: string | null
@@ -383,7 +388,7 @@ export type Database = {
           weekdays?: number[]
         }
         Update: {
-          assignee_membership_id?: number
+          assignee_membership_id?: number | null
           created_at?: string
           created_by?: number
           deleted_at?: string | null
@@ -574,12 +579,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -606,12 +613,14 @@ export type Database = {
           organisation_id: number
           priority?: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role?:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note?: boolean
           reviewed_at?: string | null
           reviewed_by_membership_id?: number | null
           reviewed_by_role?:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id?: number | null
           schedule_occurrence_at?: string | null
           scheduled_at?: string | null
@@ -638,12 +647,14 @@ export type Database = {
           organisation_id?: number
           priority?: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role?:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note?: boolean
           reviewed_at?: string | null
           reviewed_by_membership_id?: number | null
           reviewed_by_role?:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id?: number | null
           schedule_occurrence_at?: string | null
           scheduled_at?: string | null
@@ -1223,41 +1234,6 @@ export type Database = {
     }
     Functions: {
       activate_invited_membership: { Args: never; Returns: number }
-      list_employee_job_summary_rows: {
-        Args: never
-        Returns: {
-          archived_at: string | null
-          assignee_membership_id: number | null
-          created_at: string
-          created_by: number
-          description: string
-          due_at: string | null
-          id: number
-          location: string
-          minimum_completion_photos: number
-          organisation_id: number
-          priority: Database["public"]["Enums"]["job_priority"]
-          required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
-          requires_completion_note: boolean
-          reviewed_at: string | null
-          reviewed_by_membership_id: number | null
-          reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
-          schedule_id: number | null
-          schedule_occurrence_at: string | null
-          scheduled_at: string | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["job_status"]
-          submission_version: number
-          submitted_at: string | null
-          submitted_by_membership_id: number | null
-          template_id: number | null
-          title: string
-          updated_at: string
-          version: number
-        }[]
-      }
       add_job_comment: {
         Args: { p_body: string; p_job_id: number }
         Returns: {
@@ -1311,12 +1287,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1449,12 +1427,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1477,17 +1457,17 @@ export type Database = {
       }
       create_job_schedule: {
         Args: {
-          p_assignee_membership_id: number
+          p_assignee_membership_id?: number
           p_ends_on?: string
           p_is_enabled?: boolean
-          p_local_time: string
-          p_recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
-          p_starts_on: string
+          p_local_time?: string
+          p_recurrence_type?: Database["public"]["Enums"]["job_schedule_recurrence"]
+          p_starts_on?: string
           p_template_id: number
-          p_weekdays: number[]
+          p_weekdays?: number[]
         }
         Returns: {
-          assignee_membership_id: number
+          assignee_membership_id: number | null
           created_at: string
           created_by: number
           deleted_at: string | null
@@ -1598,10 +1578,11 @@ export type Database = {
         Args: { p_membership_id: number }
         Returns: boolean
       }
+      delete_job: { Args: { p_job_id: number }; Returns: string[] }
       delete_job_schedule: {
         Args: { p_schedule_id: number }
         Returns: {
-          assignee_membership_id: number
+          assignee_membership_id: number | null
           created_at: string
           created_by: number
           deleted_at: string | null
@@ -1660,12 +1641,55 @@ export type Database = {
           entity_id: number
           entity_type: string
           operation: string
-          related_job_id: number | null
+          related_job_id: number
           revision: number
         }[]
       }
       get_offline_sync_revision: { Args: never; Returns: number }
       link_invited_membership: { Args: never; Returns: number }
+      list_employee_job_summary_rows: {
+        Args: never
+        Returns: {
+          archived_at: string | null
+          assignee_membership_id: number | null
+          created_at: string
+          created_by: number
+          description: string
+          due_at: string | null
+          id: number
+          location: string
+          minimum_completion_photos: number
+          organisation_id: number
+          priority: Database["public"]["Enums"]["job_priority"]
+          required_reviewer_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
+          requires_completion_note: boolean
+          reviewed_at: string | null
+          reviewed_by_membership_id: number | null
+          reviewed_by_role:
+            | Database["public"]["Enums"]["membership_role"]
+            | null
+          schedule_id: number | null
+          schedule_occurrence_at: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          submission_version: number
+          submitted_at: string | null
+          submitted_by_membership_id: number | null
+          template_id: number | null
+          title: string
+          updated_at: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_job_participant_identities: {
         Args: { p_job_id: number }
         Returns: {
@@ -1689,12 +1713,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1735,12 +1761,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1812,7 +1840,7 @@ export type Database = {
       set_job_schedule_enabled: {
         Args: { p_is_enabled: boolean; p_schedule_id: number }
         Returns: {
-          assignee_membership_id: number
+          assignee_membership_id: number | null
           created_at: string
           created_by: number
           deleted_at: string | null
@@ -1902,12 +1930,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1936,10 +1966,6 @@ export type Database = {
           submission_update_id: number
         }[]
       }
-      delete_job: {
-        Args: { p_job_id: number }
-        Returns: string[]
-      }
       update_job: {
         Args: {
           p_assignee_membership_id?: number
@@ -1966,12 +1992,14 @@ export type Database = {
           organisation_id: number
           priority: Database["public"]["Enums"]["job_priority"]
           required_reviewer_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           requires_completion_note: boolean
           reviewed_at: string | null
           reviewed_by_membership_id: number | null
           reviewed_by_role:
-            Database["public"]["Enums"]["membership_role"] | null
+            | Database["public"]["Enums"]["membership_role"]
+            | null
           schedule_id: number | null
           schedule_occurrence_at: string | null
           scheduled_at: string | null
@@ -1994,18 +2022,18 @@ export type Database = {
       }
       upsert_job_schedule: {
         Args: {
-          p_assignee_membership_id: number
+          p_assignee_membership_id?: number
           p_ends_on?: string
           p_is_enabled?: boolean
-          p_local_time: string
-          p_recurrence_type: Database["public"]["Enums"]["job_schedule_recurrence"]
+          p_local_time?: string
+          p_recurrence_type?: Database["public"]["Enums"]["job_schedule_recurrence"]
           p_schedule_id: number
-          p_starts_on: string
+          p_starts_on?: string
           p_template_id: number
-          p_weekdays: number[]
+          p_weekdays?: number[]
         }
         Returns: {
-          assignee_membership_id: number
+          assignee_membership_id: number | null
           created_at: string
           created_by: number
           deleted_at: string | null
@@ -2074,11 +2102,19 @@ export type Database = {
       job_schedule_recurrence: "daily" | "weekly"
       job_status: "assigned" | "in_progress" | "in_review" | "archived"
       job_update_type:
-        "note" | "comment" | "status_change" | "assignment_change" | "system"
+        | "note"
+        | "comment"
+        | "status_change"
+        | "assignment_change"
+        | "system"
       membership_role: "owner" | "manager" | "employee"
       membership_status: "invited" | "active" | "inactive"
       push_delivery_status:
-        "queued" | "sending" | "delivered" | "retry" | "permanent_failure"
+        | "queued"
+        | "sending"
+        | "delivered"
+        | "retry"
+        | "permanent_failure"
       push_event_type:
         | "job_assignment"
         | "job_reassignment"
@@ -2103,12 +2139,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2130,12 +2166,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2154,12 +2191,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2178,12 +2216,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2196,11 +2235,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

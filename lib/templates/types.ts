@@ -32,7 +32,7 @@ export type JobScheduleOccurrence = {
 }
 
 export type JobSchedule = {
-  assigneeMembershipId: number
+  assigneeMembershipId: number | null
   createdAt: string
   deletedAt: string | null
   endsOn: string | null

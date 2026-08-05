@@ -99,7 +99,7 @@ values
   (1001, 1301, 1102, 'status_change', 'Submitted for review.', jsonb_build_object('from', 'in_progress', 'to', 'in_review')),
   (1001, 1303, 1103, 'note', 'Labels are being applied now.', '{}'::jsonb);
 
--- Each active employee has an active and an inactive reusable template, plus matching enabled and paused schedules.
+-- Active employees have reusable templates, plus a generic unassigned template for daily allocation.
 insert into public.job_templates (
   id, organisation_id, assignee_membership_id, title, description, location, priority,
   requires_completion_note, minimum_completion_photos, is_active, created_by
@@ -109,7 +109,8 @@ values
   (1401, 1001, 1102, 'Taylor weekly hive inspection', 'Inspect hive health and record findings.', 'North apiary', 'normal', true, 1, true, 1101),
   (1402, 1001, 1102, 'Taylor retired smoker check', 'Legacy smoker maintenance checklist.', 'Shed A', 'low', false, 0, false, 1101),
   (1403, 1001, 1103, 'Morgan weekly stock count', 'Count packed jars and update stock levels.', 'Packing room', 'normal', true, 0, true, 1101),
-  (1404, 1001, 1103, 'Morgan retired market setup', 'Legacy market setup checklist.', 'Storage bay', 'low', false, 0, false, 1101);
+  (1404, 1001, 1103, 'Morgan retired market setup', 'Legacy market setup checklist.', 'Storage bay', 'low', false, 0, false, 1101),
+  (1405, 1001, null, 'Daily shared equipment check', 'Check shared equipment and record any maintenance needs.', 'Equipment shed', 'normal', false, 0, true, 1101);
 
 insert into public.job_schedules (
   id, organisation_id, template_id, assignee_membership_id, recurrence_type, weekdays,
@@ -120,7 +121,8 @@ values
   (1501, 1001, 1401, 1102, 'weekly', array[1, 3]::smallint[], '08:30', current_date, null, 'Australia/Melbourne', true, now() + interval '1 day', 1101),
   (1502, 1001, 1402, 1102, 'weekly', array[5]::smallint[], '08:30', current_date - 30, null, 'Australia/Melbourne', false, now() + interval '3 days', 1101),
   (1503, 1001, 1403, 1103, 'weekly', array[2, 4]::smallint[], '09:00', current_date, null, 'Australia/Melbourne', true, now() + interval '2 days', 1101),
-  (1504, 1001, 1404, 1103, 'weekly', array[6]::smallint[], '09:00', current_date - 30, null, 'Australia/Melbourne', false, now() + interval '4 days', 1101);
+  (1504, 1001, 1404, 1103, 'weekly', array[6]::smallint[], '09:00', current_date - 30, null, 'Australia/Melbourne', false, now() + interval '4 days', 1101),
+  (1505, 1001, 1405, null, 'daily', array[]::smallint[], '07:30', current_date, null, 'Australia/Melbourne', true, now() + interval '5 days', 1101);
 
 -- Weekday shifts for both active employees, using the current Melbourne week.
 insert into public.roster_shifts (

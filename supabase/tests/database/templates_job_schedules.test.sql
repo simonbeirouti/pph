@@ -1,6 +1,6 @@
 begin;
 
-select plan(50);
+select plan(54);
 
 select has_table('public', 'job_templates', 'job templates exist');
 select has_table('public', 'job_schedules', 'job schedules exist');
@@ -91,6 +91,27 @@ select lives_ok(
     )
   $$,
   'owner creates a multi-weekday schedule'
+);
+select lives_ok(
+  $$ select public.create_job_template(p_title => 'S08 unassigned recurring work') $$,
+  'owner creates a template for unassigned recurring work'
+);
+select lives_ok(
+  $$
+    select public.create_job_schedule(
+      p_template_id => (
+        select id from public.job_templates
+        where title = 'S08 unassigned recurring work'
+      ),
+      p_assignee_membership_id => null,
+      p_recurrence_type => 'daily',
+      p_weekdays => array[]::smallint[],
+      p_local_time => '09:00',
+      p_starts_on => '2035-01-01',
+      p_ends_on => '2035-01-01'
+    )
+  $$,
+  'owner creates an unassigned schedule'
 );
 select lives_ok(
   $$
@@ -267,6 +288,27 @@ select is(
   ),
   1::bigint,
   'inclusive final occurrence generates exactly one job'
+);
+select is(
+  (
+    select job.assignee_membership_id
+    from public.jobs as job
+    join public.job_templates as template on template.id = job.template_id
+    where template.title = 'S08 unassigned recurring work'
+  ),
+  null::bigint,
+  'unassigned schedules generate unassigned jobs'
+);
+select is(
+  (
+    select occurrence.status::text
+    from public.job_schedule_occurrences as occurrence
+    join public.job_schedules as schedule on schedule.id = occurrence.schedule_id
+    join public.job_templates as template on template.id = schedule.template_id
+    where template.title = 'S08 unassigned recurring work'
+  ),
+  'generated',
+  'unassigned schedule occurrences are generated successfully'
 );
 select lives_ok(
   $$

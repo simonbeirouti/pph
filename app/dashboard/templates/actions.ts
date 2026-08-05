@@ -87,7 +87,10 @@ export async function setTemplateActiveAction(
 
 function scheduleValues(formData: FormData) {
   return {
-    assigneeMembershipId: String(formData.get("assigneeMembershipId") ?? ""),
+    assigneeMembershipId:
+      String(formData.get("assigneeMembershipId") ?? "") === "none"
+        ? ""
+        : String(formData.get("assigneeMembershipId") ?? ""),
     endsOn: String(formData.get("endsOn") ?? ""),
     isEnabled: formData.has("isEnabled"),
     localTime: String(formData.get("localTime") ?? ""),
@@ -115,7 +118,11 @@ export async function saveScheduleAction(
 
   const supabase = await createClient()
   const args = {
-    p_assignee_membership_id: Number(parsed.data.assigneeMembershipId),
+    ...(parsed.data.assigneeMembershipId
+      ? {
+          p_assignee_membership_id: Number(parsed.data.assigneeMembershipId),
+        }
+      : {}),
     ...(parsed.data.endsOn ? { p_ends_on: parsed.data.endsOn } : {}),
     p_is_enabled: parsed.data.isEnabled,
     p_local_time: parsed.data.localTime,

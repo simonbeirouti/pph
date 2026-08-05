@@ -19,9 +19,7 @@ export const templateSchema = z.object({
 
 export const scheduleSchema = z
   .object({
-    assigneeMembershipId: z
-      .string()
-      .regex(/^[1-9]\d*$/u, "Choose an active employee."),
+    assigneeMembershipId: optionalMembershipId,
     endsOn: z
       .string()
       .trim()

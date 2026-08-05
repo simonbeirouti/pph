@@ -191,7 +191,7 @@ export function TemplateScheduleWorkspace({
             </Button>
           ) : (
             <Button
-              disabled={!activeTemplates.length || !employees.length}
+              disabled={!activeTemplates.length}
               onClick={() => setScheduleDialog("new")}
             >
               <PlusIcon /> New schedule
@@ -248,7 +248,7 @@ export function TemplateScheduleWorkspace({
               ? "Generate daily or weekly jobs from an active template."
               : "Create and activate a template before adding a schedule."
           }
-          disabled={!activeTemplates.length || !employees.length}
+          disabled={!activeTemplates.length}
           icon={<CalendarClockIcon />}
           onAction={() => setScheduleDialog("new")}
           title="No schedules yet"
@@ -528,7 +528,9 @@ function ScheduleCard({
         <CardTitle>{template?.title ?? "Unavailable template"}</CardTitle>
         <CardDescription>
           {describeRecurrence(schedule)} ·{" "}
-          {employee?.displayName ?? "Unavailable employee"}
+          {schedule.assigneeMembershipId === null
+            ? "Unassigned"
+            : (employee?.displayName ?? "Unavailable employee")}
         </CardDescription>
         <CardAction>
           <DropdownMenu>
@@ -906,7 +908,9 @@ function ScheduleForm({
         const temporaryId = schedule?.id ?? -Date.now()
         const now = new Date().toISOString()
         const next: JobSchedule = {
-          assigneeMembershipId: Number(payload.assigneeMembershipId),
+          assigneeMembershipId: nullablePositiveNumber(
+            payload.assigneeMembershipId
+          ),
           createdAt: schedule?.createdAt ?? now,
           deletedAt: null,
           endsOn: payload.endsOn || null,
@@ -992,14 +996,18 @@ function ScheduleForm({
             <FormSelect
               id="schedule-assignee"
               initialValue={String(
-                schedule?.assigneeMembershipId ?? employees[0]?.membershipId
+                schedule?.assigneeMembershipId ??
+                  employees[0]?.membershipId ??
+                  "none"
               )}
               name="assigneeMembershipId"
-              options={employees.map((employee) => ({
-                label: employee.displayName,
-                value: String(employee.membershipId),
-              }))}
-              required
+              options={[
+                { label: "Unassigned", value: "none" },
+                ...employees.map((employee) => ({
+                  label: employee.displayName,
+                  value: String(employee.membershipId),
+                })),
+              ]}
             />
           </Field>
         </div>

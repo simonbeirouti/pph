@@ -173,6 +173,10 @@ describe("TemplateScheduleWorkspace", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Assignee" })
     ).toHaveTextContent("Alex Employee")
+    await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }))
+    expect(
+      await screen.findByRole("option", { name: "Unassigned" })
+    ).toBeVisible()
     expect(
       within(dialog).getByRole("combobox", { name: "Repeats" })
     ).toHaveTextContent("Weekly")
@@ -215,6 +219,30 @@ describe("TemplateScheduleWorkspace", () => {
     expect(availableDays.length).toBeGreaterThan(0)
     await user.click(availableDays.at(-1)!)
     expect((startsOn as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it("allows an unassigned schedule when no employee is available", async () => {
+    const user = userEvent.setup()
+    render(
+      <TemplateScheduleWorkspace
+        employees={[]}
+        initialView="schedules"
+        schedules={[]}
+        templates={[template({ id: 1, title: "Active template" })]}
+        timezone="Australia/Melbourne"
+      />
+    )
+
+    const newSchedule = screen.getByRole("button", { name: "New schedule" })
+    expect(newSchedule).toBeEnabled()
+    await user.click(newSchedule)
+
+    expect(
+      within(screen.getByRole("dialog", { name: "New schedule" })).getByRole(
+        "combobox",
+        { name: "Assignee" }
+      )
+    ).toHaveTextContent("Unassigned")
   })
 
   it("opens template forms in a bottom drawer on mobile", async () => {

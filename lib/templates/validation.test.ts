@@ -47,6 +47,12 @@ describe("schedule validation", () => {
     expect(scheduleSchema.safeParse(valid).success).toBe(true)
   })
 
+  it("accepts an unassigned schedule", () => {
+    expect(
+      scheduleSchema.safeParse({ ...valid, assigneeMembershipId: "" }).success
+    ).toBe(true)
+  })
+
   it("requires a weekday and an inclusive forward date range", () => {
     const result = scheduleSchema.safeParse({
       ...valid,
